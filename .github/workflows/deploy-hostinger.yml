@@ -40,13 +40,16 @@ jobs:
       - name: Validar artefato
         run: test -f dist/index.html && test -f dist/config.js
 
-      - name: Enviar dist para public_html/central
-        uses: SamKirkland/FTP-Deploy-Action@v4.4.0
+      - name: Enviar dist para public_html/central via SFTP
+        uses: appleboy/scp-action@v1
         with:
-          server: ${{ secrets.HOSTINGER_FTP_SERVER }}
+          host: ${{ secrets.HOSTINGER_FTP_SERVER }}
           username: ${{ secrets.HOSTINGER_FTP_USERNAME }}
           password: ${{ secrets.HOSTINGER_FTP_PASSWORD }}
-          protocol: ftp
-          port: 21
-          local-dir: ./dist/
-          server-dir: ./central/
+          port: 65002
+          source: "dist/*"
+          target: "/home/u998431343/domains/clarotechnet.com.br/public_html/central"
+          strip_components: 1
+          overwrite: true
+          timeout: 60s
+          command_timeout: 10m

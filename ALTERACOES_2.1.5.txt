@@ -1,9 +1,0 @@
-DOMINIUM TOA TEC1 2.1.5
-
-- Corrige a espera silenciosa na etapa 5/7.
-- O Chrome dedicado agora abre visivel durante a autenticacao inicial.
-- Assim que o Console de Alocacao autentica, o Chrome dedicado e minimizado automaticamente.
-- A URL do TOA e passada explicitamente ao iniciar o Chrome; nao depende mais de aba restaurada do perfil.
-- A tela de inicializacao mostra o estado da sessao a cada ~5 segundos.
-- O coletor continua iniciando somente depois que a sessao estiver realmente online.
-- Credenciais continuam protegidas pela DPAPI e nunca sao impressas nos logs.

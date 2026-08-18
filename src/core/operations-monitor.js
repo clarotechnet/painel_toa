@@ -363,6 +363,23 @@
     );
   }
 
+  function buildTvVoiceMessage(rows, value = new Date()) {
+    const now = value instanceof Date ? value : new Date(value || Date.now());
+    return (Array.isArray(rows) ? rows : []).slice(0, 2).map((row, index) => {
+      const deadline = new Date(row?.tec1_deadline || "");
+      const diff = deadline.getTime() - now.getTime();
+      const absoluteMinutes = Number.isFinite(diff)
+        ? Math.max(1, Math.ceil(Math.abs(diff) / 60000)) : null;
+      const timing = absoluteMinutes === null
+        ? "tempo não informado"
+        : diff < 0
+          ? `atrasada ${absoluteMinutes} minuto${absoluteMinutes === 1 ? "" : "s"}`
+          : `faltam ${absoluteMinutes} minuto${absoluteMinutes === 1 ? "" : "s"}`;
+      return `Prioridade ${index + 1}. Técnico ${row?.technician || "não informado"}. `
+        + `OS ${spokenDigits(row?.os)}. ${timing}.`;
+    }).join(" ");
+  }
+
   function orderRow(order, now) {
     const tec1 = tec1State(order, now);
     const deadline = tec1Deadline(order);
@@ -863,6 +880,7 @@
     buildMonitorModel,
     buildTec1ContractAlerts,
     buildTec1VoiceMessage,
+    buildTvVoiceMessage,
     buildTvDashboard,
     bucketFromSource,
     normalizeOrder,

@@ -446,6 +446,7 @@ function renderTv(store, alertService) {
       ? ` · exibindo ${technicianPage.start}–${technicianPage.end}` : '';
     technicianSummary.textContent = `${technicianPage.total} técnico${technicianPage.total === 1 ? '' : 's'} em execução/rota${pageLabel}`;
   }
+  alertService.syncTvFocus(focusPage.items);
   const fullscreenButton = tvRoot.querySelector('#tvFullscreen');
   const themeButton = document.createElement('button');
   const lightTheme = document.documentElement.dataset.theme === 'light';
@@ -465,10 +466,11 @@ function renderTv(store, alertService) {
   window.lucide?.createIcons();
 }
 
-function updateTvLive(store) {
+function updateTvLive(store, alertService) {
   const model = buildModel(store.get());
   const tv = window.DominiumMonitor.buildTvDashboard(model);
   const focusPage = pageTvFocusRows(tv.tec1Rows, tvSlideIndex);
+  alertService.syncTvFocus(focusPage.items);
   const now = new Date();
   const clockRoot = document.querySelector('#tvClock');
   const updatedRoot = document.querySelector('.monitor-tv-footer > strong');
@@ -493,12 +495,13 @@ function enterTv(store, alertService) {
   tvSlideIndex = 0;
   tvTechnicianPageIndex = 0;
   document.body.classList.add('monitor-tv-open');
+  alertService.setTvMode(true);
   root.classList.remove('hidden');
   renderTv(store, alertService);
   root.requestFullscreen?.().catch(() => {});
   clearInterval(tvTimer);
   clearInterval(tvSlideTimer);
-  tvTimer = setInterval(() => updateTvLive(store), 1000);
+  tvTimer = setInterval(() => updateTvLive(store, alertService), 1000);
   tvSlideTimer = setInterval(() => {
     const model = buildModel(store.get());
     const tv = window.DominiumMonitor.buildTvDashboard(model);
@@ -511,7 +514,7 @@ function enterTv(store, alertService) {
     tvTechnicianPageIndex = tv.activeTechnicians.length
       ? (tvTechnicianPageIndex + 1) % technicianPages : 0;
     renderTv(store, alertService);
-  }, 8000);
+  }, 12000);
 }
 function exitTv() {
   clearInterval(tvTimer); tvTimer = null;
@@ -519,6 +522,7 @@ function exitTv() {
   tvSlideIndex = 0;
   tvTechnicianPageIndex = 0;
   document.body.classList.remove('monitor-tv-open');
+  globalAlertService?.setTvMode(false);
   const root = document.querySelector('#monitorTv');
   root.className = 'monitor-tv hidden'; root.innerHTML = '';
   if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});

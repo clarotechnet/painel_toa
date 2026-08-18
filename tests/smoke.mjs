@@ -103,6 +103,13 @@ const confirmedWindowRow = confirmedWindowModel.views.monitor.rows[0];
 assert.equal(confirmedWindowRow.tec1_kind, 'risk');
 assert.equal(confirmedWindowRow.tec1_minutes, 37);
 assert.equal(confirmedWindowRow.deadline_basis, 'official_window');
+const currentTvVoice = globalThis.DominiumMonitor.buildTvVoiceMessage([{
+  os: '2650766808', technician: 'GABRIEL DE MORAIS BRITO', tec1_kind: 'risk',
+  tec1_minutes: 60, tec1_deadline: '2026-08-13T18:00:00-03:00',
+}], new Date('2026-08-13T17:50:00-03:00'));
+assert.match(currentTvVoice, /GABRIEL DE MORAIS BRITO/);
+assert.match(currentTvVoice, /faltam 10 minutos/,
+  'Voz da TV deve recalcular o prazo atual em vez de falar o valor antigo da fila');
 
 const unscheduledModel = globalThis.DominiumMonitor.buildMonitorModel([{
   scheduled_date: '2026-08-14', activity_id: '187458590', contract: '1077489',

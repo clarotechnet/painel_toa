@@ -1,6 +1,6 @@
 import { normalize } from '../utils/text.js';
 
-const VOICE_KEYS = 'dominium-toa-tec1-voice-keys-v2';
+const VOICE_KEYS = 'dominium-toa-tec1-voice-keys-v3';
 
 export class AlertService {
   constructor() {
@@ -10,6 +10,9 @@ export class AlertService {
     this.notificationKeys = new Set();
     this.speaking = false;
     this.queue = [];
+    this.tvMode = false;
+    this.currentVoiceKeys = [];
+    this.voiceGeneration = 0;
   }
 
   loadKeys() {
@@ -36,13 +39,46 @@ export class AlertService {
     this.voice = !this.voice;
     localStorage.setItem('dominium-toa-voice', this.voice ? '1' : '0');
     if (!this.voice) {
-      this.queue = [];
-      window.speechSynthesis?.cancel?.();
-    } else {
-      this.queue.push({ key: `enabled-${Date.now()}`, message: 'Alertas de voz do téqui um ativados.' });
-      this.processVoice();
+      this.cancelVoice();
     }
     return this.voice;
+  }
+
+  cancelVoice() {
+    this.voiceGeneration += 1;
+    this.queue = [];
+    this.speaking = false;
+    this.currentVoiceKeys = [];
+    window.speechSynthesis?.cancel?.();
+  }
+
+  setTvMode(enabled) {
+    const next = Boolean(enabled);
+    if (this.tvMode === next) return;
+    this.tvMode = next;
+    this.cancelVoice();
+  }
+
+  tvVoiceKey(item) {
+    const minutes = Number(item?.tec1_minutes);
+    const phase = item?.tec1_kind === 'late' || minutes < 0 ? 'late'
+      : minutes <= 15 ? 'risk-15' : minutes <= 30 ? 'risk-30' : 'risk-60';
+    return `tv:${item?.os || '-'}:${item?.tec1_deadline || '-'}:${phase}`;
+  }
+
+  syncTvFocus(items) {
+    if (!this.tvMode || !this.voice) return;
+    const visible = (Array.isArray(items) ? items : [])
+      .filter((item) => ['risk', 'late'].includes(item?.tec1_kind) && item?.tec1_deadline)
+      .slice(0, 2)
+      .map((item) => ({ ...item, voiceKey: this.tvVoiceKey(item) }));
+    const visibleKeys = new Set(visible.map((item) => item.voiceKey));
+    if (this.speaking && this.currentVoiceKeys.some((key) => !visibleKeys.has(key))) {
+      this.cancelVoice();
+    }
+    const pending = visible.filter((item) => !this.spoken.has(item.voiceKey));
+    this.queue = pending.length ? [{ tv: true, alerts: pending, keys: pending.map((item) => item.voiceKey) }] : [];
+    this.processVoice();
   }
 
   notify(model) {
@@ -56,7 +92,7 @@ export class AlertService {
           tag: `toa-tec1-${alert.key}`,
         });
       }
-      if (this.voice && !this.spoken.has(alert.key) && this.queue.length < 12) {
+      if (!this.tvMode && this.voice && !this.spoken.has(alert.key) && this.queue.length < 4) {
         this.spoken.add(alert.key);
         this.queue.push(alert);
       }
@@ -80,19 +116,29 @@ export class AlertService {
   processVoice() {
     if (!this.voice || this.speaking || !this.queue.length || !('speechSynthesis' in window)) return;
     const alert = this.queue.shift();
-    const message = alert.message || window.DominiumMonitor?.buildTec1VoiceMessage(alert) || 'Alerta de TEC1.';
+    const keys = alert.tv ? alert.keys : [alert.key];
+    const message = alert.tv
+      ? window.DominiumMonitor?.buildTvVoiceMessage(alert.alerts, new Date())
+      : alert.message || window.DominiumMonitor?.buildTec1VoiceMessage(alert) || 'Alerta de TEC1.';
+    if (!message) return;
     const spoken = window.DominiumMonitor?.speechPronunciationText(message) || message;
     const utterance = new SpeechSynthesisUtterance(spoken);
     utterance.lang = 'pt-BR';
-    utterance.rate = 0.94;
-    utterance.pitch = 1;
+    utterance.rate = 1.18;
+    utterance.pitch = 1.02;
     utterance.volume = 1;
     const voice = this.preferredVoice();
     if (voice) utterance.voice = voice;
+    keys.forEach((key) => this.spoken.add(key));
+    this.persist();
     this.speaking = true;
+    this.currentVoiceKeys = keys;
+    const generation = ++this.voiceGeneration;
     const finish = () => {
+      if (generation !== this.voiceGeneration) return;
       this.speaking = false;
-      window.setTimeout(() => this.processVoice(), 350);
+      this.currentVoiceKeys = [];
+      window.setTimeout(() => this.processVoice(), 120);
     };
     utterance.onend = finish;
     utterance.onerror = finish;

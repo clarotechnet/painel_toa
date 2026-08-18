@@ -43,28 +43,48 @@
     return match ? match[1].toUpperCase() : "";
   }
 
+  const OPERATION_TIMEZONE_OFFSET = "-03:00";
+
+  function operationDate(year, month, day, hour = 0, minute = 0, second = 0) {
+    const parts = [year, month, day, hour, minute, second]
+      .map((part) => String(part).padStart(2, "0"));
+    return new Date(`${parts[0]}-${parts[1]}-${parts[2]}T${parts[3]}:${parts[4]}:${parts[5]}${OPERATION_TIMEZONE_OFFSET}`);
+  }
+
+  function dateParts(value) {
+    const iso = text(value).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (iso) return [Number(iso[1]), Number(iso[2]), Number(iso[3])];
+    const br = text(value).match(/^(\d{2})\/(\d{2})\/(\d{2}|\d{4})/);
+    if (!br) return null;
+    const shortYear = Number(br[3]);
+    return [br[3].length === 2 ? 2000 + shortYear : shortYear, Number(br[2]), Number(br[1])];
+  }
+
   function parseDate(value, fallbackDate) {
     const raw = text(value);
     if (!raw) return null;
-    const iso = new Date(raw);
-    if (!Number.isNaN(iso.getTime())) return iso;
-    const clock = raw.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+    const clock = raw.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
     if (clock && fallbackDate) {
-      let base = new Date(`${fallbackDate}T00:00:00`);
-      const fallbackBr = text(fallbackDate).match(/^(\d{2})\/(\d{2})\/(\d{2}|\d{4})$/);
-      if (Number.isNaN(base.getTime()) && fallbackBr) {
-        const shortYear = Number(fallbackBr[3]);
-        const year = fallbackBr[3].length === 2 ? 2000 + shortYear : shortYear;
-        base = new Date(year, Number(fallbackBr[2]) - 1, Number(fallbackBr[1]));
-      }
-      if (!Number.isNaN(base.getTime())) {
-        base.setHours(Number(clock[1]), Number(clock[2]), 0, 0);
-        return base;
-      }
+      const parts = dateParts(fallbackDate);
+      if (parts) return operationDate(...parts, Number(clock[1]), Number(clock[2]), Number(clock[3] || 0));
     }
-    const br = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2}))?$/);
-    if (!br) return null;
-    return new Date(Number(br[3]), Number(br[2]) - 1, Number(br[1]), Number(br[4] || 0), Number(br[5] || 0));
+    const naiveIso = raw.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T\s](\d{1,2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?)?$/);
+    if (naiveIso) {
+      return operationDate(
+        Number(naiveIso[1]), Number(naiveIso[2]), Number(naiveIso[3]),
+        Number(naiveIso[4] || 0), Number(naiveIso[5] || 0), Number(naiveIso[6] || 0),
+      );
+    }
+    const br = raw.match(/^(\d{2})\/(\d{2})\/(\d{2}|\d{4})(?:\s+(\d{1,2}):(\d{2}))?$/);
+    if (br) {
+      const shortYear = Number(br[3]);
+      return operationDate(
+        br[3].length === 2 ? 2000 + shortYear : shortYear,
+        Number(br[2]), Number(br[1]), Number(br[4] || 0), Number(br[5] || 0),
+      );
+    }
+    const iso = new Date(raw);
+    return Number.isNaN(iso.getTime()) ? null : iso;
   }
 
   function parseWindow(source) {

@@ -1,0 +1,70 @@
+{
+  "id": "bA7cD9eF2gH4jK6m",
+  "name": "DOMINIUM TOA - Publicar snapshot no PostgreSQL",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "dominium-toa-snapshot",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [-320, 0],
+      "id": "9f88b96d-1d42-471a-a9ca-8823eb8edc34",
+      "name": "Receber snapshot TOA",
+      "webhookId": "3815d226-aa54-459e-b24c-680234b2fd25"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://cloud-api:8000/internal/snapshots",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $json.headers.authorization || '' }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify($json.body) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-40, 0],
+      "id": "55e77ce1-7dd0-490e-8da6-71bab5c00ae7",
+      "name": "Validar e gravar na API"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Receber snapshot TOA": {
+      "main": [
+        [
+          {
+            "node": "Validar e gravar na API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "f6296534-f6b1-472f-88f9-14e0cc4173f5",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": []
+}

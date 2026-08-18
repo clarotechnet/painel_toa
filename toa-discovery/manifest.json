@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "TOA Discovery",
+  "version": "0.4.0",
+  "description": "Mapeamento operacional sanitizado do Oracle Field Service, sem persistir credenciais ou dados pessoais.",
+  "permissions": [
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://clarobrasil.etadirect.com/*",
+    "http://127.0.0.1:8765/*"
+  ],
+  "background": {
+    "service_worker": "service-worker.js"
+  },
+  "action": {
+    "default_title": "TOA Discovery",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://clarobrasil.etadirect.com/*"],
+      "js": ["core.js", "page-hook.js"],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": true,
+      "match_about_blank": true
+    },
+    {
+      "matches": ["https://clarobrasil.etadirect.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_start",
+      "world": "ISOLATED",
+      "all_frames": true,
+      "match_about_blank": true
+    }
+  ]
+}

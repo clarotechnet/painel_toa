@@ -1,0 +1,13 @@
+node_modules
+dist
+data
+.git
+.env
+.env.local
+.env.docker
+backend/toa/config/toa_credentials.dat
+backend/toa/config/toa_chrome_profile
+__pycache__
+.pytest_cache
+*.log
+

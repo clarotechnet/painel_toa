@@ -1,0 +1,42 @@
+:root {
+  color-scheme: dark;
+  font-family: Inter, "Segoe UI", sans-serif;
+  background: #0b0e12;
+  color: #f4f7fb;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 390px; background: #0b0e12; }
+main { padding: 18px; }
+header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.eyebrow { color: #6f8fb8; font-size: 10px; font-weight: 800; letter-spacing: .12em; }
+h1 { margin: 3px 0 0; font-size: 20px; }
+.badge { border: 1px solid #304156; border-radius: 999px; padding: 6px 9px; font-size: 10px; font-weight: 800; }
+.badge.online { color: #53e69d; border-color: #176e49; background: #0d2d20; }
+.badge.offline { color: #f0b44e; border-color: #62471b; background: #2c210d; }
+.security { margin: 14px 0; padding: 10px 12px; border: 1px solid #213247; border-radius: 8px; color: #adc0d7; background: #111823; font-size: 11px; line-height: 1.45; }
+.metrics { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.metrics div { padding: 10px; border: 1px solid #242c37; border-radius: 8px; background: #11151a; }
+.metrics span { display: block; color: #8fa1b7; font-size: 10px; }
+.metrics strong { display: block; margin-top: 2px; font-size: 21px; }
+.status { margin: 12px 0; padding: 10px 0; border-top: 1px solid #242c37; border-bottom: 1px solid #242c37; }
+.status span, .status small { display: block; }
+.status span { font-size: 11px; color: #d2deec; }
+.status small { margin-top: 4px; color: #708196; }
+.bucket-panel { margin: 12px 0; padding: 12px; border: 1px solid #29405c; border-radius: 9px; background: #101722; }
+.bucket-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 9px; }
+.bucket-title strong { font-size: 12px; }
+.bucket-title span { color: #79a9df; font-size: 10px; }
+.bucket-panel label { display: block; margin-bottom: 5px; color: #8fa1b7; font-size: 10px; }
+.bucket-panel input { width: 100%; border: 1px solid #344154; border-radius: 7px; padding: 9px 10px; background: #090d12; color: #f4f7fb; font: inherit; font-size: 12px; text-transform: uppercase; }
+.bucket-actions { display: grid; grid-template-columns: 1fr 1.45fr; gap: 8px; margin-top: 8px; }
+.bucket-actions .fast { grid-column: 1 / -1; color: #dff8ea; background: #125c3b; border-color: #218b5d; }
+.bucket-list { max-height: 92px; overflow: auto; margin-top: 9px; color: #90a3b9; font-size: 10px; line-height: 1.55; }
+.bucket-item { display: flex; justify-content: space-between; gap: 10px; padding: 3px 0; border-bottom: 1px solid #202c3a; }
+.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+button { appearance: none; border: 1px solid #344154; border-radius: 7px; padding: 9px 10px; background: #18212c; color: #f4f7fb; font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
+button:hover { filter: brightness(1.15); }
+button.primary { background: #155fd2; border-color: #2675ed; }
+button.secondary { background: #153322; border-color: #266945; }
+button.danger { grid-column: 1 / -1; color: #ff9b9b; background: #321619; border-color: #6c2d34; }
+#feedback { min-height: 16px; margin: 10px 0 0; color: #86a7d1; font-size: 11px; }

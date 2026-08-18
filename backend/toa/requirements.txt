@@ -1,0 +1,2 @@
+selenium>=4.38,<5
+edge-tts>=7.2,<8

@@ -1,0 +1,4 @@
+"Login do Técnico","Data","Status da Atividade","Cidade","UF","Contrato","Número da WO","Número da O.S 1","Status da O.S 1","Tipo OS 1","Cód de Baixa 1","Janela de Serviço","Início","Fim","Duração","Tipo de Atividade","Bairro","Node","ID da Atividade"
+"Z000001","12/08/26","iniciado","NATAL","RN","123456","WO1","265100001","iniciado","ADESAO","","08:00 - 09:00","08:10","","00:20","Normal","CENTRO","NTL-CEN","A1"
+"","12/08/26","","NATAL","RN","","","","","","","12:00 - 13:00","12:00","13:00","01:00","Refeição","","","A2"
+"Z000002","12/08/26","pendente","NATAL","RN","654321","WO2","265100002","pendente","VT CUMP ESPECIAL","","09:00 - 10:00","","","","Normal","ALECRIM","NTL-SUL","A3"

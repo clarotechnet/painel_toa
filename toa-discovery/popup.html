@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>TOA Discovery</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <span class="eyebrow">ORACLE FIELD SERVICE</span>
+        <h1>TOA Discovery</h1>
+      </div>
+      <span id="captureBadge" class="badge offline">INATIVA</span>
+    </header>
+
+    <section class="security">Captura sanitizada. Tokens, cookies e dados pessoais não são armazenados.</section>
+
+    <section class="metrics">
+      <div><span>Recursos encontrados</span><strong id="resourcesFound">0</strong></div>
+      <div><span>Técnicos com dados</span><strong id="resourcesValidated">0</strong></div>
+      <div><span>Atividades</span><strong id="activities">0</strong></div>
+      <div><span>Eventos</span><strong id="events">0</strong></div>
+      <div><span>Endpoints</span><strong id="endpoints">0</strong></div>
+      <div><span>Rotas</span><strong id="routes">0</strong></div>
+    </section>
+
+    <section class="status">
+      <span id="templateStatus">Aguardando uma consulta de técnico no TOA.</span>
+      <small id="lastSeen">Nenhuma captura.</small>
+    </section>
+
+    <section class="bucket-panel">
+      <div class="bucket-title">
+        <strong>Coleta separada por bucket</strong>
+        <span id="bucketCount">0 salvos</span>
+      </div>
+      <label for="bucketName">Bucket atual</label>
+      <input id="bucketName" maxlength="60" placeholder="Ex.: FTZ-DMV_01">
+      <div class="bucket-actions">
+        <button id="startBucketsButton">Iniciar coleta</button>
+        <button id="saveBucketButton" class="primary">Salvar bucket atual</button>
+        <button id="fastSweepButton" class="fast">Varredura rápida de todos os buckets</button>
+      </div>
+      <div id="bucketList" class="bucket-list">Nenhum bucket salvo.</div>
+    </section>
+
+    <div class="actions">
+      <button id="scanButton" class="secondary">Mapear árvore</button>
+      <button id="validateButton" class="primary">Completar logins</button>
+      <button id="xlsxButton">Exportar Excel final</button>
+      <button id="jsonButton">Exportar JSON</button>
+      <button id="clearButton" class="danger">Limpar captura</button>
+    </div>
+
+    <p id="feedback" role="status"></p>
+  </main>
+  <script src="exporter.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

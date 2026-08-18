@@ -1,0 +1,97 @@
+{
+  "id": "fB8dE0gH3jK5mN7p",
+  "name": "DOMINIUM TOA - Publicar no Firebase Realtime Database",
+  "nodes": [
+    {
+      "parameters": {
+        "authentication": "headerAuth",
+        "httpMethod": "POST",
+        "path": "dominium-toa-snapshot",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [-520, 0],
+      "id": "ed123794-448d-42ef-b3cf-d189f6dad128",
+      "name": "Receber snapshot TOA",
+      "webhookId": "7f9590f2-c9e8-455c-bca5-44e18c854dd5"
+    },
+    {
+      "parameters": {
+        "jsCode": "const request = $input.first().json;\nconst envelope = request.body && typeof request.body === 'object' ? request.body : request;\nif (envelope.schema !== 'dominium.toa.cloud-snapshot.v1') throw new Error('Schema de snapshot inválido');\nif (!envelope.feed || typeof envelope.feed !== 'object') throw new Error('Snapshot sem o campo feed');\nconst feed = envelope.feed;\nif (!Array.isArray(feed.orders) || !Array.isArray(feed.timelineActivities)) throw new Error('Snapshot TOA sem as coleções esperadas');\n\nconst safeKey = (value) => String(value || 'sem-id').replace(/[.#$\\[\\]\\/]/g, '_').slice(0, 700);\nconst hash = (value) => {\n  const text = JSON.stringify(value);\n  let result = 2166136261;\n  for (let index = 0; index < text.length; index += 1) {\n    result ^= text.charCodeAt(index);\n    result = Math.imul(result, 16777619);\n  }\n  return (result >>> 0).toString(16);\n};\nconst keyed = (items, keyOf) => {\n  const output = {};\n  const occurrences = {};\n  items.forEach((item, index) => {\n    const base = safeKey(keyOf(item, index));\n    occurrences[base] = (occurrences[base] || 0) + 1;\n    const key = occurrences[base] === 1 ? base : `${base}_${occurrences[base]}`;\n    output[key] = item;\n  });\n  return output;\n};\nconst stableKey = (parts, fallback) => parts.filter(Boolean).join('_') || fallback;\n\nconst orders = keyed(feed.orders, (item, index) => stableKey([\n  item.activity_id || item.activityId || '',\n  item.os_number || item.num_os || item.os || '',\n  item.contract || '',\n], `order_${index}`));\nconst timeline = keyed(feed.timelineActivities, (item, index) => stableKey([\n  item.activity_id || item.activityId || '',\n  item.type || item.activity_type || item.service || '',\n  item.started_at || item.start_time || item.route_start || '',\n], `timeline_${index}`));\n\nconst staticData = $getWorkflowStaticData('global');\nconst previousOrders = staticData.orderHashes || {};\nconst previousTimeline = staticData.timelineHashes || {};\nconst now = Date.now();\nconst forceFull = !staticData.lastFullAt || now - Number(staticData.lastFullAt) >= 30 * 60 * 1000;\nconst orderHashes = Object.fromEntries(Object.entries(orders).map(([key, value]) => [key, hash(value)]));\nconst timelineHashes = Object.fromEntries(Object.entries(timeline).map(([key, value]) => [key, hash(value)]));\nconst updates = {};\nconst base = 'dominium/toa/current';\nupdates[`${base}/schema`] = envelope.schema;\nupdates[`${base}/sourceKey`] = String(envelope.sourceKey || 'all');\nupdates[`${base}/publishedAt`] = envelope.publishedAt || new Date().toISOString();\nupdates[`${base}/receivedAt`] = new Date().toISOString();\nupdates[`${base}/trigger`] = String(envelope.trigger || '').slice(0, 120);\nfor (const [key, value] of Object.entries(feed)) {\n  if (key !== 'orders' && key !== 'timelineActivities') updates[`${base}/feed/${safeKey(key)}`] = value ?? null;\n}\nfor (const [key, value] of Object.entries(orders)) {\n  if (forceFull || previousOrders[key] !== orderHashes[key]) updates[`${base}/feed/orders/${key}`] = value;\n}\nfor (const key of Object.keys(previousOrders)) {\n  if (!(key in orders)) updates[`${base}/feed/orders/${key}`] = null;\n}\nfor (const [key, value] of Object.entries(timeline)) {\n  if (forceFull || previousTimeline[key] !== timelineHashes[key]) updates[`${base}/feed/timelineActivities/${key}`] = value;\n}\nfor (const key of Object.keys(previousTimeline)) {\n  if (!(key in timeline)) updates[`${base}/feed/timelineActivities/${key}`] = null;\n}\nreturn [{ json: {\n  updates,\n  nextState: { orderHashes, timelineHashes, lastFullAt: forceFull ? now : Number(staticData.lastFullAt) },\n  summary: { orders: feed.orders.length, timelineActivities: feed.timelineActivities.length, changedPaths: Object.keys(updates).length, forceFull },\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-260, 0],
+      "id": "14fcb1a0-4651-4ebd-9780-555caf36ff26",
+      "name": "Preparar atualizações"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://dominium-toa-default-rtdb.firebaseio.com/.json",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleApi",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify($json.updates) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [0, 0],
+      "id": "41562b83-f50d-46c6-9ecb-b3d7ef28381b",
+      "name": "Gravar alterações no Firebase",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "const prepared = $('Preparar atualizações').first().json;\nconst staticData = $getWorkflowStaticData('global');\nstaticData.orderHashes = prepared.nextState.orderHashes;\nstaticData.timelineHashes = prepared.nextState.timelineHashes;\nstaticData.lastFullAt = prepared.nextState.lastFullAt;\nreturn [{ json: { ok: true, provider: 'firebase-realtime-database', ...prepared.summary } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [260, 0],
+      "id": "fcd3e7b0-94ce-47bf-9b3d-a7dfa7f6634b",
+      "name": "Confirmar publicação"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Receber snapshot TOA": {
+      "main": [[{
+        "node": "Preparar atualizações",
+        "type": "main",
+        "index": 0
+      }]]
+    },
+    "Preparar atualizações": {
+      "main": [[{
+        "node": "Gravar alterações no Firebase",
+        "type": "main",
+        "index": 0
+      }]]
+    },
+    "Gravar alterações no Firebase": {
+      "main": [[{
+        "node": "Confirmar publicação",
+        "type": "main",
+        "index": 0
+      }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "483e3576-58f0-4964-b9a6-7d20d2093097",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

@@ -1,0 +1,190 @@
+# Firebase + n8n local + Hostinger
+
+Arquitetura de produção sem VPS:
+
+```text
+TOA -> coletor Windows -> webhook n8n local -> Firebase Realtime Database
+                                                   |
+                                                   v
+                                      frontend estático na Hostinger
+```
+
+O computador do coletor e o Docker Desktop precisam permanecer ligados. O n8n
+faz apenas conexões HTTPS de saída; nenhuma porta do computador precisa ser
+aberta no roteador.
+
+## 1. Criar o projeto Firebase
+
+1. Acesse <https://console.firebase.google.com/> e escolha **Adicionar projeto**.
+2. Dê um nome ao projeto, por exemplo `dominium-toa`.
+3. Analytics é opcional para este painel.
+4. No projeto, abra **Criação > Realtime Database > Criar banco de dados**.
+5. Escolha uma região. Depois de criar, copie a URL mostrada na tela, semelhante
+   a `https://dominium-toa-default-rtdb.firebaseio.com`.
+6. Comece em **modo bloqueado**. As regras corretas serão aplicadas na etapa 3.
+
+## 2. Registrar o frontend web
+
+1. Abra **Configurações do projeto > Geral > Seus aplicativos**.
+2. Clique no ícone Web (`</>`), dê o nome `painel-dominium-toa` e registre.
+3. Copie os valores exibidos em `firebaseConfig`.
+4. Abra `public/config.js` e preencha:
+
+```js
+window.DOMINIUM_CONFIG = Object.freeze({
+  apiBaseUrl: '',
+  dataSource: 'firebase',
+  firebasePublicRead: true,
+  firebasePath: 'dominium/toa/current',
+  firebase: Object.freeze({
+    apiKey: 'VALOR_DO_FIREBASE',
+    authDomain: 'SEU_PROJETO.firebaseapp.com',
+    databaseURL: 'https://SEU_PROJETO-default-rtdb.firebaseio.com',
+    projectId: 'SEU_PROJETO',
+    appId: 'VALOR_DO_FIREBASE',
+  }),
+});
+```
+
+Essa configuração web não é uma conta de serviço e pode existir no frontend.
+Com `firebasePublicRead: true`, qualquer visitante pode visualizar o painel.
+
+## 3. Configurar o banco para leitura pública
+
+1. Abra **Realtime Database > Regras**.
+2. Copie todo o conteúdo de `firebase/database.rules.json`.
+3. Cole no editor e clique em **Publicar**.
+
+As regras permitem leitura pública apenas de `dominium/toa/current`. Escritas do
+navegador permanecem bloqueadas; a conta de serviço do n8n continua responsável
+pela publicação. Isso significa que qualquer pessoa que conheça o endereço do
+site ou do banco poderá ler os dados operacionais.
+
+## 4. Login Google não é necessário no modo público
+
+Com `firebasePublicRead: true`, não é preciso habilitar Authentication nem
+cadastrar domínios OAuth. Para voltar a exigir usuários autorizados, altere essa
+opção para `false` e restaure regras privadas antes de publicar novamente.
+
+## 5. Criar a conta de serviço usada pelo n8n
+
+1. Abra **Configurações do projeto > Contas de serviço**.
+2. Clique em **Gerar nova chave privada** e confirme. Um JSON será baixado.
+3. Abra o n8n em <http://127.0.0.1:5678/>.
+4. Entre em **Credentials > Create credential** e procure
+   **Google Service Account API**.
+5. Use o campo `client_email` do JSON em **Service Account Email**.
+6. Use o conteúdo completo de `private_key` em **Private Key**, incluindo as
+   linhas `BEGIN PRIVATE KEY` e `END PRIVATE KEY`.
+7. Ative **Set up for use in HTTP Request node**.
+8. Em **Scope(s)**, informe os dois escopos separados por espaço:
+
+```text
+https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/firebase.database
+```
+
+9. Salve com o nome `Firebase TOA - Service Account`.
+10. Depois de validar tudo, remova o JSON baixado do computador ou guarde-o em
+    cofre seguro. Nunca coloque esse arquivo no projeto ou no GitHub.
+
+O n8n guarda a credencial cifrada usando `N8N_ENCRYPTION_KEY`.
+
+## 6. Configurar as variáveis locais
+
+No arquivo `.env.docker`, pode ser mantida a URL real do banco como referência
+para os serviços locais:
+
+```dotenv
+FIREBASE_DATABASE_URL=https://SEU_PROJETO-default-rtdb.firebaseio.com
+```
+
+Confirme também que `DOMINIUM_INGEST_TOKEN` possui um valor longo e aleatório.
+O `.env.local` deve possuir exatamente o mesmo token:
+
+```dotenv
+DOMINIUM_N8N_WEBHOOK_URL=http://localhost:5678/webhook/dominium-toa-snapshot
+DOMINIUM_INGEST_TOKEN=O_MESMO_TOKEN_DO_ENV_DOCKER
+```
+
+Recrie somente o n8n depois das mudanças. O arquivo dedicado mantém
+os mesmos volumes atuais, mas sobe apenas PostgreSQL (dados internos do n8n) e
+n8n; FastAPI e frontend Docker deixam de ser necessários:
+
+```powershell
+docker compose -f compose.firebase.yaml --env-file .env.docker up -d --force-recreate n8n
+```
+
+Somente depois de confirmar o Firebase funcionando, os contêineres antigos da
+API e do frontend podem ser parados sem apagar dados:
+
+```powershell
+docker compose --env-file .env.docker stop cloud-api web
+```
+
+## 7. Importar e configurar o workflow
+
+1. No n8n, desative o workflow antigo que grava no PostgreSQL.
+2. No menu do n8n, escolha **Import from File**.
+3. Importe `docker/n8n/workflows/dominium-toa-firebase.json`.
+4. Abra **Receber snapshot TOA** e crie/selecione uma credencial **Header Auth**:
+   - Name: `Authorization`
+   - Value: `Bearer O_MESMO_DOMINIUM_INGEST_TOKEN`
+5. Abra **Gravar snapshot no Firebase** e selecione a credencial
+   `Firebase TOA - Service Account`.
+6. Confirme que a URL do nó está em modo **Fixed** e contém:
+
+```text
+https://SEU_PROJETO-default-rtdb.firebaseio.com/.json
+```
+
+7. Salve e publique/ative o workflow.
+
+O workflow mantém somente o estado atual. Depois da primeira carga, ele compara
+as ordens e atividades e envia ao Firebase apenas os caminhos alterados. Uma
+reconciliação completa é feita a cada 30 minutos. Isso evita acumular histórico
+e reduz de forma importante o tráfego do plano gratuito. Em falhas de internet,
+o coletor mantém o retrato mais novo na fila e tenta novamente.
+
+## 8. Testar o envio
+
+1. Mantenha Docker Desktop aberto e o workflow ativo.
+2. Inicie o painel/coletor com `npm start` ou `Abrir_Painel_TOA.cmd`.
+3. No n8n, abra **Executions** e confirme uma execução verde.
+4. No Firebase, abra **Realtime Database > Dados**.
+5. Confirme o caminho `dominium/toa/current/feed` e verifique `loadedAt`.
+
+Se o n8n responder `401`, confira a credencial Header Auth. Se responder `403`,
+confira a conta de serviço e os dois escopos. Se a URL estiver incorreta, confira
+`FIREBASE_DATABASE_URL` e recrie o contêiner n8n.
+
+## 9. Testar o acesso público
+
+Execute `npm run build` e abra o painel em uma janela anônima. Ele deve carregar
+diretamente, sem solicitar conta Google.
+
+## 10. Publicar na Hostinger
+
+1. Confirme que `public/config.js` contém a configuração Firebase correta.
+2. Gere a versão estática:
+
+```powershell
+npm run build
+```
+
+3. Envie todo o conteúdo de `dist/` para a pasta pública do site na Hostinger,
+   normalmente `public_html`.
+4. Adicione o domínio usado na Hostinger em **Firebase Authentication >
+   Configurações > Domínios autorizados**.
+5. Acesse o domínio, entre com Google e confirme que mudanças no TOA aparecem sem
+   atualizar a página.
+
+## O que não deve ir ao GitHub
+
+- `.env.local`
+- `.env.docker`
+- JSON da conta de serviço
+- `backend/toa/config/toa_credentials.dat`
+- perfil dedicado do Chrome
+
+Esses caminhos já estão cobertos pelo `.gitignore`; mantenha no GitHub apenas os
+arquivos `.example` e as regras sem segredos.

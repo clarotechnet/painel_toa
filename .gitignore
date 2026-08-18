@@ -1,0 +1,29 @@
+node_modules/
+dist/
+/data/
+
+# Configuracoes e credenciais locais. Somente os exemplos podem ser publicados.
+.env
+.env.*
+!.env.local.example
+!.env.docker.example
+
+*.log
+*.pid
+*.sqlite3
+*.sqlite3-*
+backend/toa/config/toa_credentials.dat
+backend/toa/config/toa_chrome_profile/
+__pycache__/
+.pytest_cache/
+.coverage
+
+# Chaves privadas do Firebase nunca pertencem ao repositorio.
+firebase-service-account*.json
+serviceAccountKey*.json
+*-firebase-adminsdk-*.json
+*.pem
+*.key
+
+.DS_Store
+Thumbs.db

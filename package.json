@@ -1,0 +1,27 @@
+{
+  "name": "dominium-toa-tec1",
+  "version": "2.1.5",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "scripts": {
+    "start": "cmd /d /c Abrir_Painel_TOA.cmd",
+    "stop": "cmd /d /c Parar_Painel_TOA.cmd",
+    "dev": "vite --host 0.0.0.0",
+    "build": "node scripts/build.mjs",
+    "preview": "vite --host 0.0.0.0",
+    "test": "npm run test:web && npm run test:extension && npm run test:python",
+    "test:web": "node tests/smoke.mjs",
+    "test:extension": "node toa-discovery/test.js && node toa-discovery/service-worker.test.js",
+    "test:python": "python -B -m unittest discover -s tests -p test_*.py",
+    "serve": "python app.py --no-browser"
+  },
+  "devDependencies": {
+    "vite": "^7.1.2"
+  },
+  "dependencies": {
+    "firebase": "^12.17.1"
+  }
+}

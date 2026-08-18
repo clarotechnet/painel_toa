@@ -1,0 +1,4068 @@
+{
+  "version": 2,
+  "source": {
+    "filename": "TOA_Inventario_Consolidado.xlsx",
+    "imported_at": "2026-08-08T19:47:30.921Z",
+    "raw_records": 263,
+    "source_unique_logins": 263,
+    "existing_before": 213,
+    "source_already_present": 186,
+    "new_records_added": 77,
+    "existing_name_conflicts_ignored": 20,
+    "rejected_records": 0,
+    "total_records": 290,
+    "previous_filename": "LOGINS TODOS OS TECNICOS DMV TECHNET.xlsx",
+    "merge_policy": "Login existente preservado; somente logins ausentes foram acrescentados."
+  },
+  "technicians": [
+    {
+      "login": "Z131558",
+      "name": "ACTON ESTENIO DE MORAIS",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico",
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z152861",
+      "name": "ADAILTON MARTINS DA SILVA",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z629132",
+      "name": "ADELMO PASTOR ALVES DE ARAUJO",
+      "plate": "",
+      "teams": [],
+      "profiles": [],
+      "toa": {
+        "resource_id": "62456",
+        "user_id": "78444",
+        "city": "",
+        "bucket": "",
+        "city_status": "pending",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79771798611",
+        "record_origin": "Exportação global"
+      }
+    },
+    {
+      "login": "Z193218",
+      "name": "ADENILDO ALEXANDRE SILVA DE OLIVEIRA",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico",
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z595403",
+      "name": "ADRIANO COSTA DA SILVA",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z380580",
+      "name": "ALBERTO DE MELO SILVA HOLANDA JUNIOR",
+      "plate": "",
+      "teams": [],
+      "profiles": [],
+      "toa": {
+        "resource_id": "35584",
+        "user_id": "42636",
+        "city": "",
+        "bucket": "",
+        "city_status": "pending",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79875400463",
+        "record_origin": "Exportação global"
+      }
+    },
+    {
+      "login": "Z680663",
+      "name": "ALESSANDRO FRANCISCO DA SILVA",
+      "plate": "",
+      "teams": [
+        "JCR-DMV"
+      ],
+      "profiles": [
+        "recife"
+      ],
+      "toa": {
+        "resource_id": "70770",
+        "user_id": "87928",
+        "city": "RECIFE",
+        "bucket": "JCR-DMV",
+        "city_status": "identified",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79772003472",
+        "record_origin": "Ambas as exportações"
+      }
+    },
+    {
+      "login": "Z667709",
+      "name": "ALEXANDRE",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z498116",
+      "name": "ALEXANDRE BARAUNA ALVES DE ARAUJO",
+      "plate": "HWW-8F40",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z676784",
+      "name": "ALEXANDRE LEVY DE AZEVEDO LIMA",
+      "plate": "",
+      "teams": [
+        "NTL-DMV"
+      ],
+      "profiles": [
+        "natal"
+      ],
+      "toa": {
+        "resource_id": "69488",
+        "user_id": "86380",
+        "city": "NATAL",
+        "bucket": "NTL-DMV",
+        "city_status": "identified",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.797012222225",
+        "record_origin": "Ambas as exportações"
+      }
+    },
+    {
+      "login": "Z340728",
+      "name": "ALEXSANDRO MACIEL E SILVA",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z476723",
+      "name": "ALISSON CLEITON NASCIMENTO DA SILVA",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z512085",
+      "name": "ALLAN JAYVERSON DA COSTA",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z672212",
+      "name": "ALLYSON AURELIO",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z549113",
+      "name": "ALMIR FAUSTINO DO NASCIMENTO JUNIOR",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z344743",
+      "name": "ALVARO JEANDERSON MEDEIROS DOS SANTOS",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z641916",
+      "name": "AMOS VINICIUS SANTOS DA SILVA",
+      "plate": "",
+      "teams": [
+        "Recife"
+      ],
+      "profiles": [
+        "recife"
+      ]
+    },
+    {
+      "login": "Z136958",
+      "name": "ANDER GLEDSON",
+      "plate": "OWA2F74",
+      "teams": [
+        "VT Manutencao"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z641917",
+      "name": "ANDERSON LIMA DA SILVA",
+      "plate": "",
+      "teams": [
+        "Recife"
+      ],
+      "profiles": [
+        "recife"
+      ]
+    },
+    {
+      "login": "Z680659",
+      "name": "ANDERSON LUCAS TRINDADE DE OLIVEIRA",
+      "plate": "",
+      "teams": [
+        "JCR-DMV"
+      ],
+      "profiles": [
+        "recife"
+      ],
+      "toa": {
+        "resource_id": "70765",
+        "user_id": "87923",
+        "city": "RECIFE",
+        "bucket": "JCR-DMV",
+        "city_status": "identified",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79772260417",
+        "record_origin": "Ambas as exportações"
+      }
+    },
+    {
+      "login": "Z629141",
+      "name": "ANDERSON SANTOS DE OLIVEIRA",
+      "plate": "",
+      "teams": [
+        "Recife"
+      ],
+      "profiles": [
+        "recife"
+      ]
+    },
+    {
+      "login": "Z661197",
+      "name": "ANDRE ALBINO DA SILVA",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z537165",
+      "name": "ANDRE BRUNO DA SILVA FILGUEIRA",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z623270",
+      "name": "ANTONIO CARLOS DE SOUSA NASCIMENTO",
+      "plate": "",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z540535",
+      "name": "ANTONIO ILTON FARIAS FERREIRA",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z523765",
+      "name": "ANTONIO RIBEIRO DE CASTRO",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico",
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z131564",
+      "name": "ANTONIO SEVERINO DOS SANTOS",
+      "plate": "",
+      "teams": [],
+      "profiles": [],
+      "toa": {
+        "resource_id": "1435",
+        "user_id": "2954",
+        "city": "",
+        "bucket": "",
+        "city_status": "pending",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.798249189815",
+        "record_origin": "Exportação global"
+      }
+    },
+    {
+      "login": "Z581722",
+      "name": "AUGUSTO FERREIRA DANTAS",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z340729",
+      "name": "AYRON DOUGLAS S F. OLIVEIRA",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z657615",
+      "name": "BILLY DJOW BARBOSA DE ANDRADE",
+      "plate": "",
+      "teams": [
+        "NTL-DMV"
+      ],
+      "profiles": [
+        "natal"
+      ],
+      "toa": {
+        "resource_id": "66627",
+        "user_id": "83383",
+        "city": "NATAL",
+        "bucket": "NTL-DMV",
+        "city_status": "identified",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79649936342",
+        "record_origin": "Ambas as exportações"
+      }
+    },
+    {
+      "login": "Z638536",
+      "name": "BRENO VERAS GOMES",
+      "plate": "",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z523531",
+      "name": "BRUNO ANDERSON LIMA DA SILVA",
+      "plate": "",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z624531",
+      "name": "BRUNO BUENO DE OLIVEIRA BATISTA",
+      "plate": "",
+      "teams": [],
+      "profiles": [],
+      "toa": {
+        "resource_id": "62843",
+        "user_id": "78987",
+        "city": "",
+        "bucket": "",
+        "city_status": "pending",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79703017361",
+        "record_origin": "Exportação global"
+      }
+    },
+    {
+      "login": "Z494474",
+      "name": "BRUNO FREIRES NASCIMENTO",
+      "plate": "HWZ-3661",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z676289",
+      "name": "BRUNO GABRIEL OLIVEIRA PEREIRA",
+      "plate": "",
+      "teams": [
+        "NTL-DMV"
+      ],
+      "profiles": [
+        "natal"
+      ],
+      "toa": {
+        "resource_id": "70433",
+        "user_id": "87525",
+        "city": "NATAL",
+        "bucket": "NTL-DMV",
+        "city_status": "identified",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79651334491",
+        "record_origin": "Ambas as exportações"
+      }
+    },
+    {
+      "login": "Z686364",
+      "name": "BRUNO WOSHINGTON COSTA DA SILVA",
+      "plate": "",
+      "teams": [
+        "JCR-DMV"
+      ],
+      "profiles": [
+        "recife"
+      ],
+      "toa": {
+        "resource_id": "70753",
+        "user_id": "87911",
+        "city": "RECIFE",
+        "bucket": "JCR-DMV",
+        "city_status": "identified",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79772333334",
+        "record_origin": "Ambas as exportações"
+      }
+    },
+    {
+      "login": "Z259038",
+      "name": "CARLOS ANDRESSON MIRANDA VIEIRA",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico",
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z504770",
+      "name": "CARLOS BERGSON SERAFIM GUIMARAES",
+      "plate": "RQK-1J35",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z642456",
+      "name": "CARLOS JUAN DA SILVA CORDEIRO",
+      "plate": "",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z131565",
+      "name": "CAUE ASSIS COSTA",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico",
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z641918",
+      "name": "CESAR LEONARDO VASCONCELOS MARQUES DE OL",
+      "plate": "",
+      "teams": [
+        "Recife"
+      ],
+      "profiles": [
+        "recife"
+      ]
+    },
+    {
+      "login": "Z629138",
+      "name": "CICERO FRANCISCO DA SILVA",
+      "plate": "",
+      "teams": [
+        "Recife"
+      ],
+      "profiles": [
+        "recife"
+      ]
+    },
+    {
+      "login": "Z629414",
+      "name": "CLAUBER FELIPE CABRAL",
+      "plate": "",
+      "teams": [
+        "Recife"
+      ],
+      "profiles": [
+        "recife"
+      ]
+    },
+    {
+      "login": "Z629318",
+      "name": "CLAUDEMIR MARIANO DA SILVA",
+      "plate": "",
+      "teams": [
+        "Recife"
+      ],
+      "profiles": [
+        "recife"
+      ]
+    },
+    {
+      "login": "Z634342",
+      "name": "CLAUDIO FERREIRA ANGELO",
+      "plate": "",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z513416",
+      "name": "CLAUDIO JOSÉ",
+      "plate": "RQK-J125",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z340947",
+      "name": "CLEUBE PESSOA DA SILVA",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z641919",
+      "name": "CRISTIANO COSTA BENTO",
+      "plate": "",
+      "teams": [
+        "Recife"
+      ],
+      "profiles": [
+        "recife"
+      ]
+    },
+    {
+      "login": "Z029703",
+      "name": "DANIEL ANDRE GOIS E SILVA",
+      "plate": "NNQ0877",
+      "teams": [
+        "VT Manutencao"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z629133",
+      "name": "DANIEL HENRIQUE RODRIGUES DA SILVA",
+      "plate": "",
+      "teams": [
+        "Recife"
+      ],
+      "profiles": [
+        "recife"
+      ]
+    },
+    {
+      "login": "Z496757",
+      "name": "DANIEL RUBENS DOS ANJOS SANTOS",
+      "plate": "HXX-2467",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z500476",
+      "name": "DANILO DE SOUSA LIMA",
+      "plate": "",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z649259",
+      "name": "DARLYSON SILVA LELIS",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z661443",
+      "name": "DEIVSON MACIEL LEMOS SILVA",
+      "plate": "",
+      "teams": [],
+      "profiles": [],
+      "toa": {
+        "resource_id": "66234",
+        "user_id": "82966",
+        "city": "",
+        "bucket": "",
+        "city_status": "pending",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79807571759",
+        "record_origin": "Exportação global"
+      }
+    },
+    {
+      "login": "Z681753",
+      "name": "DEIVSON MACIEL LEMOS SILVA",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z637677",
+      "name": "DENNIS NUNES DE OLIVEIRA",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z663885",
+      "name": "DEYVID JUAN MEDEIROS LINHARES",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z163289",
+      "name": "DHEYWYSON DE OLIVEIRA SILVA",
+      "plate": "QPF4I65",
+      "teams": [
+        "MDU",
+        "Mossoro"
+      ],
+      "profiles": [
+        "mossoro"
+      ]
+    },
+    {
+      "login": "Z518725",
+      "name": "DIEGO HENRIQUE SILVA NASCIMENTO",
+      "plate": "NUM9056",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z594815",
+      "name": "DOUGLAS RAFAEL FERREIRA DOS SANTOS",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z629136",
+      "name": "DYOGENES MARQUES SILVA DA COSTA",
+      "plate": "",
+      "teams": [
+        "Recife"
+      ],
+      "profiles": [
+        "recife"
+      ]
+    },
+    {
+      "login": "Z131568",
+      "name": "EDICARLOS DE LIRA SILVA",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico",
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z651144",
+      "name": "EDILANIO SANTOS FERREIRA",
+      "plate": "",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z650325",
+      "name": "EDILSON PINTO LEMOS",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z629147",
+      "name": "EDINALDO JOSE DO CARMO",
+      "plate": "",
+      "teams": [
+        "Recife"
+      ],
+      "profiles": [
+        "recife"
+      ]
+    },
+    {
+      "login": "Z531363",
+      "name": "EDIVANALDO VICENTE DA SILVA",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico",
+        "MDU",
+        "VT Manutencao"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z537166",
+      "name": "EDSON ALVES DA SILVA",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z641920",
+      "name": "EDSON ALVES DE SOUZA",
+      "plate": "",
+      "teams": [
+        "Recife"
+      ],
+      "profiles": [
+        "recife"
+      ]
+    },
+    {
+      "login": "Z641921",
+      "name": "EDSON CASEMIRO",
+      "plate": "",
+      "teams": [
+        "Recife"
+      ],
+      "profiles": [
+        "recife"
+      ]
+    },
+    {
+      "login": "Z052045",
+      "name": "EDSON FRANCISCO DE ASSIS",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico",
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z684460",
+      "name": "EDUARDO FILIPE SOUSA SILVA",
+      "plate": "",
+      "teams": [
+        "JCR-DMV"
+      ],
+      "profiles": [
+        "recife"
+      ],
+      "toa": {
+        "resource_id": "70766",
+        "user_id": "87924",
+        "city": "RECIFE",
+        "bucket": "JCR-DMV",
+        "city_status": "identified",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79787908565",
+        "record_origin": "Ambas as exportações"
+      }
+    },
+    {
+      "login": "Z131570",
+      "name": "EDVANILSON DO NASCIMENTO SILVA",
+      "plate": "",
+      "teams": [],
+      "profiles": [],
+      "toa": {
+        "resource_id": "1440",
+        "user_id": "2959",
+        "city": "",
+        "bucket": "",
+        "city_status": "pending",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.798252465276",
+        "record_origin": "Exportação global"
+      }
+    },
+    {
+      "login": "T7963665",
+      "name": "EGILENO SENA CAMARA",
+      "plate": "",
+      "teams": [
+        "NTL-DMV"
+      ],
+      "profiles": [
+        "natal"
+      ],
+      "toa": {
+        "resource_id": "1180",
+        "user_id": "2635",
+        "city": "NATAL",
+        "bucket": "NTL-DMV",
+        "city_status": "identified",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.796501770834",
+        "record_origin": "Ambas as exportações"
+      }
+    },
+    {
+      "login": "Z518619",
+      "name": "ELAILSON ALBANO DA SILVA",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico",
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z483645",
+      "name": "ELIAS EUZEBIO DA SILVA JUNIOR",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z690643",
+      "name": "ELISEU DE OLIVEIRA LOPES",
+      "plate": "",
+      "teams": [],
+      "profiles": [],
+      "toa": {
+        "resource_id": "70499",
+        "user_id": "87615",
+        "city": "",
+        "bucket": "",
+        "city_status": "pending",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79719361111",
+        "record_origin": "Exportação global"
+      }
+    },
+    {
+      "login": "Z570527",
+      "name": "ELVIS AARON FIRMINO DA SILVA",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z469191",
+      "name": "EMANUEL CONFESSOR FILHO",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico",
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z637012",
+      "name": "EMANUEL DA SILVA VASCONCELOS",
+      "plate": "",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z677329",
+      "name": "EMERSON FABIO PORFIRIO DA SILVA",
+      "plate": "",
+      "teams": [],
+      "profiles": [],
+      "toa": {
+        "resource_id": "69489",
+        "user_id": "86381",
+        "city": "",
+        "bucket": "",
+        "city_status": "pending",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79839662037",
+        "record_origin": "Exportação global"
+      }
+    },
+    {
+      "login": "Z669513",
+      "name": "ERIPABLO ALVES",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z686897",
+      "name": "ERIVANILDO DA CRUZ SANTOS",
+      "plate": "",
+      "teams": [
+        "NTL-DMV"
+      ],
+      "profiles": [
+        "natal"
+      ],
+      "toa": {
+        "resource_id": "70435",
+        "user_id": "87527",
+        "city": "NATAL",
+        "bucket": "NTL-DMV",
+        "city_status": "identified",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.796663877314",
+        "record_origin": "Ambas as exportações"
+      }
+    },
+    {
+      "login": "Z684461",
+      "name": "ERIVELTON GLOSMA DA SILVA PESSOA",
+      "plate": "",
+      "teams": [],
+      "profiles": [],
+      "toa": {
+        "resource_id": "70764",
+        "user_id": "87922",
+        "city": "",
+        "bucket": "",
+        "city_status": "pending",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.797879756945",
+        "record_origin": "Exportação global"
+      }
+    },
+    {
+      "login": "Z657807",
+      "name": "ESLI MELQUISEDEQUE DA SILVA",
+      "plate": "",
+      "teams": [
+        "NTL-DMV"
+      ],
+      "profiles": [
+        "natal"
+      ],
+      "toa": {
+        "resource_id": "66392",
+        "user_id": "83125",
+        "city": "NATAL",
+        "bucket": "NTL-DMV",
+        "city_status": "identified",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.796664988426",
+        "record_origin": "Ambas as exportações"
+      }
+    },
+    {
+      "login": "Z680660",
+      "name": "EUDSON GONCALVES TAVARES DE SOUZA",
+      "plate": "",
+      "teams": [],
+      "profiles": [],
+      "toa": {
+        "resource_id": "70768",
+        "user_id": "87926",
+        "city": "",
+        "bucket": "",
+        "city_status": "pending",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79788197917",
+        "record_origin": "Exportação global"
+      }
+    },
+    {
+      "login": "Z611616",
+      "name": "EVANOEL DE OLIVEIRA MEDEIROS",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z641922",
+      "name": "EVERSON MANOEL FRANCA DA SILVA",
+      "plate": "",
+      "teams": [],
+      "profiles": [],
+      "toa": {
+        "resource_id": "63751",
+        "user_id": "80066",
+        "city": "",
+        "bucket": "",
+        "city_status": "pending",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79788210648",
+        "record_origin": "Exportação global"
+      }
+    },
+    {
+      "login": "Z684462",
+      "name": "EVERTON IVANILDO DA SILVA",
+      "plate": "",
+      "teams": [
+        "JCR-DMV"
+      ],
+      "profiles": [
+        "recife"
+      ],
+      "toa": {
+        "resource_id": "70763",
+        "user_id": "87921",
+        "city": "RECIFE",
+        "bucket": "JCR-DMV",
+        "city_status": "identified",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79788275463",
+        "record_origin": "Ambas as exportações"
+      }
+    },
+    {
+      "login": "Z643031",
+      "name": "EVILASIO NUNES DE ALENCAR",
+      "plate": "",
+      "teams": [],
+      "profiles": [],
+      "toa": {
+        "resource_id": "63467",
+        "user_id": "79782",
+        "city": "",
+        "bucket": "",
+        "city_status": "pending",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79719363426",
+        "record_origin": "Exportação global"
+      }
+    },
+    {
+      "login": "Z498118",
+      "name": "FABIANO TELES MOREIRA",
+      "plate": "NHN-3C68",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z619800",
+      "name": "FABIO DE SOUZA APOLINARIO",
+      "plate": "",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z641923",
+      "name": "FELIPE JOSE DE FRANCA PEDRO",
+      "plate": "",
+      "teams": [
+        "Recife"
+      ],
+      "profiles": [
+        "recife"
+      ]
+    },
+    {
+      "login": "Z604117",
+      "name": "FELIPE MADSON SOUZA DE OLIVEIRA",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z637885",
+      "name": "FERNANDO ANTONIO BARRETO DE LIMA JUNIOR",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z530472",
+      "name": "FRANCISCO ANDRE RODRIGUES",
+      "plate": "",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z131573",
+      "name": "FRANCISCO DEYKSON SOUZA DE MELO",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico",
+        "MDU",
+        "VT Manutencao"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z676934",
+      "name": "FRANCISCO DIEGO AZEVEDO DOS SANTOS",
+      "plate": "",
+      "teams": [
+        "MRO-DMV"
+      ],
+      "profiles": [
+        "mossoro"
+      ],
+      "toa": {
+        "resource_id": "69282",
+        "user_id": "86142",
+        "city": "MOSSORÓ",
+        "bucket": "MRO-DMV",
+        "city_status": "identified",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.798230243054",
+        "record_origin": "Ambas as exportações"
+      }
+    },
+    {
+      "login": "Z637512",
+      "name": "FRANCISCO EDIVANDO SOARES DA SILVA",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z549473",
+      "name": "FRANCISCO FABRICIO CAVALCANTE",
+      "plate": "NQP2A74",
+      "teams": [
+        "MDU",
+        "Mossoro"
+      ],
+      "profiles": [
+        "mossoro"
+      ]
+    },
+    {
+      "login": "Z605464",
+      "name": "FRANCISCO GLAYDSON FERREIRA SILVA",
+      "plate": "",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z525080",
+      "name": "FRANCISCO JOSE FERREIRA DA SILVA",
+      "plate": "",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z492930",
+      "name": "FRANCISCO JUSSIER BARBOSA DE LIMA",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico",
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z527225",
+      "name": "FRANCISCO MATEUS SANTOS SOUSA",
+      "plate": "",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z508819",
+      "name": "FRANCISCO RODRIGUES FARIAS JUNIOR",
+      "plate": "",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z674912",
+      "name": "FRANCISCO ROMARIO PEREIRA DE CASTRO",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z616528",
+      "name": "FRANCISCO SAULO GUERRA DE MELO",
+      "plate": "",
+      "teams": [],
+      "profiles": [],
+      "toa": {
+        "resource_id": "63405",
+        "user_id": "79713",
+        "city": "",
+        "bucket": "",
+        "city_status": "pending",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79823204861",
+        "record_origin": "Exportação global"
+      }
+    },
+    {
+      "login": "Z670829",
+      "name": "FRANCISCO WAGNER",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z649951",
+      "name": "FRANKLIN GLAEDSTONE DA SILVA MEDEIROS",
+      "plate": "",
+      "teams": [
+        "Mossoro"
+      ],
+      "profiles": [
+        "mossoro"
+      ]
+    },
+    {
+      "login": "Z529107",
+      "name": "GABRIEL DE MORAIS BRITO",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z339247",
+      "name": "GABRIEL LUCAS AGOSTINHO SENA",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z131574",
+      "name": "GABRIEL RELVA DE BRITO",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico",
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z643030",
+      "name": "GEISON BARROS ANTUNES",
+      "plate": "",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z641924",
+      "name": "GENILSON JERONIMO FREITAS DE OLIVEIRA",
+      "plate": "",
+      "teams": [],
+      "profiles": [],
+      "toa": {
+        "resource_id": "63659",
+        "user_id": "79977",
+        "city": "",
+        "bucket": "",
+        "city_status": "pending",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79788475695",
+        "record_origin": "Exportação global"
+      }
+    },
+    {
+      "login": "Z529108",
+      "name": "GENIVAL QUIRINO DE OLIVEIRA NETO",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z582616",
+      "name": "GEORGE DE ARAUJO MARTINS",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z660003",
+      "name": "GEORGE LEONARDO NOGUEIRA CASTELO BRANCO",
+      "plate": "",
+      "teams": [
+        "FTZ-DMV_01"
+      ],
+      "profiles": [
+        "fortaleza"
+      ],
+      "toa": {
+        "resource_id": "67906",
+        "user_id": "84660",
+        "city": "FORTALEZA",
+        "bucket": "FTZ-DMV_01",
+        "city_status": "identified",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79720508102",
+        "record_origin": "Ambas as exportações"
+      }
+    },
+    {
+      "login": "Z619718",
+      "name": "GILBERTO DE MOURA SOUZA",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z637511",
+      "name": "GILDEVAN DE SOUSA LOPES",
+      "plate": "",
+      "teams": [],
+      "profiles": [],
+      "toa": {
+        "resource_id": "63208",
+        "user_id": "79453",
+        "city": "",
+        "bucket": "",
+        "city_status": "pending",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.797558541664",
+        "record_origin": "Exportação global"
+      }
+    },
+    {
+      "login": "Z629319",
+      "name": "GLEIDSON FARIAS LIRA",
+      "plate": "",
+      "teams": [
+        "Recife"
+      ],
+      "profiles": [
+        "recife"
+      ]
+    },
+    {
+      "login": "Z637513",
+      "name": "GREYTON PINTO CARNEIRO",
+      "plate": "",
+      "teams": [],
+      "profiles": [],
+      "toa": {
+        "resource_id": "63155",
+        "user_id": "79392",
+        "city": "",
+        "bucket": "",
+        "city_status": "pending",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79770633102",
+        "record_origin": "Exportação global"
+      }
+    },
+    {
+      "login": "Z658378",
+      "name": "GUILHERME HENRIQUE GOMES DA SILVA",
+      "plate": "",
+      "teams": [
+        "NTL-DMV"
+      ],
+      "profiles": [
+        "natal"
+      ],
+      "toa": {
+        "resource_id": "66393",
+        "user_id": "83126",
+        "city": "NATAL",
+        "bucket": "NTL-DMV",
+        "city_status": "identified",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79666939815",
+        "record_origin": "Ambas as exportações"
+      }
+    },
+    {
+      "login": "Z641925",
+      "name": "GUSTAVO FERNANDES DA SILVA",
+      "plate": "",
+      "teams": [
+        "Recife"
+      ],
+      "profiles": [
+        "recife"
+      ]
+    },
+    {
+      "login": "T6074699",
+      "name": "GUSTAVO WANDRIER FERREIRA DA COSTA",
+      "plate": "",
+      "teams": [
+        "NTL-DMV_VT"
+      ],
+      "profiles": [
+        "natal"
+      ],
+      "toa": {
+        "resource_id": "1114",
+        "user_id": "2454",
+        "city": "NATAL",
+        "bucket": "NTL-DMV_VT",
+        "city_status": "identified",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79859019676",
+        "record_origin": "Ambas as exportações"
+      }
+    },
+    {
+      "login": "Z131576",
+      "name": "HAWELLS OLIVEIRA DA SILVA",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico",
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z524949",
+      "name": "HELTON JHON PAULA SALES",
+      "plate": "",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z595276",
+      "name": "HIURY CESAR DA SILVA BRANDAO",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico",
+        "VT Manutencao"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z637680",
+      "name": "HUGSON GONZAGA FLORENCIO",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z674914",
+      "name": "HUMBERTO JESSE SOUSA DE OLIVEIRA",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z131577",
+      "name": "IASLAN SOUZA DA COSTA",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z565230",
+      "name": "IASLAN SOUZA DA COSTA",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z683069",
+      "name": "IKARO RODRIGO FERNANDES RODRIGUES",
+      "plate": "",
+      "teams": [
+        "JCR-DMV"
+      ],
+      "profiles": [
+        "recife"
+      ],
+      "toa": {
+        "resource_id": "70767",
+        "user_id": "87925",
+        "city": "RECIFE",
+        "bucket": "JCR-DMV",
+        "city_status": "identified",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.7978877662",
+        "record_origin": "Ambas as exportações"
+      }
+    },
+    {
+      "login": "Z671707",
+      "name": "IRENILSON ROCHA",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z680661",
+      "name": "ISMAEL SANTANA DE ARAUJO",
+      "plate": "",
+      "teams": [
+        "JCR-DMV"
+      ],
+      "profiles": [
+        "recife"
+      ],
+      "toa": {
+        "resource_id": "70772",
+        "user_id": "87931",
+        "city": "RECIFE",
+        "bucket": "JCR-DMV",
+        "city_status": "identified",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79788841435",
+        "record_origin": "Ambas as exportações"
+      }
+    },
+    {
+      "login": "Z349291",
+      "name": "ISRAEL NASCIMENTO DE FRANCA BISNETO",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z671192",
+      "name": "ITALO ROCHA CAMINHA",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z641926",
+      "name": "ITALUTIEGO DE SANTANA BANDEIRA",
+      "plate": "",
+      "teams": [],
+      "profiles": [],
+      "toa": {
+        "resource_id": "63733",
+        "user_id": "80046",
+        "city": "",
+        "bucket": "",
+        "city_status": "pending",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.797889988426",
+        "record_origin": "Exportação global"
+      }
+    },
+    {
+      "login": "Z552651",
+      "name": "IURY DO VALE PIRES",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico",
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z289374",
+      "name": "IURY FERREIRA DE MOURA",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico",
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z305304",
+      "name": "JADSON PEREIRA DE SANTANA",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico",
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z131579",
+      "name": "JAILSON DE MEDEIROS CAMILO",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico",
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z658919",
+      "name": "JAILTON DAS CHAGAS DA SILVA",
+      "plate": "",
+      "teams": [],
+      "profiles": [],
+      "toa": {
+        "resource_id": "66391",
+        "user_id": "83124",
+        "city": "",
+        "bucket": "",
+        "city_status": "pending",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.798403125",
+        "record_origin": "Exportação global"
+      }
+    },
+    {
+      "login": "Z657613",
+      "name": "JANDERSON DA COSTA SILVA",
+      "plate": "",
+      "teams": [
+        "NTL-DMV"
+      ],
+      "profiles": [
+        "natal"
+      ],
+      "toa": {
+        "resource_id": "66394",
+        "user_id": "83127",
+        "city": "NATAL",
+        "bucket": "NTL-DMV",
+        "city_status": "identified",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79667314815",
+        "record_origin": "Ambas as exportações"
+      }
+    },
+    {
+      "login": "Z131580",
+      "name": "JEAN CHARLES CABRAL DE LIRA",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico",
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z668172",
+      "name": "JEAN JORGE RODRIGUES BATISTA",
+      "plate": "",
+      "teams": [
+        "NTL-DMV"
+      ],
+      "profiles": [
+        "natal"
+      ],
+      "toa": {
+        "resource_id": "67823",
+        "user_id": "84532",
+        "city": "NATAL",
+        "bucket": "NTL-DMV",
+        "city_status": "identified",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79667402778",
+        "record_origin": "Ambas as exportações"
+      }
+    },
+    {
+      "login": "Z637888",
+      "name": "JEFFERSON ANTONIO PEREIRA FERNANDES PIME",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z676290",
+      "name": "JEFFERSON MENDES DE ANDRADE",
+      "plate": "",
+      "teams": [
+        "NTL-DMV"
+      ],
+      "profiles": [
+        "natal"
+      ],
+      "toa": {
+        "resource_id": "69491",
+        "user_id": "86383",
+        "city": "NATAL",
+        "bucket": "NTL-DMV",
+        "city_status": "identified",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79701333334",
+        "record_origin": "Ambas as exportações"
+      }
+    },
+    {
+      "login": "Z641927",
+      "name": "JEFFERSON TEODORO ALVES",
+      "plate": "",
+      "teams": [
+        "Recife"
+      ],
+      "profiles": [
+        "recife"
+      ]
+    },
+    {
+      "login": "Z295071",
+      "name": "JEYFFERSON GUEDES PAULINO",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico",
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z549555",
+      "name": "JOALYSON SILVA SOARES",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico",
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z662526",
+      "name": "JOAO ASARIAS FONTES",
+      "plate": "",
+      "teams": [
+        "FTZ-DMV_01"
+      ],
+      "profiles": [
+        "fortaleza"
+      ],
+      "toa": {
+        "resource_id": "68703",
+        "user_id": "85500",
+        "city": "FORTALEZA",
+        "bucket": "FTZ-DMV_01",
+        "city_status": "identified",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79720501157",
+        "record_origin": "Ambas as exportações"
+      }
+    },
+    {
+      "login": "Z598203",
+      "name": "JOAO BATISTA CUNHA MORAES",
+      "plate": "",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z500766",
+      "name": "JOAO BATISTA NASCIMENTO DA COSTA",
+      "plate": "",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z657612",
+      "name": "JOAO CARDOSO",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z103647",
+      "name": "JOÃO CARLOS GOMES DE OLIVEIRA",
+      "plate": "QGN2996",
+      "teams": [
+        "VT Manutencao"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z380582",
+      "name": "JOAO FERNANDES DA SILVA NETO",
+      "plate": "",
+      "teams": [],
+      "profiles": [],
+      "toa": {
+        "resource_id": "35587",
+        "user_id": "42640",
+        "city": "",
+        "bucket": "",
+        "city_status": "pending",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79875689815",
+        "record_origin": "Exportação global"
+      }
+    },
+    {
+      "login": "Z582617",
+      "name": "JOAO MACIEL LINS",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z676238",
+      "name": "JOAO MARIA BATISTA CANELA",
+      "plate": "",
+      "teams": [
+        "NTL-DMV"
+      ],
+      "profiles": [
+        "natal"
+      ],
+      "toa": {
+        "resource_id": "69487",
+        "user_id": "86379",
+        "city": "NATAL",
+        "bucket": "NTL-DMV",
+        "city_status": "identified",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.796675185185",
+        "record_origin": "Ambas as exportações"
+      }
+    },
+    {
+      "login": "Z628174",
+      "name": "JOAO PAULO MOREIRA DA SILVA",
+      "plate": "",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z680664",
+      "name": "JOAO TIAGO MOREIRA FERRAZ",
+      "plate": "",
+      "teams": [
+        "JCR-DMV"
+      ],
+      "profiles": [
+        "recife"
+      ],
+      "toa": {
+        "resource_id": "70771",
+        "user_id": "87930",
+        "city": "RECIFE",
+        "bucket": "JCR-DMV",
+        "city_status": "identified",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79789113426",
+        "record_origin": "Ambas as exportações"
+      }
+    },
+    {
+      "login": "Z684466",
+      "name": "JOAO VICTOR RODRIGUES VIEIRA",
+      "plate": "",
+      "teams": [
+        "JCR-DMV"
+      ],
+      "profiles": [
+        "recife"
+      ],
+      "toa": {
+        "resource_id": "70755",
+        "user_id": "87913",
+        "city": "RECIFE",
+        "bucket": "JCR-DMV",
+        "city_status": "identified",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79789271991",
+        "record_origin": "Ambas as exportações"
+      }
+    },
+    {
+      "login": "Z661685",
+      "name": "JOEL SILVA NOGUEIRA",
+      "plate": "",
+      "teams": [],
+      "profiles": [],
+      "toa": {
+        "resource_id": "68003",
+        "user_id": "84770",
+        "city": "",
+        "bucket": "",
+        "city_status": "pending",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79721074074",
+        "record_origin": "Exportação global"
+      }
+    },
+    {
+      "login": "Z343552",
+      "name": "JONAS FLORENCIO DE MORAIS",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico",
+        "MDU",
+        "VT Manutencao"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z664002",
+      "name": "JONATAS DE SOUZA MORORO",
+      "plate": "",
+      "teams": [
+        "FTZ-DMV_01"
+      ],
+      "profiles": [
+        "fortaleza"
+      ],
+      "toa": {
+        "resource_id": "67909",
+        "user_id": "84663",
+        "city": "FORTALEZA",
+        "bucket": "FTZ-DMV_01",
+        "city_status": "identified",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79721107639",
+        "record_origin": "Ambas as exportações"
+      }
+    },
+    {
+      "login": "Z131587",
+      "name": "JONATTAN DA SILVA SOARES",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z634345",
+      "name": "JORGE VIEIRA DE CASTRO",
+      "plate": "",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z648075",
+      "name": "JOSE ALVES BARBOSA JUNIOR",
+      "plate": "",
+      "teams": [],
+      "profiles": [],
+      "toa": {
+        "resource_id": "64074",
+        "user_id": "80388",
+        "city": "",
+        "bucket": "",
+        "city_status": "pending",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.7973659375",
+        "record_origin": "Exportação global"
+      }
+    },
+    {
+      "login": "Z662527",
+      "name": "JOSE AMAIRTON DE SOUSA JUNIOR",
+      "plate": "",
+      "teams": [
+        "FTZ-DMV_01"
+      ],
+      "profiles": [
+        "fortaleza"
+      ],
+      "toa": {
+        "resource_id": "67907",
+        "user_id": "84661",
+        "city": "FORTALEZA",
+        "bucket": "FTZ-DMV_01",
+        "city_status": "identified",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.797366342595",
+        "record_origin": "Ambas as exportações"
+      }
+    },
+    {
+      "login": "Z524950",
+      "name": "JOSE AURICELIO LIMA SOUSA",
+      "plate": "",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z641928",
+      "name": "JOSE EDUARDO ALVES RODRIGUES",
+      "plate": "",
+      "teams": [
+        "Recife"
+      ],
+      "profiles": [
+        "recife"
+      ]
+    },
+    {
+      "login": "Z581723",
+      "name": "JOSE GECIONE CELESTINO ALVES",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z523532",
+      "name": "JOSE HELDER DA SILVA",
+      "plate": "",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z380583",
+      "name": "JOSE ITALO DOS SANTOS FELICIANO",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z641929",
+      "name": "JOSE IZANDERSON NERI DA SILVA",
+      "plate": "",
+      "teams": [
+        "Recife"
+      ],
+      "profiles": [
+        "recife"
+      ]
+    },
+    {
+      "login": "Z629145",
+      "name": "JOSE ROBERTO BARBOSA DA SILVA",
+      "plate": "",
+      "teams": [],
+      "profiles": [],
+      "toa": {
+        "resource_id": "62454",
+        "user_id": "78442",
+        "city": "",
+        "bucket": "",
+        "city_status": "pending",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79789537037",
+        "record_origin": "Exportação global"
+      }
+    },
+    {
+      "login": "Z681781",
+      "name": "JOSE ROBSON CORREIA DE ARAUJO",
+      "plate": "",
+      "teams": [],
+      "profiles": [],
+      "toa": {
+        "resource_id": "69330",
+        "user_id": "86195",
+        "city": "",
+        "bucket": "",
+        "city_status": "pending",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79770924769",
+        "record_origin": "Exportação global"
+      }
+    },
+    {
+      "login": "Z545512",
+      "name": "JOSÉ ROBSON CORREIA DE ARAUJO",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z667206",
+      "name": "JOSE VAGNER SOUSA MEDEIROS",
+      "plate": "",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z380584",
+      "name": "JOSENILDO GOMES DE SOUZA",
+      "plate": "",
+      "teams": [],
+      "profiles": [],
+      "toa": {
+        "resource_id": "35578",
+        "user_id": "42629",
+        "city": "",
+        "bucket": "",
+        "city_status": "pending",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79857712963",
+        "record_origin": "Exportação global"
+      }
+    },
+    {
+      "login": "Z629143",
+      "name": "JOYCIO CLEISON MARCOLINO DE VASCONCELOS",
+      "plate": "",
+      "teams": [
+        "Recife"
+      ],
+      "profiles": [
+        "recife"
+      ]
+    },
+    {
+      "login": "Z542714",
+      "name": "JUDENELES GOMES TARQUINO",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico",
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z422752",
+      "name": "JUDSON BERTO DA SILVA",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico",
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z380585",
+      "name": "JULIO NASCIMENTO SILVA",
+      "plate": "",
+      "teams": [],
+      "profiles": [],
+      "toa": {
+        "resource_id": "35577",
+        "user_id": "42628",
+        "city": "",
+        "bucket": "",
+        "city_status": "pending",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.798579409726",
+        "record_origin": "Exportação global"
+      }
+    },
+    {
+      "login": "Z340948",
+      "name": "JUNIOR CLEBER DA SILVA",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z654271",
+      "name": "KASSIO KENNEDY GOMES PEREIRA",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z555476",
+      "name": "KLEBIO OLIVEIRA VIANA",
+      "plate": "",
+      "teams": [],
+      "profiles": [],
+      "toa": {
+        "resource_id": "54574",
+        "user_id": "67827",
+        "city": "",
+        "bucket": "",
+        "city_status": "pending",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79771197917",
+        "record_origin": "Exportação global"
+      }
+    },
+    {
+      "login": "Z509113",
+      "name": "LAVOISIER JUSTINO DOS SANTOS",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z495123",
+      "name": "LEANDRO SILVA PAHE",
+      "plate": "HWP-0499",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z381716",
+      "name": "LEOMIR DA SILVA FLORENCIO",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z684463",
+      "name": "LEONARDO DOS SANTOS",
+      "plate": "",
+      "teams": [
+        "JCR-DMV"
+      ],
+      "profiles": [
+        "recife"
+      ],
+      "toa": {
+        "resource_id": "70762",
+        "user_id": "87920",
+        "city": "RECIFE",
+        "bucket": "JCR-DMV",
+        "city_status": "identified",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.797896331016",
+        "record_origin": "Ambas as exportações"
+      }
+    },
+    {
+      "login": "Z540537",
+      "name": "LEONARDO NASCIMENTO DA SILVA",
+      "plate": "",
+      "teams": [],
+      "profiles": [],
+      "toa": {
+        "resource_id": "52697",
+        "user_id": "65418",
+        "city": "",
+        "bucket": "",
+        "city_status": "pending",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79771226852",
+        "record_origin": "Exportação global"
+      }
+    },
+    {
+      "login": "Z614932",
+      "name": "LEONARDO VALENTE DOS SANTOS",
+      "plate": "",
+      "teams": [],
+      "profiles": [],
+      "toa": {
+        "resource_id": "60873",
+        "user_id": "76280",
+        "city": "",
+        "bucket": "",
+        "city_status": "pending",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79737208333",
+        "record_origin": "Exportação global"
+      }
+    },
+    {
+      "login": "Z629134",
+      "name": "LUAN MATHEUS SANTANA DO MONTE",
+      "plate": "",
+      "teams": [
+        "Recife"
+      ],
+      "profiles": [
+        "recife"
+      ]
+    },
+    {
+      "login": "Z634344",
+      "name": "LUAN PABLO DE SOUZA FERREIRA",
+      "plate": "",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z641930",
+      "name": "LUCAS LEONARDO FERREIRA AGUIAR",
+      "plate": "",
+      "teams": [],
+      "profiles": [],
+      "toa": {
+        "resource_id": "63728",
+        "user_id": "80041",
+        "city": "",
+        "bucket": "",
+        "city_status": "pending",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79789887732",
+        "record_origin": "Exportação global"
+      }
+    },
+    {
+      "login": "Z696197",
+      "name": "LUCAS LEONARDO FERREIRA AGUIAR",
+      "plate": "",
+      "teams": [],
+      "profiles": [],
+      "toa": {
+        "resource_id": "70904",
+        "user_id": "88082",
+        "city": "",
+        "bucket": "",
+        "city_status": "pending",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79789851852",
+        "record_origin": "Exportação global"
+      }
+    },
+    {
+      "login": "Z513415",
+      "name": "LUCAS LINHARES",
+      "plate": "",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z637678",
+      "name": "LUCAS MATHEUS FERNANDES DE ARAUJO",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z156973",
+      "name": "LUCIANO DA SILVA",
+      "plate": "MNZ5895",
+      "teams": [
+        "VT Manutencao"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z643732",
+      "name": "LUCIANO VENANCIO DA SILVA",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z340733",
+      "name": "LUCIVALDO CAETANO DO NASCIMENTO",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico",
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z629140",
+      "name": "LUIS FELIPE DA SILVA MEDEIROS",
+      "plate": "",
+      "teams": [
+        "Recife"
+      ],
+      "profiles": [
+        "recife"
+      ]
+    },
+    {
+      "login": "Z289375",
+      "name": "LUIZ SEVERIANO DE MELO FILHO",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico",
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z512188",
+      "name": "MAIRTON JOSE DA SILVA",
+      "plate": "",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z029701",
+      "name": "MARCELO AECIO FERNANDES ALVES JUNIOR",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico",
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z684464",
+      "name": "MARCELO HENRIQUE PEREIRA DA SILVA",
+      "plate": "",
+      "teams": [
+        "JCR-DMV"
+      ],
+      "profiles": [
+        "recife"
+      ],
+      "toa": {
+        "resource_id": "70760",
+        "user_id": "87918",
+        "city": "RECIFE",
+        "bucket": "JCR-DMV",
+        "city_status": "identified",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.797901157406",
+        "record_origin": "Ambas as exportações"
+      }
+    },
+    {
+      "login": "Z622872",
+      "name": "MARCELO LUCAS PEDROSA SOARES",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z641931",
+      "name": "MARCELO NUNES DA SILVA",
+      "plate": "",
+      "teams": [
+        "Recife"
+      ],
+      "profiles": [
+        "recife"
+      ]
+    },
+    {
+      "login": "Z512189",
+      "name": "MARCIANO GOMES MACIEL",
+      "plate": "",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z629146",
+      "name": "MARCIO WANDERLEY OLIVEIRA DA SILVA",
+      "plate": "",
+      "teams": [
+        "Recife"
+      ],
+      "profiles": [
+        "recife"
+      ]
+    },
+    {
+      "login": "Z524951",
+      "name": "MARCO JOSE ALVES DA SILVA",
+      "plate": "",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z661198",
+      "name": "MARCOS ANTONIO DE LIMA",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z512190",
+      "name": "MARCOS JAILSON SILVA CASTRO",
+      "plate": "",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z343623",
+      "name": "MARCOS WENDELL CASTRO DO NASCIMENTO",
+      "plate": "",
+      "teams": [
+        "MDU",
+        "Mossoro"
+      ],
+      "profiles": [
+        "mossoro"
+      ]
+    },
+    {
+      "login": "Z500478",
+      "name": "MARCUS DA SILVA CAMURCA",
+      "plate": "",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z655933",
+      "name": "MARCUS VINICIUS DA SILVA",
+      "plate": "",
+      "teams": [
+        "NTL-DMV"
+      ],
+      "profiles": [
+        "natal"
+      ],
+      "toa": {
+        "resource_id": "66390",
+        "user_id": "83123",
+        "city": "NATAL",
+        "bucket": "NTL-DMV",
+        "city_status": "identified",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79685928241",
+        "record_origin": "Ambas as exportações"
+      }
+    },
+    {
+      "login": "Z655153",
+      "name": "MARLON SANDRO MIGUEL ATA GERMANO",
+      "plate": "",
+      "teams": [
+        "VT Manutencao"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z162951",
+      "name": "MATEUS LIMA MONTEIRO",
+      "plate": "MXQ7690",
+      "teams": [
+        "VT Manutencao"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z654270",
+      "name": "MATHEUS FERNANDES",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z507443",
+      "name": "MAURO WELLINGTON RODRIGUES DA SILVA",
+      "plate": "",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z310326",
+      "name": "MIQUEIAS GOMES DA COSTA",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z667207",
+      "name": "NATTANAEL WESLLEY QUEIROZ DE OLIVEIRA",
+      "plate": "",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z504740",
+      "name": "NEY ARLISON MORAIS VIEIRA",
+      "plate": "",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z676239",
+      "name": "NIEDSON DO NASCIMENTO PEREIRA",
+      "plate": "",
+      "teams": [
+        "NTL-DMV"
+      ],
+      "profiles": [
+        "natal"
+      ],
+      "toa": {
+        "resource_id": "70434",
+        "user_id": "87526",
+        "city": "NATAL",
+        "bucket": "NTL-DMV",
+        "city_status": "identified",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.796679722225",
+        "record_origin": "Ambas as exportações"
+      }
+    },
+    {
+      "login": "Z637898",
+      "name": "ONEIL WANDEL NOGUEIRA PRAXEDES",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z152863",
+      "name": "ORLANDO DE LIMA CALDAS",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z336380",
+      "name": "OSEAS FRANCISCO DA SILVA",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico",
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z131595",
+      "name": "PABLO RAFAEL DA SILVA",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z534377",
+      "name": "PATRICK KENNETH SATIRO DA SILVA",
+      "plate": "",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z418624",
+      "name": "PAULO CAVALCANTE DE MOURA FILHO",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico",
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z655934",
+      "name": "PAULO ROBERTO GOMES SOARES",
+      "plate": "",
+      "teams": [
+        "NTL-DMV"
+      ],
+      "profiles": [
+        "natal"
+      ],
+      "toa": {
+        "resource_id": "66389",
+        "user_id": "83122",
+        "city": "NATAL",
+        "bucket": "NTL-DMV",
+        "city_status": "identified",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.796682430555",
+        "record_origin": "Ambas as exportações"
+      }
+    },
+    {
+      "login": "Z684465",
+      "name": "PAULO WAGNER MENDES DA SILVA",
+      "plate": "",
+      "teams": [
+        "JCR-DMV"
+      ],
+      "profiles": [
+        "recife"
+      ],
+      "toa": {
+        "resource_id": "70756",
+        "user_id": "87914",
+        "city": "RECIFE",
+        "bucket": "JCR-DMV",
+        "city_status": "identified",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79790380787",
+        "record_origin": "Ambas as exportações"
+      }
+    },
+    {
+      "login": "Z670833",
+      "name": "PEDRO LUCAS MOTA COSTA",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z658379",
+      "name": "PEDRO LUCENA DA COSTA FILHO",
+      "plate": "",
+      "teams": [
+        "NTL-DMV"
+      ],
+      "profiles": [
+        "natal"
+      ],
+      "toa": {
+        "resource_id": "66388",
+        "user_id": "83121",
+        "city": "NATAL",
+        "bucket": "NTL-DMV",
+        "city_status": "identified",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79668357639",
+        "record_origin": "Ambas as exportações"
+      }
+    },
+    {
+      "login": "Z605299",
+      "name": "PEDRO MARTINS DE SOUSA",
+      "plate": "",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z380587",
+      "name": "PHILIPE DEAN MEDEIROS DOS SANTOS",
+      "plate": "",
+      "teams": [],
+      "profiles": [],
+      "toa": {
+        "resource_id": "35576",
+        "user_id": "42627",
+        "city": "",
+        "bucket": "",
+        "city_status": "pending",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79857982639",
+        "record_origin": "Exportação global"
+      }
+    },
+    {
+      "login": "Z623274",
+      "name": "QUEMMUEL DE CASTRO MEIRA",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z114405",
+      "name": "RAFAEL DANILO",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z641933",
+      "name": "RAMOS CICERO DA SILVA",
+      "plate": "",
+      "teams": [],
+      "profiles": [],
+      "toa": {
+        "resource_id": "63729",
+        "user_id": "80042",
+        "city": "",
+        "bucket": "",
+        "city_status": "pending",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79790420139",
+        "record_origin": "Exportação global"
+      }
+    },
+    {
+      "login": "Z680658",
+      "name": "RAUNY JORGE DA SILVA",
+      "plate": "",
+      "teams": [
+        "JCR-DMV"
+      ],
+      "profiles": [
+        "recife"
+      ],
+      "toa": {
+        "resource_id": "69872",
+        "user_id": "86849",
+        "city": "RECIFE",
+        "bucket": "JCR-DMV",
+        "city_status": "identified",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.7979059375",
+        "record_origin": "Ambas as exportações"
+      }
+    },
+    {
+      "login": "Z546671",
+      "name": "REGINALDO TAVARES DE LIMA",
+      "plate": "",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z656021",
+      "name": "RENAN FAGNER DUARTE DA SILVA",
+      "plate": "",
+      "teams": [
+        "Recife"
+      ],
+      "profiles": [
+        "recife"
+      ]
+    },
+    {
+      "login": "Z641934",
+      "name": "RENAN JOSE DA SILVA",
+      "plate": "",
+      "teams": [
+        "Recife"
+      ],
+      "profiles": [
+        "recife"
+      ]
+    },
+    {
+      "login": "Z629135",
+      "name": "RENATO FELIPE DUARTE DA SILVA",
+      "plate": "",
+      "teams": [],
+      "profiles": [],
+      "toa": {
+        "resource_id": "62452",
+        "user_id": "78440",
+        "city": "",
+        "bucket": "",
+        "city_status": "pending",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.798067662035",
+        "record_origin": "Exportação global"
+      }
+    },
+    {
+      "login": "Z156593",
+      "name": "RENATO SOUSA MENDES",
+      "plate": "OJU3569",
+      "teams": [
+        "VT Manutencao"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z657057",
+      "name": "RICARDO TAVARES",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z629148",
+      "name": "ROBERT HENRIQUE DOS SANTOS PEREIRA",
+      "plate": "",
+      "teams": [],
+      "profiles": [],
+      "toa": {
+        "resource_id": "62451",
+        "user_id": "78439",
+        "city": "",
+        "bucket": "",
+        "city_status": "pending",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.798069282406",
+        "record_origin": "Exportação global"
+      }
+    },
+    {
+      "login": "Z343553",
+      "name": "ROBERTO FAGNER CLEMENTINO DA SILVA",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico",
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z500479",
+      "name": "RONALDO DE SOUSA PINHEIRO",
+      "plate": "",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z597293",
+      "name": "RONIEBERTH AVELINO BEZERRA",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z542715",
+      "name": "RONYSTAY DE OLIVEIRA SOUZA",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico",
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z669202",
+      "name": "RUBENS LUIZ",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z512444",
+      "name": "RUDSON FONTES GOMES",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico",
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z595723",
+      "name": "SANDERSON RICARDO DOS NAVEGANTES",
+      "plate": "",
+      "teams": [
+        "Mossoro"
+      ],
+      "profiles": [
+        "mossoro"
+      ]
+    },
+    {
+      "login": "Z654441",
+      "name": "SANDERSON RICARDO DOS NAVEGANTES",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z546823",
+      "name": "SAULO EURIPIS MELO DE JESUS",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z680657",
+      "name": "SEBASTIAO AMARO DA SILVA",
+      "plate": "",
+      "teams": [
+        "JCR-DMV"
+      ],
+      "profiles": [
+        "recife"
+      ],
+      "toa": {
+        "resource_id": "70769",
+        "user_id": "87927",
+        "city": "RECIFE",
+        "bucket": "JCR-DMV",
+        "city_status": "identified",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79806934028",
+        "record_origin": "Ambas as exportações"
+      }
+    },
+    {
+      "login": "Z680665",
+      "name": "SERGIO PAULO SILVA ARAUJO",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z190720",
+      "name": "SEVERINO SOARES DA COSTA NETO",
+      "plate": "",
+      "teams": [],
+      "profiles": [],
+      "toa": {
+        "resource_id": "10280",
+        "user_id": "11422",
+        "city": "",
+        "bucket": "",
+        "city_status": "pending",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.798420046296",
+        "record_origin": "Exportação global"
+      }
+    },
+    {
+      "login": "Z453020",
+      "name": "SIDNEY DA SILVA FERREIRA",
+      "plate": "",
+      "teams": [
+        "MDU",
+        "VT Manutencao"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z509114",
+      "name": "SIDNEY DOMINGOS DA SILVA",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico",
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z651314",
+      "name": "SMALEY STALLONE BEZERRA PEREIRA DA SILVA",
+      "plate": "OWB2J79",
+      "teams": [
+        "Mossoro"
+      ],
+      "profiles": [
+        "mossoro"
+      ]
+    },
+    {
+      "login": "Z660888",
+      "name": "SOMERREGILSON DA SILVA MEDEIROS",
+      "plate": "",
+      "teams": [
+        "NTL-DMV"
+      ],
+      "profiles": [
+        "natal"
+      ],
+      "toa": {
+        "resource_id": "67379",
+        "user_id": "84201",
+        "city": "NATAL",
+        "bucket": "NTL-DMV",
+        "city_status": "identified",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79686199074",
+        "record_origin": "Ambas as exportações"
+      }
+    },
+    {
+      "login": "Z469192",
+      "name": "SONERREGILSON DA SILVA MEDEIROS",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z623275",
+      "name": "SULIZENO MARTINS DOS SANTOS",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z595406",
+      "name": "THIAGO FREITAS MORAIS",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico",
+        "VT Manutencao"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z640029",
+      "name": "THIAGO HENRIQUE SILVA",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z548809",
+      "name": "THIAGO JOSE CAMARA DE MELO",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z629149",
+      "name": "THIAGO RODRIGUES DA SILVA SANTOS",
+      "plate": "",
+      "teams": [
+        "Recife"
+      ],
+      "profiles": [
+        "recife"
+      ]
+    },
+    {
+      "login": "Z642718",
+      "name": "THOMAS JOSE BRENO DA SILVA",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z380588",
+      "name": "THOMAS MATHEUS SOARES DE PAIVA",
+      "plate": "",
+      "teams": [],
+      "profiles": [],
+      "toa": {
+        "resource_id": "35643",
+        "user_id": "42705",
+        "city": "",
+        "bucket": "",
+        "city_status": "pending",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79858221065",
+        "record_origin": "Exportação global"
+      }
+    },
+    {
+      "login": "Z530473",
+      "name": "TIAGO CANDIDA DA SILVA",
+      "plate": "",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z689874",
+      "name": "TIAGO CANDIDA DA SILVA",
+      "plate": "",
+      "teams": [],
+      "profiles": [],
+      "toa": {
+        "resource_id": "70082",
+        "user_id": "87085",
+        "city": "",
+        "bucket": "",
+        "city_status": "pending",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79754670139",
+        "record_origin": "Exportação global"
+      }
+    },
+    {
+      "login": "Z494596",
+      "name": "TIAGO OLIVEIRA DE ALMEIDA",
+      "plate": "ORZ-1175",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z638765",
+      "name": "UILDSON OLIVEIRA BARROS",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z658377",
+      "name": "VICTOR DO AMARAL AZEVEDO",
+      "plate": "",
+      "teams": [],
+      "profiles": [],
+      "toa": {
+        "resource_id": "67380",
+        "user_id": "84202",
+        "city": "",
+        "bucket": "",
+        "city_status": "pending",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79701908565",
+        "record_origin": "Exportação global"
+      }
+    },
+    {
+      "login": "Z142446",
+      "name": "VICTOR HUGO CUNHA SILVA",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z581724",
+      "name": "VICTOR MANICOBA GUEDES DE ARAUJO",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z284864",
+      "name": "VICTOR PINHEIRO DANTAS",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z595279",
+      "name": "VICTOR RAMOS VITAL",
+      "plate": "",
+      "teams": [
+        "MDU"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z665115",
+      "name": "WALESSON FEITOSA LIMA",
+      "plate": "",
+      "teams": [
+        "FTZ-DMV_01"
+      ],
+      "profiles": [
+        "fortaleza"
+      ],
+      "toa": {
+        "resource_id": "68706",
+        "user_id": "85503",
+        "city": "FORTALEZA",
+        "bucket": "FTZ-DMV_01",
+        "city_status": "identified",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79738476852",
+        "record_origin": "Ambas as exportações"
+      }
+    },
+    {
+      "login": "Z512191",
+      "name": "WALLACE FERNANDES DE LIMA",
+      "plate": "RQK-J115",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z041730",
+      "name": "WEBERTON VITOR DA SILVA",
+      "plate": "QGC4581",
+      "teams": [
+        "VT Manutencao"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z641936",
+      "name": "WELLINGTON RIBEIRO DE OLIVEIRA SOBRINHO",
+      "plate": "",
+      "teams": [
+        "Recife"
+      ],
+      "profiles": [
+        "recife"
+      ]
+    },
+    {
+      "login": "Z173047",
+      "name": "WESLEY WANDERLEY DA SILVA",
+      "plate": "",
+      "teams": [
+        "MDU",
+        "Mossoro"
+      ],
+      "profiles": [
+        "mossoro"
+      ]
+    },
+    {
+      "login": "Z653648",
+      "name": "WEVERTON DA SILVA GOIS",
+      "plate": "",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z641937",
+      "name": "WILLIAM DAVID DA SILVA FRANCA",
+      "plate": "",
+      "teams": [],
+      "profiles": [],
+      "toa": {
+        "resource_id": "63730",
+        "user_id": "80043",
+        "city": "",
+        "bucket": "",
+        "city_status": "pending",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79807207176",
+        "record_origin": "Exportação global"
+      }
+    },
+    {
+      "login": "Z511120",
+      "name": "WILLIAM DE ALMEIDA SANTOS",
+      "plate": "",
+      "teams": [
+        "Fortaleza"
+      ],
+      "profiles": [
+        "fortaleza"
+      ]
+    },
+    {
+      "login": "Z641938",
+      "name": "WILLIAN JOSE RODRIGUES DE MELO",
+      "plate": "",
+      "teams": [],
+      "profiles": [],
+      "toa": {
+        "resource_id": "63750",
+        "user_id": "80065",
+        "city": "",
+        "bucket": "",
+        "city_status": "pending",
+        "route_status": "",
+        "total_os": "",
+        "pending_os": "",
+        "skills": "",
+        "calendar": "",
+        "groups": "",
+        "work_areas": "",
+        "captured_at": "46242.79807304398",
+        "record_origin": "Exportação global"
+      }
+    },
+    {
+      "login": "Z355113",
+      "name": "WINDSON ARAUJO DO NASCIMENTO",
+      "plate": "",
+      "teams": [
+        "VT Manutencao"
+      ],
+      "profiles": []
+    },
+    {
+      "login": "Z554519",
+      "name": "YILVER DAVISON ALVARADO LOZANO",
+      "plate": "",
+      "teams": [
+        "Adesao e Servico"
+      ],
+      "profiles": []
+    }
+  ]
+}

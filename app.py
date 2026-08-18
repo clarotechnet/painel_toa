@@ -1,6 +1,7 @@
 """Servidor local do DOMINIUM TOA com cache SQLite para a TV."""
 from __future__ import annotations
 
+
 import argparse
 import hmac
 import json

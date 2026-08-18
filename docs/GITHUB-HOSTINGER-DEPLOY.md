@@ -1,7 +1,7 @@
 # GitHub + Hostinger: publicação automática do painel
 
 O GitHub armazena o código-fonte. A GitHub Action executa os testes, gera
-`dist/` e envia somente o site estático para a Hostinger por SFTP.
+`dist/` e envia somente o site estático para `public_html/central` por FTP.
 
 ## O que não deve ir para o GitHub
 
@@ -30,35 +30,28 @@ git push -u origin main
 Antes do `git commit`, confirme em `git status` que `.env.local`, `.env.docker`,
 `data/` e arquivos de conta de serviço não aparecem.
 
-## 2. Obter os dados SFTP na Hostinger
+## 2. Obter os dados FTP na Hostinger
 
 1. Abra **Sites > Painel de controle** no site de destino.
-2. Abra **Avançado > Acesso SSH** ou **Acesso remoto**.
-3. Ative SSH/SFTP se estiver desativado.
-4. Anote IP/host, porta, usuário e caminho exato do `public_html` desse domínio.
-5. Defina uma senha SSH/SFTP exclusiva para a implantação.
+2. Abra **Arquivos > Contas FTP**.
+3. Anote servidor/IP, usuário e senha do mesmo acesso já usado pelos outros
+   sites.
 
-Na Hostinger a porta SFTP normalmente é `65002`, mas use o número exibido no
-seu próprio painel. O caminho costuma ser semelhante a:
+O workflow usa a porta FTP `21`. Como a conta abre em `public_html`, o diretório
+remoto deste painel está fixado em `./central/`.
 
-```text
-/home/u123456789/domains/seu-dominio.com.br/public_html/
-```
+## 3. Criar os Secrets no GitHub
 
-## 3. Criar o ambiente e os Secrets no GitHub
-
-No repositório, abra **Settings > Environments > New environment**, crie o
-ambiente `production` e, dentro dele, cadastre estes Environment secrets:
+No repositório, abra **Settings > Secrets and variables > Actions** e clique em
+**New repository secret** para cadastrar:
 
 | Secret | Valor |
 | --- | --- |
-| `HOSTINGER_SFTP_HOST` | IP ou host mostrado pela Hostinger |
-| `HOSTINGER_SFTP_PORT` | Porta mostrada, normalmente `65002` |
-| `HOSTINGER_SFTP_USER` | Usuário SSH/SFTP |
-| `HOSTINGER_SFTP_PASSWORD` | Senha SSH/SFTP |
-| `HOSTINGER_REMOTE_DIR` | Caminho completo do `public_html` do domínio |
+| `HOSTINGER_FTP_SERVER` | Servidor/IP FTP mostrado pela Hostinger |
+| `HOSTINGER_FTP_USERNAME` | Usuário FTP |
+| `HOSTINGER_FTP_PASSWORD` | Senha FTP |
 
-Não use a senha da conta do GitHub ou do hPanel. O workflow usa somente os cinco
+Não use a senha da conta do GitHub ou do hPanel. O workflow usa somente os três
 Secrets acima; nenhum segredo do n8n ou do coletor é necessário na hospedagem.
 
 ## 4. Primeira publicação

@@ -17,7 +17,6 @@ jobs:
   deploy:
     name: Build, teste e deploy
     runs-on: ubuntu-latest
-    environment: production
 
     steps:
       - name: Baixar o codigo
@@ -41,35 +40,13 @@ jobs:
       - name: Validar artefato
         run: test -f dist/index.html && test -f dist/config.js
 
-      - name: Validar Secrets da Hostinger
-        env:
-          SFTP_HOST: ${{ secrets.HOSTINGER_SFTP_HOST }}
-          SFTP_PORT: ${{ secrets.HOSTINGER_SFTP_PORT }}
-          SFTP_USER: ${{ secrets.HOSTINGER_SFTP_USER }}
-          SFTP_PASSWORD: ${{ secrets.HOSTINGER_SFTP_PASSWORD }}
-          SFTP_REMOTE_DIR: ${{ secrets.HOSTINGER_REMOTE_DIR }}
-        run: |
-          test -n "$SFTP_HOST"
-          test -n "$SFTP_PORT"
-          test -n "$SFTP_USER"
-          test -n "$SFTP_PASSWORD"
-          test -n "$SFTP_REMOTE_DIR"
-
-      - name: Instalar cliente SFTP
-        run: sudo apt-get update && sudo apt-get install --yes lftp
-
-      - name: Enviar dist para a Hostinger
-        env:
-          SFTP_HOST: ${{ secrets.HOSTINGER_SFTP_HOST }}
-          SFTP_PORT: ${{ secrets.HOSTINGER_SFTP_PORT }}
-          SFTP_USER: ${{ secrets.HOSTINGER_SFTP_USER }}
-          SFTP_PASSWORD: ${{ secrets.HOSTINGER_SFTP_PASSWORD }}
-          SFTP_REMOTE_DIR: ${{ secrets.HOSTINGER_REMOTE_DIR }}
-        run: |
-          lftp -u "$SFTP_USER","$SFTP_PASSWORD" -p "$SFTP_PORT" "sftp://$SFTP_HOST" <<LFTP
-          set sftp:auto-confirm yes
-          set net:max-retries 2
-          set net:timeout 20
-          mirror --reverse --only-newer --parallel=4 --verbose ./dist/ "$SFTP_REMOTE_DIR"
-          bye
-          LFTP
+      - name: Enviar dist para public_html/central
+        uses: SamKirkland/FTP-Deploy-Action@v4.4.0
+        with:
+          server: ${{ secrets.HOSTINGER_FTP_SERVER }}
+          username: ${{ secrets.HOSTINGER_FTP_USERNAME }}
+          password: ${{ secrets.HOSTINGER_FTP_PASSWORD }}
+          protocol: ftp
+          port: 21
+          local-dir: ./dist/
+          server-dir: ./central/

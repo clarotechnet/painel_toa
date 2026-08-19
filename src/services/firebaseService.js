@@ -141,7 +141,7 @@ function accessGateMarkup(user) {
   const signedIn = Boolean(user);
   return `<main class="firebase-access-gate">
     <section class="firebase-access-card">
-      <img src="/assets/brands/technet-symbol.png" alt="Technet">
+      <img class="brand-primary-logo" src="/assets/brands/logo-novo-compact.svg" alt="Dominium TOA">
       <p class="firebase-access-eyebrow">DOMINIUM TOA</p>
       <h1>${signedIn ? 'Acesso ainda não autorizado' : 'Entrar no painel operacional'}</h1>
       <p>${signedIn

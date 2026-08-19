@@ -1,4 +1,7 @@
 /* Ajustes exclusivos do projeto TOA. O visual base continua sendo o CSS original do DOMINIUM. */
+/* Evita recalcular todo o painel em cada quadro ao recolher o menu lateral. */
+.app-header,
+.app-shell { transition: none; }
 .profile-tabs button small{margin-left:7px;opacity:.65;font-size:10px}.toa-simple-workspace{padding:24px clamp(18px,2.3vw,34px) 42px;min-width:0}.toa-upload-card{display:flex;align-items:center;gap:16px;padding:18px 20px;border:1px solid var(--line);background:var(--surface);border-radius:10px;margin-bottom:16px}.toa-upload-card>div:nth-child(2){flex:1}.toa-upload-card strong{display:block;font-size:15px}.toa-upload-card p{margin:5px 0 0;color:var(--muted);font-size:12px}.toa-file-list{display:grid;gap:8px;padding-top:10px}.toa-file-list article{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:8px;padding:11px 12px;background:var(--surface-soft)}.toa-file-list article svg{width:17px;height:17px;color:var(--success)}.toa-file-list article.error svg{color:var(--danger)}.toa-file-list article div{display:grid;gap:2px}.toa-file-list article strong{font-size:12px}.toa-file-list article small{font-size:10px;color:var(--muted)}.toa-tech-kpis{grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:15px}.toast-stack{position:fixed;right:20px;bottom:20px;z-index:99999;display:grid;gap:8px;max-width:min(420px,calc(100vw - 40px))}.toast{background:var(--surface-elevated,#15171b);border:1px solid var(--line);box-shadow:0 14px 36px rgba(0,0,0,.25);padding:12px 14px;border-radius:8px;font-size:12px}.toast.success{border-color:rgba(36,181,125,.45)}.toast.error{border-color:rgba(235,72,88,.55)}.side-nav-assurance{font-size:10px}.side-nav-assurance svg{width:14px}.connection.connected .status-dot{background:#24b57d;box-shadow:0 0 0 4px rgba(36,181,125,.12)}.monitor-source-card .danger{color:var(--danger)}.monitor-tabs button span{font-size:10px;opacity:.65;margin-left:4px}.sidebar-collapsed .side-nav{width:72px}.sidebar-collapsed .side-nav .side-nav-label,.sidebar-collapsed .side-nav .side-nav-item span,.sidebar-collapsed .side-nav .side-nav-footer{display:none}.sidebar-collapsed .side-nav-item{justify-content:center}.sidebar-collapsed .app-shell{grid-template-columns:72px minmax(0,1fr)}
 @media(max-width:900px){.toa-tech-kpis{grid-template-columns:1fr}.toa-upload-card{align-items:flex-start;flex-wrap:wrap}.sidebar-collapsed .app-shell{grid-template-columns:1fr}}
 
@@ -14,8 +17,17 @@
   align-items: center;
   display: inline-flex;
   justify-content: center;
+  min-width: 100px;
   white-space: nowrap;
 }
+.profile-tabs {
+  box-sizing: border-box;
+  justify-self: stretch;
+  max-width: 100%;
+  width: 100%;
+}
+.profile-tabs .profile-tab[data-profile="natal"] { min-width: 145px; }
+.profile-tabs .profile-tab-all { min-width: 76px; }
 
 .monitor-heading { align-items: flex-start; }
 .monitor-actions { justify-content: flex-end; }
@@ -588,3 +600,172 @@ html[data-theme="light"] .monitor-tv-focus-card-head > span:first-child {
 .firebase-access-actions button.secondary { background: transparent; border-color: #3b4652; }
 .firebase-access-actions button:disabled { cursor: wait; opacity: .55; }
 .firebase-access-error { color: #ff7c86 !important; font-size: 13px; min-height: 20px; }
+
+/* O novo símbolo preserva o quadrado branco original nos dois temas. */
+.brand-primary-logo,
+html[data-theme="light"] .brand-primary-logo {
+  background: #ffffff !important;
+  border-radius: 4px;
+  filter: none !important;
+  object-fit: contain;
+}
+.brand-mark,
+html[data-theme="light"] .brand-mark {
+  background: #ffffff !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+.profile-tab-all { border-style: dashed !important; }
+
+/* Escalonamento visual quando faltam 15 minutos para completar 1h de atraso. */
+.monitor-tv-focus-card.urgent-close {
+  border-color: #ff2f40;
+  box-shadow: inset 0 3px 0 #ff2f40, 0 0 26px rgba(255, 47, 64, .2);
+}
+.monitor-tv-urgent {
+  align-items: center;
+  background: linear-gradient(90deg, rgba(25, 91, 222, .2), rgba(228, 37, 51, .24));
+  border: 1px solid rgba(255, 73, 87, .65);
+  border-radius: 9px;
+  display: none;
+  gap: 12px;
+  margin-top: auto;
+  min-height: 70px;
+  padding: 10px 12px;
+}
+.monitor-tv-urgent.active { display: flex; }
+.monitor-tv-urgent > div { display: grid; gap: 4px; min-width: 0; }
+.monitor-tv-urgent strong {
+  color: #ff616d;
+  font-size: clamp(10px, .8vw, 15px);
+  font-weight: 950;
+  letter-spacing: .04em;
+}
+.monitor-tv-urgent small { color: #d6dde6; font-size: clamp(9px, .63vw, 12px); }
+.monitor-tv-siren {
+  align-items: center;
+  animation: monitor-tv-siren-flash .72s steps(2, end) infinite;
+  background: linear-gradient(90deg, #155de0 0 50%, #e42533 50% 100%);
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: -7px 0 18px rgba(21, 93, 224, .5), 7px 0 18px rgba(228, 37, 51, .55);
+  color: #ffffff;
+  display: flex;
+  flex: 0 0 auto;
+  height: 48px;
+  justify-content: center;
+  width: 48px;
+}
+.monitor-tv-siren svg { height: 25px; width: 25px; }
+@keyframes monitor-tv-siren-flash {
+  0%, 49% { filter: brightness(1.7); transform: rotate(-3deg) scale(1.03); }
+  50%, 100% { filter: brightness(.82); transform: rotate(3deg); }
+}
+html[data-theme="light"] .monitor-tv-urgent {
+  background: linear-gradient(90deg, #e8f0ff, #fff0f2);
+  border-color: #e83b49;
+}
+html[data-theme="light"] .monitor-tv-urgent small { color: #39485a; }
+
+/* Console dedicado: lista somente os contratos que estão gerando alertas. */
+body.alert-console-open { overflow: hidden; }
+.alert-console-screen {
+  background: #090d12;
+  color: #eef3f8;
+  display: grid;
+  grid-template-rows: minmax(90px, auto) minmax(0, 1fr);
+  inset: 0;
+  padding: clamp(18px, 2vw, 32px);
+  position: fixed;
+  z-index: 100000;
+}
+.alert-console-header {
+  align-items: center;
+  background: #090d12;
+  border-bottom: 1px solid #27313c;
+  display: flex;
+  gap: 24px;
+  justify-content: space-between;
+  padding-bottom: 18px;
+  position: relative;
+  z-index: 10;
+}
+.alert-console-header > div:first-child { display: grid; gap: 5px; }
+.alert-console-header > div:first-child > span {
+  color: #ff4857;
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: .15em;
+}
+.alert-console-header h2 { font-size: clamp(22px, 2vw, 34px); margin: 0; }
+.alert-console-header p { color: #8d99a7; font-size: 12px; margin: 0; }
+.alert-console-summary { align-items: center; display: flex; gap: 9px; }
+.alert-console-summary strong { color: #ff4857; font-size: 30px; }
+.alert-console-summary span { color: #9ba7b4; font-size: 12px; }
+.alert-console-summary button {
+  align-items: center;
+  background: #171d24;
+  border: 1px solid #39434e;
+  border-radius: 8px;
+  color: #ffffff;
+  cursor: pointer;
+  display: flex;
+  height: 42px;
+  justify-content: center;
+  margin-left: 12px;
+  width: 42px;
+}
+.alert-console-summary button:hover { background: #252d36; border-color: #697786; }
+.alert-console-summary svg { height: 19px; width: 19px; }
+.alert-console-table-wrap {
+  isolation: isolate;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding-top: 0;
+  position: relative;
+}
+.alert-console-table { border-collapse: separate; border-spacing: 0; min-width: 1200px; width: 100%; }
+.alert-console-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+.alert-console-table th {
+  background: #151b22;
+  border-bottom: 1px solid #36414c;
+  color: #8996a5;
+  font-size: 10px;
+  letter-spacing: .07em;
+  padding: 12px 14px;
+  position: static;
+  text-align: left;
+  text-transform: uppercase;
+}
+.alert-console-table td {
+  border-bottom: 1px solid #222b34;
+  color: #d5dce4;
+  font-size: 12px;
+  padding: 13px 14px;
+  white-space: nowrap;
+}
+.alert-console-table tr.late td:first-child { box-shadow: inset 4px 0 #ef3340; }
+.alert-console-table tr.risk td:first-child { box-shadow: inset 4px 0 #f0bd3f; }
+.alert-console-table tbody tr:hover td { background: #121820; }
+html[data-theme="light"] .alert-console-screen { background: #f3f6fa; color: #17212b; }
+html[data-theme="light"] .alert-console-header { background: #f3f6fa; border-color: #d2dce6; }
+html[data-theme="light"] .alert-console-header p { color: #647386; }
+html[data-theme="light"] .alert-console-summary button { background: #ffffff; border-color: #cbd6e1; color: #17212b; }
+html[data-theme="light"] .alert-console-table th { background: #e8eef5; border-color: #cbd6e1; color: #536274; }
+html[data-theme="light"] .alert-console-table td { border-color: #dce4ec; color: #334155; }
+html[data-theme="light"] .alert-console-table tbody tr:hover td { background: #ffffff; }
+
+@media (max-width: 700px) {
+  .alert-console-header { align-items: flex-start; flex-direction: column; }
+  .alert-console-summary { width: 100%; }
+  .alert-console-summary button { margin-left: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .monitor-tv-siren { animation: none; }
+}

@@ -1,6 +1,6 @@
 import { normalize } from '../utils/text.js';
 
-const VOICE_KEYS = 'dominium-toa-tec1-voice-keys-v3';
+const VOICE_KEYS = 'dominium-toa-tec1-voice-keys-v4';
 
 export class AlertService {
   constructor() {
@@ -59,19 +59,27 @@ export class AlertService {
     this.cancelVoice();
   }
 
-  tvVoiceKey(item) {
-    const minutes = Number(item?.tec1_minutes);
-    const phase = item?.tec1_kind === 'late' || minutes < 0 ? 'late'
-      : minutes <= 15 ? 'risk-15' : minutes <= 30 ? 'risk-30' : 'risk-60';
+  tvVoiceKey(item, value = new Date()) {
+    const now = value instanceof Date ? value : new Date(value || Date.now());
+    const deadline = new Date(item?.tec1_deadline || '');
+    const diff = deadline.getTime() - now.getTime();
+    const minutes = Number.isFinite(diff) ? Math.ceil(diff / 60000) : Number(item?.tec1_minutes);
+    const lateMinutes = minutes < 0 ? Math.abs(minutes) : 0;
+    const officialWindow = item?.deadline_basis === 'official_window';
+    const phase = officialWindow && lateMinutes >= 60 ? 'urgent-60'
+      : officialWindow && lateMinutes >= 45 ? 'urgent-45'
+        : minutes < 0 ? 'late'
+          : minutes <= 15 ? 'risk-15' : minutes <= 30 ? 'risk-30' : 'risk-60';
     return `tv:${item?.os || '-'}:${item?.tec1_deadline || '-'}:${phase}`;
   }
 
   syncTvFocus(items) {
     if (!this.tvMode || !this.voice) return;
+    const now = new Date();
     const visible = (Array.isArray(items) ? items : [])
       .filter((item) => ['risk', 'late'].includes(item?.tec1_kind) && item?.tec1_deadline)
       .slice(0, 2)
-      .map((item) => ({ ...item, voiceKey: this.tvVoiceKey(item) }));
+      .map((item) => ({ ...item, voiceKey: this.tvVoiceKey(item, now) }));
     const visibleKeys = new Set(visible.map((item) => item.voiceKey));
     if (this.speaking && this.currentVoiceKeys.some((key) => !visibleKeys.has(key))) {
       this.cancelVoice();
@@ -83,13 +91,21 @@ export class AlertService {
 
   notify(model) {
     if (!model || model.isDemo) return;
-    const alerts = window.DominiumMonitor?.buildTec1ContractAlerts(model.views?.monitor?.rows || []) || [];
+    const rows = model.views?.monitor?.rows || [];
+    const riskAlerts = window.DominiumMonitor?.buildTec1ContractAlerts(rows) || [];
+    const urgentAlerts = window.DominiumMonitor?.buildUrgentCloseAlerts(rows, new Date(model.generatedAt || Date.now())) || [];
+    const alerts = [...urgentAlerts, ...riskAlerts];
     for (const alert of alerts) {
       if (this.notifications && typeof Notification !== 'undefined' && Notification.permission === 'granted' && !this.notificationKeys.has(alert.key)) {
         this.notificationKeys.add(alert.key);
-        new Notification(alert.kind === 'late' ? 'TOA - TEC1 estourada' : 'TOA - TEC1 em risco', {
-          body: `${alert.technician || 'Técnico'} | Contrato ${alert.contract || '-'} | ${alert.label || ''}`,
+        const urgent = alert.kind === 'urgent-late';
+        new Notification(urgent ? 'TOA - BAIXA URGENTE' : 'TOA - TEC1 em risco', {
+          body: urgent
+            ? `Contrato ${alert.contract || '-'} | ${alert.technician || 'Técnico'} | ${alert.label || ''}`
+            : `${alert.technician || 'Técnico'} | Contrato ${alert.contract || '-'} | ${alert.label || ''}`,
           tag: `toa-tec1-${alert.key}`,
+          icon: '/assets/brands/logo-novo.png',
+          requireInteraction: urgent,
         });
       }
       if (!this.tvMode && this.voice && !this.spoken.has(alert.key) && this.queue.length < 4) {

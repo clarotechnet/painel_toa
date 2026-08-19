@@ -36,3 +36,31 @@ export function localDate(value = new Date()) {
   const day = String(value.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
+
+export function formatPtBrDate(value) {
+  const raw = text(value);
+  if (!raw) return '-';
+  const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[3]}-${iso[2]}-${iso[1]}`;
+  const br = raw.match(/^(\d{2})[\/-](\d{2})[\/-](\d{2}|\d{4})/);
+  if (br) return `${br[1]}-${br[2]}-${br[3].length === 2 ? `20${br[3]}` : br[3]}`;
+  return raw;
+}
+
+export function formatPtBrDateTime(value) {
+  const raw = text(value);
+  if (!raw || raw === '-') return '-';
+  const date = formatPtBrDate(raw);
+  const clock = raw.match(/[T\s](\d{1,2}:\d{2})(?::\d{2})?/);
+  return clock && date !== raw ? `${date} ${clock[1]}` : date;
+}
+
+export function formatPtBrSchedule(value) {
+  const raw = text(value);
+  if (!raw || raw === '-') return '-';
+  return raw
+    .replace(/(\d{4})-(\d{2})-(\d{2})/g, '$3-$2-$1')
+    .replace(/(\d{2})\/(\d{2})\/(\d{2})(?!\d)/g, '$1-$2-20$3')
+    .replace(/(\d{2})\/(\d{2})\/(\d{4})/g, '$1-$2-$3')
+    .replace(/T(?=\d{1,2}:\d{2})/g, ' ');
+}

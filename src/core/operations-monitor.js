@@ -314,6 +314,7 @@
       const deadline = text(focus.tec1_deadline);
       return {
         key: `${contract}:${deadline || text(focus.window_end)}:${threshold}`,
+        kind: "risk",
         contract,
         threshold,
         minutes,
@@ -325,6 +326,50 @@
         window_end: text(focus.window_end) || "-",
       };
     }).filter(Boolean).sort((a, b) => a.minutes - b.minutes || a.contract.localeCompare(b.contract));
+  }
+
+  function buildUrgentCloseAlerts(rows, value = new Date()) {
+    const now = value instanceof Date ? value : new Date(value || Date.now());
+    const groups = new Map();
+    (Array.isArray(rows) ? rows : []).forEach((row) => {
+      const contract = text(row?.contract);
+      const deadline = new Date(row?.tec1_deadline || "");
+      if (!contract || contract === "-" || Number.isNaN(deadline.getTime())) return;
+      if (["completed", "canceled", "suspended"].includes(text(row?.status_kind).toLowerCase())) return;
+      const lateMinutes = Math.floor((now.getTime() - deadline.getTime()) / 60000);
+      if (lateMinutes < 45) return;
+      const current = groups.get(contract);
+      if (!current || lateMinutes > current.lateMinutes) groups.set(contract, { row, lateMinutes });
+    });
+    return [...groups.entries()].map(([contract, entry]) => {
+      const { row, lateMinutes } = entry;
+      const phase = lateMinutes >= 60 ? "urgent-60" : "urgent-45";
+      return {
+        key: `urgent:${contract}:${text(row.tec1_deadline)}:${phase}`,
+        kind: "urgent-late",
+        phase,
+        contract,
+        os: text(row.os) || "-",
+        date: text(row.date) || "-",
+        technician: text(row.technician) || "Nao informado",
+        technician_login: text(row.technician_login) || "-",
+        bucket: text(row.bucket) || "-",
+        status: text(row.status) || "-",
+        window_start: text(row.window_start) || "-",
+        window_end: text(row.window_end) || "-",
+        actual_start: text(row.actual_start) || "-",
+        actual_end: text(row.actual_end) || "-",
+        deadline: text(row.tec1_deadline),
+        late_minutes: lateMinutes,
+        label: lateMinutes >= 60
+          ? `Janela vencida ha ${lateMinutes} min`
+          : `Baixa urgente: ${60 - lateMinutes} min para completar 1 hora`,
+        message: speechPronunciationText(
+          `Alerta urgente. Baixe imediatamente o contrato ${spokenDigits(contract)}. `
+          + `Tecnico ${text(row.technician) || "nao informado"}. Janela vencida ha ${lateMinutes} minutos.`,
+        ),
+      };
+    }).sort((a, b) => b.late_minutes - a.late_minutes || a.contract.localeCompare(b.contract));
   }
 
   function speechPronunciationText(value) {
@@ -369,12 +414,17 @@
       const deadline = new Date(row?.tec1_deadline || "");
       const diff = deadline.getTime() - now.getTime();
       const absoluteMinutes = Number.isFinite(diff)
-        ? Math.max(1, Math.ceil(Math.abs(diff) / 60000)) : null;
+        ? Math.max(1, diff < 0 ? Math.floor(Math.abs(diff) / 60000) : Math.ceil(diff / 60000)) : null;
       const timing = absoluteMinutes === null
         ? "tempo não informado"
         : diff < 0
           ? `atrasada ${absoluteMinutes} minuto${absoluteMinutes === 1 ? "" : "s"}`
           : `faltam ${absoluteMinutes} minuto${absoluteMinutes === 1 ? "" : "s"}`;
+      if (diff < 0 && absoluteMinutes >= 45 && row?.deadline_basis === "official_window") {
+        return `Prioridade ${index + 1}. Alerta urgente. Baixe imediatamente o contrato ${spokenDigits(row?.contract)}. `
+          + `Técnico ${row?.technician || "não informado"}. OS ${spokenDigits(row?.os)}. `
+          + `Janela vencida há ${absoluteMinutes} minuto${absoluteMinutes === 1 ? "" : "s"}.`;
+      }
       return `Prioridade ${index + 1}. Técnico ${row?.technician || "não informado"}. `
         + `OS ${spokenDigits(row?.os)}. ${timing}.`;
     }).join(" ");
@@ -386,6 +436,7 @@
     return {
       os: order.os || "-",
       contract: order.contract || "-",
+      date: order.date || "-",
       service: order.service || "-",
       city: order.city,
       technician: order.technician,
@@ -516,6 +567,7 @@
         os: activityGroup.osNumbers.join(" / ") || "-",
         os_count: activityGroup.osNumbers.length,
         contract: activityGroup.contracts.join(" / ") || "-",
+        date: order.date || "-",
         service: activityGroup.services.join(" + ") || text(order.source.activity_type) || "Atividade",
         city: order.city,
         district: order.district || "-",
@@ -561,11 +613,17 @@
         ...alert,
         os: activity.os,
         contract: activity.contract,
+        date: activity.date,
         technician,
+        technician_login: activity.technician_login,
         service: activity.service,
         bucket: activity.bucket,
+        status: (activity.route_state_label || activity.status || "-").toUpperCase(),
         activity_id: activity.activity_id,
+        window_start: activity.window_start,
         window_end: activity.window_end,
+        actual_start: activity.actual_start,
+        actual_end: activity.actual_end,
         route_state: activity.route_state,
       });
     });
@@ -879,6 +937,7 @@
     buildMeetingExamples,
     buildMonitorModel,
     buildTec1ContractAlerts,
+    buildUrgentCloseAlerts,
     buildTec1VoiceMessage,
     buildTvVoiceMessage,
     buildTvDashboard,

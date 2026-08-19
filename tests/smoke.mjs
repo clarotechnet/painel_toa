@@ -3,7 +3,15 @@ import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
 import { loadToaFiles } from '../src/services/csvService.js';
-import { groupTvFocusFacts, orderProfile, pageTvFocusRows, pageTvTechnicians } from '../src/app.js';
+import {
+  filterSnapshotByProfiles,
+  groupTvFocusFacts,
+  monitorTvCountdown,
+  orderProfile,
+  pageTvFocusRows,
+  pageTvTechnicians,
+} from '../src/app.js';
+import { formatPtBrDate, formatPtBrDateTime, formatPtBrSchedule } from '../src/utils/text.js';
 import { applyTechnicianNames } from '../src/services/technicianService.js';
 import { normalizeOracleDetail } from '../scripts/toa-detail-reader.mjs';
 
@@ -26,6 +34,22 @@ assert.ok(model.views.routes.console.totalActivities >= 2, 'Timeline incompleta'
 assert.equal(orderProfile({ bucket: 'JCR-DMV_ADM', city: 'RECIFE' }), 'recife');
 assert.equal(orderProfile({ bucket: 'JCR-DMV_ADM', city: '' }), 'recife');
 assert.equal(orderProfile({ bucket: 'FTZ-DMV_ADM', city: 'FORTALEZA' }), 'fortaleza');
+const multiCitySnapshot = filterSnapshotByProfiles({
+  orders: [
+    { num_os: '1', city: 'FORTALEZA', bucket: 'FTZ-DMV', technician_login: 'ZF' },
+    { num_os: '2', city: 'RECIFE', bucket: 'JCR-DMV', technician_login: 'ZR' },
+    { num_os: '3', city: 'NATAL', bucket: 'NTL-DMV', technician_login: 'ZN' },
+  ],
+  timelineActivities: [
+    { city: 'RECIFE', technician_login: 'ZR' },
+    { city: 'NATAL', technician_login: 'ZN' },
+  ],
+}, ['fortaleza', 'recife']);
+assert.deepEqual(multiCitySnapshot.orders.map((item) => item.num_os), ['1', '2']);
+assert.deepEqual(multiCitySnapshot.timelineActivities.map((item) => item.technician_login), ['ZR']);
+assert.equal(formatPtBrDate('2026-08-19'), '19-08-2026');
+assert.equal(formatPtBrDateTime('2026-08-19T10:10:00'), '19-08-2026 10:10');
+assert.equal(formatPtBrSchedule('2026-08-19 10:10:00 - 2026-08-19 12:00:00'), '19-08-2026 10:10:00 - 19-08-2026 12:00:00');
 
 const completedModel = globalThis.DominiumMonitor.buildMonitorModel([{
   date: '12/08/26',
@@ -110,6 +134,41 @@ const currentTvVoice = globalThis.DominiumMonitor.buildTvVoiceMessage([{
 assert.match(currentTvVoice, /GABRIEL DE MORAIS BRITO/);
 assert.match(currentTvVoice, /faltam 10 minutos/,
   'Voz da TV deve recalcular o prazo atual em vez de falar o valor antigo da fila');
+
+const urgentModel = globalThis.DominiumMonitor.buildMonitorModel([{
+  scheduled_date: '2026-08-19', num_os: '2650000045', contract: '408676249',
+  service: 'INST GPON', activity_status: 'started', status: 'started',
+  technician: 'EDSON CASEMIRO', technician_login: 'Z641921', bucket: 'JCR-DMV',
+  service_window: '08:00 - 11:00', started_at: '10:10', detail_state: 'complete',
+}], { now: new Date('2026-08-19T11:45:00-03:00') });
+const urgentRow = urgentModel.views.monitor.rows[0];
+assert.equal(urgentRow.date, '2026-08-19');
+assert.equal(globalThis.DominiumMonitor.buildUrgentCloseAlerts(
+  urgentModel.views.monitor.rows,
+  new Date('2026-08-19T11:44:59-03:00'),
+).length, 0, 'A urgência não pode começar antes de 45 minutos de atraso');
+const urgent45 = globalThis.DominiumMonitor.buildUrgentCloseAlerts(
+  urgentModel.views.monitor.rows,
+  new Date('2026-08-19T11:45:00-03:00'),
+)[0];
+assert.equal(urgent45.phase, 'urgent-45');
+assert.equal(urgent45.technician_login, 'Z641921');
+assert.equal(globalThis.DominiumMonitor.buildUrgentCloseAlerts(
+  urgentModel.views.monitor.rows,
+  new Date('2026-08-19T12:00:00-03:00'),
+)[0].phase, 'urgent-60');
+const urgentTvVoice = globalThis.DominiumMonitor.buildTvVoiceMessage(
+  [urgentRow],
+  new Date('2026-08-19T11:45:00-03:00'),
+);
+assert.match(urgentTvVoice, /Baixe imediatamente o contrato/);
+assert.match(urgentTvVoice, /4 0 8 6 7 6 2 4 9/);
+assert.equal(monitorTvCountdown(urgentRow.tec1_deadline, new Date('2026-08-19T11:44:59-03:00')).urgent, false);
+assert.equal(monitorTvCountdown(urgentRow.tec1_deadline, new Date('2026-08-19T11:45:00-03:00')).urgent, true);
+const consoleUrgent = urgentModel.views.routes.console.alerts[0];
+assert.equal(consoleUrgent.date, '2026-08-19');
+assert.equal(consoleUrgent.technician_login, 'Z641921');
+assert.equal(consoleUrgent.window_start, '08:00');
 
 const unscheduledModel = globalThis.DominiumMonitor.buildMonitorModel([{
   scheduled_date: '2026-08-14', activity_id: '187458590', contract: '1077489',

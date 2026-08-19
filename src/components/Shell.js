@@ -2,7 +2,7 @@ export function Shell() {
   return `
   <header class="app-header">
     <div class="brand-block">
-      <div class="brand-mark" aria-hidden="true"><img class="brand-asset" src="/assets/brands/technet-symbol.png" alt=""></div>
+      <div class="brand-mark" aria-hidden="true"><img class="brand-asset brand-primary-logo" src="/assets/brands/logo-novo-compact.svg" alt=""></div>
       <div class="brand-copy">
         <p class="product">TECHNET - DOMINIUM TOA</p>
         <p class="product-tagline">Monitoramento independente do TOA e TEC1.</p>

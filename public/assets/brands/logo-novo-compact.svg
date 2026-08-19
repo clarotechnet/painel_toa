@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title">
+  <title id="title">Dominium TOA</title>
+  <rect width="256" height="256" rx="24" fill="#ffffff"/>
+  <g fill="none" stroke="#e30613" stroke-width="10">
+    <circle cx="128" cy="128" r="88"/>
+    <circle cx="128" cy="128" r="68"/>
+    <circle cx="128" cy="128" r="48"/>
+    <circle cx="128" cy="128" r="28"/>
+    <circle cx="128" cy="128" r="8"/>
+  </g>
+</svg>

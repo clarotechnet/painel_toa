@@ -13,7 +13,14 @@ import {
 import { loadTechnicianDirectory, applyTechnicianNames } from './services/technicianService.js';
 import { AlertService } from './services/alertService.js';
 import { createStore } from './state/store.js';
-import { escapeHtml, normalize, localClock } from './utils/text.js';
+import {
+  escapeHtml,
+  normalize,
+  localClock,
+  formatPtBrDate,
+  formatPtBrDateTime,
+  formatPtBrSchedule,
+} from './utils/text.js';
 
 const PROFILE_DEFS = [
   { key: 'natal', label: 'NATAL / PARNAMIRIM', cities: ['NATAL', 'PARNAMIRIM'], bucketPrefixes: ['NTL', 'PWM'] },
@@ -39,19 +46,23 @@ export function orderProfile(order) {
     || profile.bucketPrefixes.some((prefix) => bucket.startsWith(prefix)))?.key || 'other';
 }
 
-function selectedSnapshot(state) {
-  if (state.demo) {
-    const orders = state.demoOrders || window.DominiumMonitor.buildMeetingExamples(new Date());
-    return { files: [], orders, timelineActivities: [], errors: [], loadedAt: new Date().toISOString(), demo: true };
-  }
-  if (state.city === 'all') return state.snapshot;
-  const orders = state.snapshot.orders.filter((order) => orderProfile(order) === state.city);
+export function filterSnapshotByProfiles(snapshot, profiles = []) {
+  const selected = new Set(Array.isArray(profiles) ? profiles.filter(Boolean) : []);
+  if (!selected.size) return snapshot;
+  const orders = (snapshot.orders || []).filter((order) => selected.has(orderProfile(order)));
   const loginSet = new Set(orders.map((order) => normalize(order.technician_login || order.technician)));
-  const timelineActivities = state.snapshot.timelineActivities.filter((item) => {
+  const timelineActivities = (snapshot.timelineActivities || []).filter((item) => {
     const login = normalize(item.technician_login || item.technician);
-    return loginSet.has(login) || orderProfile(item) === state.city;
+    return loginSet.has(login) || selected.has(orderProfile(item));
   });
-  return { ...state.snapshot, orders, timelineActivities };
+  return { ...snapshot, orders, timelineActivities };
+}
+
+function selectedSnapshot(state) {
+  const snapshot = state.demo
+    ? { files: [], orders: state.demoOrders || window.DominiumMonitor.buildMeetingExamples(new Date()), timelineActivities: [], errors: [], loadedAt: new Date().toISOString(), demo: true }
+    : state.snapshot;
+  return filterSnapshotByProfiles(snapshot, state.cities);
 }
 
 function buildModel(state) {
@@ -72,12 +83,24 @@ function renderProfileTabs(store) {
     if (profile in counts) counts[profile] += 1;
   });
   const visibleProfiles = PROFILE_DEFS.filter((profile) => counts[profile.key] > 0 || !state.snapshot.orders.length);
-  root.innerHTML = visibleProfiles.map((profile) => `<button type="button" data-profile="${profile.key}" class="profile-tab ${state.city === profile.key ? 'active' : ''}">${escapeHtml(profile.label)}${counts[profile.key] ? `<small>${counts[profile.key]}</small>` : ''}</button>`).join('');
-  root.querySelectorAll('[data-profile]').forEach((button) => button.addEventListener('click', () => {
-    store.set({ city: button.dataset.profile });
+  const selected = new Set(state.cities || []);
+  const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
+  root.innerHTML = `<button type="button" data-profile="all" aria-pressed="${selected.size ? 'false' : 'true'}" class="profile-tab profile-tab-all ${selected.size ? '' : 'active'}">TODAS${total ? `<small>${total}</small>` : ''}</button>`
+    + visibleProfiles.map((profile) => `<button type="button" data-profile="${profile.key}" aria-pressed="${selected.has(profile.key) ? 'true' : 'false'}" class="profile-tab ${selected.has(profile.key) ? 'active' : ''}">${escapeHtml(profile.label)}${counts[profile.key] ? `<small>${counts[profile.key]}</small>` : ''}</button>`).join('');
+  if (root.dataset.multiCityBound === 'true') return;
+  root.dataset.multiCityBound = 'true';
+  root.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-profile]');
+    if (!button || !root.contains(button)) return;
+    const key = button.dataset.profile;
+    const next = new Set(store.get().cities || []);
+    if (key === 'all') next.clear();
+    else if (next.has(key)) next.delete(key);
+    else next.add(key);
+    store.set({ cities: [...next], bucket: 'all' });
     renderProfileTabs(store);
     renderActiveModule(store);
-  }));
+  });
 }
 
 function filterRows(rows, state) {
@@ -94,9 +117,9 @@ function renderRouteDetail(activity) {
   if (!activity) return '<div class="route-console-empty">Selecione uma atividade.</div>';
   const alert = activity.alert ? `<div class="route-detail-alert ${escapeHtml(activity.alert.severity)}"><i data-lucide="triangle-alert"></i><div><strong>${escapeHtml(activity.alert.label)}</strong><span>${escapeHtml(activity.alert.detail)}</span></div></div>` : '';
   const facts = activity.is_auxiliary ? [
-    ['Técnico', activity.technician], ['Bucket', activity.bucket], ['Início / fim', `${activity.actual_start} - ${activity.actual_end}`], ['Duração', activity.duration], ['Tipo', 'Pausa operacional do TOA'],
+    ['Técnico', activity.technician], ['Bucket', activity.bucket], ['Início / fim', `${formatPtBrDateTime(activity.actual_start)} - ${formatPtBrDateTime(activity.actual_end)}`], ['Duração', activity.duration], ['Tipo', 'Pausa operacional do TOA'],
   ] : [
-    ['Técnico', activity.technician], ['Bucket', activity.bucket], ['Contrato', activity.contract], ['Janela de serviço', `${activity.window_start} - ${activity.window_end}`], ['Início / fim', `${activity.actual_start} - ${activity.actual_end}`], ['Duração', activity.duration], ['Deslocamento', activity.travel_time], ['Cidade / node', `${activity.city} / ${activity.node}`], ['Área', activity.work_area], ['Código de baixa', activity.close_code], ['ID da atividade', activity.activity_id],
+    ['Técnico', activity.technician], ['Bucket', activity.bucket], ['Contrato', activity.contract], ['Janela de serviço', `${activity.window_start} - ${activity.window_end}`], ['Início / fim', `${formatPtBrDateTime(activity.actual_start)} - ${formatPtBrDateTime(activity.actual_end)}`], ['Duração', activity.duration], ['Deslocamento', activity.travel_time], ['Cidade / node', `${activity.city} / ${activity.node}`], ['Área', activity.work_area], ['Código de baixa', activity.close_code], ['ID da atividade', activity.activity_id],
   ];
   return `<header class="route-detail-head"><div><span class="route-detail-eyebrow">ATIVIDADE SELECIONADA</span><h4>${activity.is_auxiliary ? 'REFEIÇÃO' : `OS ${escapeHtml(activity.os)}`}</h4><p>${escapeHtml(activity.service)}</p></div><span class="route-detail-status ${escapeHtml(activity.route_state)}">${escapeHtml(activity.route_state_label)}</span></header>${alert}<dl class="route-detail-facts">${facts.map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value || '-')}</dd></div>`).join('')}</dl><p class="route-detail-note">Leitura operacional baseada no CSV do TOA. O monitor funciona em modo somente leitura.</p>`;
 }
@@ -134,7 +157,7 @@ function renderRouteConsole(consoleModel, state) {
       const left = rawStart == null ? 1 : Math.max(0, Math.min(98, ((rawStart - startHour * 60) / totalMinutes) * 100));
       const width = rawStart == null || rawEnd == null ? 9 : Math.max(2.8, Math.min(100 - left, ((rawEnd - rawStart) / totalMinutes) * 100));
       const alertMark = activity.alert ? '<span class="route-activity-alert" aria-hidden="true">!</span>' : '';
-      return `<button class="route-activity ${escapeHtml(activity.route_state)}${activity.alert ? ` has-alert ${escapeHtml(activity.alert.severity)}` : ''}" type="button" data-route-activity="${index}" style="left:${left.toFixed(3)}%;width:${width.toFixed(3)}%">${alertMark}<strong>${escapeHtml(activity.timeline_start || '--:--')}</strong><span>${escapeHtml(activity.service)}</span></button>`;
+      return `<button class="route-activity ${escapeHtml(activity.route_state)}${activity.alert ? ` has-alert ${escapeHtml(activity.alert.severity)}` : ''}" type="button" data-route-activity="${index}" style="left:${left.toFixed(3)}%;width:${width.toFixed(3)}%">${alertMark}<strong>${escapeHtml(formatPtBrSchedule(activity.timeline_start || '--:--'))}</strong><span>${escapeHtml(formatPtBrSchedule(activity.service))}</span></button>`;
     }).join('');
     const initials = technician.technician.split(/\s+/).slice(0, 2).map((part) => part[0] || '').join('');
     return `<div class="route-technician-row"><div class="route-technician"><span class="route-technician-avatar">${escapeHtml(initials)}</span><div><strong>${escapeHtml(technician.technician)}</strong><small>${technician.activities.length} atividade${technician.activities.length === 1 ? '' : 's'}</small></div></div><div class="route-lane">${nowLeft >= 0 && nowLeft <= 100 ? `<span class="route-now-line" style="left:${nowLeft.toFixed(3)}%"><i></i></span>` : ''}${blocks}</div></div>`;
@@ -158,9 +181,57 @@ function renderRouteConsole(consoleModel, state) {
   }));
 }
 
+function closeAlertConsole() {
+  document.querySelector('#alertConsoleScreen')?.remove();
+  document.body.classList.remove('alert-console-open');
+}
+
+function alertConsoleMarkup(alerts) {
+  const columns = [
+    ['os', 'OS'], ['contract', 'Contrato'], ['date', 'Data'], ['technician', 'Técnico'],
+    ['technician_login', 'Login TOA'], ['bucket', 'Bucket'], ['status', 'Status'],
+    ['window', 'Janela'], ['actual_start', 'Início'], ['actual_end', 'Fim'],
+  ];
+  const rows = alerts.map((alert) => ({
+    ...alert,
+    date: formatPtBrDate(alert.date),
+    window: `${alert.window_start || '-'} — ${alert.window_end || '-'}`,
+    actual_start: formatPtBrDateTime(alert.actual_start),
+    actual_end: formatPtBrDateTime(alert.actual_end),
+  }));
+  const body = rows.length
+    ? rows.map((row) => `<tr class="${escapeHtml(row.severity || 'risk')}">${columns.map(([key]) => `<td>${escapeHtml(row[key] || '-')}</td>`).join('')}</tr>`).join('')
+    : `<tr><td colspan="${columns.length}">Nenhum contrato em alerta para as cidades selecionadas.</td></tr>`;
+  return `<header class="alert-console-header"><div><span>MONITORAMENTO OPERACIONAL</span><h2>Console de contratos alertados</h2><p>Somente atividades com janela em risco ou vencida nos filtros atuais.</p></div><div class="alert-console-summary"><strong>${alerts.length}</strong><span>alerta${alerts.length === 1 ? '' : 's'}</span><button type="button" data-alert-console-close aria-label="Fechar console"><i data-lucide="x"></i></button></div></header><div class="alert-console-table-wrap"><table class="alert-console-table"><thead><tr>${columns.map(([, label]) => `<th>${label}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table></div>`;
+}
+
+function renderAlertConsole(model) {
+  const root = document.querySelector('#alertConsoleScreen');
+  if (!root) return;
+  root.innerHTML = alertConsoleMarkup(model.views.routes?.console?.alerts || []);
+  root.querySelector('[data-alert-console-close]')?.addEventListener('click', closeAlertConsole);
+  window.lucide?.createIcons();
+}
+
+function openAlertConsole(model) {
+  let root = document.querySelector('#alertConsoleScreen');
+  if (!root) {
+    root = document.createElement('section');
+    root.id = 'alertConsoleScreen';
+    root.className = 'alert-console-screen';
+    root.setAttribute('role', 'dialog');
+    root.setAttribute('aria-modal', 'true');
+    root.setAttribute('aria-label', 'Console de contratos alertados');
+    document.body.append(root);
+  }
+  document.body.classList.add('alert-console-open');
+  renderAlertConsole(model);
+}
+
 function renderAttention(model) {
   const root = document.querySelector('#monitorAttentionStage');
   const alerts = model.views.routes?.console?.alerts || [];
+  renderAlertConsole(model);
   if (!alerts.length) {
     root.className = 'monitor-attention-stage hidden';
     root.innerHTML = '';
@@ -171,8 +242,7 @@ function renderAttention(model) {
   root.className = `monitor-attention-stage ${critical ? 'critical' : 'risk'}`;
   root.innerHTML = `<div class="monitor-attention-glow"></div><div class="monitor-attention-icon"><i data-lucide="triangle-alert"></i></div><div class="monitor-attention-copy"><div class="monitor-attention-kicker"><span class="monitor-attention-pulse"></span>${critical ? 'ATENÇÃO CRÍTICA' : 'JANELA EM RISCO'}</div><h3>${escapeHtml(alert.label)}</h3><p>OS ${escapeHtml(alert.os)} · ${escapeHtml(alert.technician)} · ${escapeHtml(alert.detail)}</p><div class="monitor-attention-meta"><span>${alerts.length} alerta${alerts.length === 1 ? '' : 's'} na operação</span></div></div><div class="monitor-attention-side"><span class="monitor-attention-count"><strong>${alerts.length}</strong></span><button class="monitor-attention-action" id="attentionRoutes" type="button">Abrir Console</button></div>`;
   root.querySelector('#attentionRoutes')?.addEventListener('click', () => {
-    document.querySelector('[data-view="routes"]')?.click();
-    document.querySelector('#monitorTabs')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    openAlertConsole(model);
   });
 }
 
@@ -315,17 +385,23 @@ function renderTechnicians(store, directory) {
   document.querySelector('#techEmpty').classList.toggle('hidden', rows.length > 0);
 }
 
-function monitorTvCountdown(deadline, now = new Date()) {
-  if (!deadline) return { text: '--:--:--', kind: 'unknown' };
+export function monitorTvCountdown(deadline, now = new Date()) {
+  if (!deadline) return { text: '--:--:--', kind: 'unknown', urgent: false, lateMinutes: 0 };
   const target = new Date(deadline);
-  if (Number.isNaN(target.getTime())) return { text: '--:--:--', kind: 'unknown' };
+  if (Number.isNaN(target.getTime())) return { text: '--:--:--', kind: 'unknown', urgent: false, lateMinutes: 0 };
   const diff = target.getTime() - now.getTime();
   const sign = diff < 0 ? '-' : '';
   const abs = Math.abs(diff);
   const hours = Math.floor(abs / 3600000);
   const minutes = Math.floor((abs % 3600000) / 60000);
   const seconds = Math.floor((abs % 60000) / 1000);
-  return { text: `${sign}${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`, kind: diff < 0 ? 'late' : diff <= 3600000 ? 'risk' : 'safe' };
+  const lateMinutes = diff < 0 ? Math.floor(Math.abs(diff) / 60000) : 0;
+  return {
+    text: `${sign}${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`,
+    kind: diff < 0 ? 'late' : diff <= 3600000 ? 'risk' : 'safe',
+    urgent: lateMinutes >= 45,
+    lateMinutes,
+  };
 }
 
 const TV_TECHNICIANS_PER_PAGE = 4;
@@ -383,11 +459,12 @@ function renderTvFocusFacts(facts) {
 
 function renderTvFocusCard(focus, slot) {
   const countdown = monitorTvCountdown(focus.tec1_deadline);
+  const urgent = countdown.urgent && focus.deadline_basis === 'official_window';
   const primaryFacts = [
     ['Contrato', focus.contract],
     ['Técnico', focus.technician],
     ['Status', focus.status],
-    ['Agenda', focus.schedule],
+    ['Agenda', formatPtBrSchedule(focus.schedule)],
   ];
   const secondaryFacts = [
     ['OS', focus.os],
@@ -395,7 +472,10 @@ function renderTvFocusCard(focus, slot) {
     ['Bucket', focus.bucket],
     ['Janela', `${focus.window_start || '-'} — ${focus.window_end || '-'}`],
   ];
-  return `<section class="monitor-tv-focus-card ${countdown.kind}" data-tv-focus-slot="${slot}"><div class="monitor-tv-focus-card-head"><span>PRIORIDADE ${slot + 1}</span><span class="monitor-tv-status ${escapeHtml(focus.tec1_kind || 'unknown')}">${escapeHtml(focus.tec1 || focus.status || 'Sem agenda')}</span></div><strong class="monitor-tv-tec1-value ${countdown.kind}" data-tv-countdown>${escapeHtml(countdown.text)}</strong><h1>${escapeHtml(focus.service || 'Atividade')}</h1><div class="monitor-tv-focus-details"><div class="monitor-tv-focus-grid monitor-tv-focus-primary">${renderTvFocusFacts(primaryFacts)}</div><div class="monitor-tv-focus-grid monitor-tv-focus-secondary">${renderTvFocusFacts(secondaryFacts)}</div></div></section>`;
+  const urgentText = countdown.lateMinutes >= 60
+    ? `BAIXA IMEDIATA · janela vencida há ${countdown.lateMinutes} min`
+    : `BAIXA URGENTE · ${60 - countdown.lateMinutes} min para completar 1 hora`;
+  return `<section class="monitor-tv-focus-card ${countdown.kind}${urgent ? ' urgent-close' : ''}" data-tv-focus-slot="${slot}"><div class="monitor-tv-focus-card-head"><span>PRIORIDADE ${slot + 1}</span><span class="monitor-tv-status ${escapeHtml(focus.tec1_kind || 'unknown')}">${escapeHtml(focus.tec1 || focus.status || 'Sem agenda')}</span></div><strong class="monitor-tv-tec1-value ${countdown.kind}" data-tv-countdown>${escapeHtml(countdown.text)}</strong><h1>${escapeHtml(focus.service || 'Atividade')}</h1><div class="monitor-tv-focus-details"><div class="monitor-tv-focus-grid monitor-tv-focus-primary">${renderTvFocusFacts(primaryFacts)}</div><div class="monitor-tv-focus-grid monitor-tv-focus-secondary">${renderTvFocusFacts(secondaryFacts)}</div></div><div class="monitor-tv-urgent${urgent ? ' active' : ''}" data-tv-urgent><span class="monitor-tv-siren"><i data-lucide="siren"></i></span><div><strong>${escapeHtml(urgentText)}</strong><small>Baixar urgente o contrato ${escapeHtml(focus.contract || '-')}</small></div></div></section>`;
 }
 
 function renderTvFocusEmpty() {
@@ -427,7 +507,7 @@ function renderTv(store, alertService) {
   const routeAlert = tv.routeAlerts[0];
   const technicianPage = pageTvTechnicians(tv.activeTechnicians, tvTechnicianPageIndex);
   const tvSourceLabel = state.snapshot.live ? 'TOA AO VIVO · ALL_BUCKETS' : state.snapshot.source === 'toa_datalake' ? 'BASE LOCAL TOA' : 'RETRATO CSV DO TOA';
-  tvRoot.innerHTML = `<header class="monitor-tv-header"><div class="monitor-tv-brand"><span class="monitor-tv-logo"><img class="brand-asset" src="/assets/brands/technet-symbol.png" alt=""></span><img class="monitor-tv-partner brand-asset" src="/assets/brands/claro-orb.png" alt="Claro"><div><strong>TECHNET · DOMINIUM TOA</strong><small>Centro de Controle Operacional</small></div></div><div class="monitor-tv-context"><span>TOA / TEC1</span><strong class="live"><i></i>RETRATO CSV DO TOA</strong><b class="api">TOA LOCAL</b></div><div class="monitor-tv-time"><strong id="tvClock">${new Date().toLocaleTimeString('pt-BR')}</strong><span>${new Date().toLocaleDateString('pt-BR')}</span></div><div class="monitor-tv-header-actions"><button type="button" id="tvVoice" class="${alertService.voice ? 'active' : ''}"><i data-lucide="${alertService.voice ? 'volume-2' : 'volume-x'}"></i><span>${alertService.voice ? 'Voz ativa' : 'Ativar voz'}</span></button><button type="button" id="tvFullscreen"><i data-lucide="maximize"></i></button><button type="button" id="tvExit"><i data-lucide="x"></i></button></div></header><section class="monitor-tv-kpis">${[['Total de OS', tv.kpis.total || 0, 'neutral'], ['Em campo', tv.kpis.field || 0, 'green'], ['Concluídas', tv.kpis.completed || 0, 'blue'], ['Pendentes', tv.kpis.pending || 0, 'yellow'], ['TEC1 em atenção', tv.kpis.tec1Risk || 0, 'red'], ['TEC1 estourado', tv.kpis.tec1Late || 0, 'red'], ['Alertas de rota', tv.kpis.routeAlerts || 0, 'orange']].map(([label, value, kind]) => `<article class="${kind}"><span>${label}</span><strong>${value}</strong></article>`).join('')}</section><main class="monitor-tv-main"><article class="monitor-tv-focus ${countdown.kind}"><div class="monitor-tv-focus-head"><div><span class="monitor-tv-focus-kicker"><i></i>TEC1 PRIORITÁRIO</span><small>Leitura atual</small></div><span class="monitor-tv-status ${escapeHtml(focus.tec1_kind || 'unknown')}">${escapeHtml(focus.tec1 || focus.status || 'Sem agenda')}</span></div><strong class="monitor-tv-tec1-value ${countdown.kind}" id="tvCountdown">${escapeHtml(countdown.text)}</strong><h1>${escapeHtml(focus.service || 'Atividade')}</h1><div class="monitor-tv-focus-grid">${[['OS', focus.os], ['Contrato', focus.contract], ['Técnico', focus.technician], ['Login TOA', focus.technician_login], ['Bucket', focus.bucket], ['Status', focus.status], ['Agenda', focus.schedule], ['Janela', `${focus.window_start || '-'} — ${focus.window_end || '-'}`]].map(([label, value]) => `<span><small>${label}</small><strong>${escapeHtml(value || '-')}</strong></span>`).join('')}</div><footer><span><i data-lucide="info"></i>Contagem operacional pelo fim da agenda do TOA.</span><b>Monitoramento em modo somente leitura.</b></footer></article><aside class="monitor-tv-now"><header><span>OPERAÇÃO AGORA</span><strong>${tv.activeTechnicians.length} técnico${tv.activeTechnicians.length === 1 ? '' : 's'} em execução/rota</strong></header><div class="monitor-tv-technicians">${tv.activeTechnicians.length ? tv.activeTechnicians.slice(0, 4).map((item) => `<article><span class="avatar">${escapeHtml(item.technician.split(/\s+/).slice(0, 2).map((part) => part[0] || '').join(''))}</span><div><strong>${escapeHtml(item.technician)}</strong><small>OS ${escapeHtml(item.os)} · ${escapeHtml(item.service)}</small><b>${escapeHtml(item.state_label)} · ${escapeHtml(item.bucket)}</b></div></article>`).join('') : '<div class="monitor-tv-empty">Nenhum técnico iniciado na leitura atual.</div>'}</div></aside></main><footer class="monitor-tv-footer"><span class="monitor-tv-live"><i></i>Atualização visual automática</span><div class="monitor-tv-ticker"><span>${routeAlert ? `ALERTA: OS ${escapeHtml(routeAlert.os)} · ${escapeHtml(routeAlert.technician)} · ${escapeHtml(routeAlert.detail)}` : 'Nenhuma janela crítica identificada na leitura atual'}</span></div><strong>Atualizado ${localClock(new Date())}</strong></footer>`;
+  tvRoot.innerHTML = `<header class="monitor-tv-header"><div class="monitor-tv-brand"><span class="monitor-tv-logo"><img class="brand-asset brand-primary-logo" src="/assets/brands/logo-novo-compact.svg" alt=""></span><img class="monitor-tv-partner brand-asset" src="/assets/brands/claro-orb.png" alt="Claro"><div><strong>TECHNET · DOMINIUM TOA</strong><small>Centro de Controle Operacional</small></div></div><div class="monitor-tv-context"><span>TOA / TEC1</span><strong class="live"><i></i>RETRATO CSV DO TOA</strong><b class="api">TOA LOCAL</b></div><div class="monitor-tv-time"><strong id="tvClock">${new Date().toLocaleTimeString('pt-BR')}</strong><span>${new Date().toLocaleDateString('pt-BR')}</span></div><div class="monitor-tv-header-actions"><button type="button" id="tvVoice" class="${alertService.voice ? 'active' : ''}"><i data-lucide="${alertService.voice ? 'volume-2' : 'volume-x'}"></i><span>${alertService.voice ? 'Voz ativa' : 'Ativar voz'}</span></button><button type="button" id="tvFullscreen"><i data-lucide="maximize"></i></button><button type="button" id="tvExit"><i data-lucide="x"></i></button></div></header><section class="monitor-tv-kpis">${[['Total de OS', tv.kpis.total || 0, 'neutral'], ['Em campo', tv.kpis.field || 0, 'green'], ['Concluídas', tv.kpis.completed || 0, 'blue'], ['Pendentes', tv.kpis.pending || 0, 'yellow'], ['TEC1 em atenção', tv.kpis.tec1Risk || 0, 'red'], ['TEC1 estourado', tv.kpis.tec1Late || 0, 'red'], ['Alertas de rota', tv.kpis.routeAlerts || 0, 'orange']].map(([label, value, kind]) => `<article class="${kind}"><span>${label}</span><strong>${value}</strong></article>`).join('')}</section><main class="monitor-tv-main"><article class="monitor-tv-focus ${countdown.kind}"><div class="monitor-tv-focus-head"><div><span class="monitor-tv-focus-kicker"><i></i>TEC1 PRIORITÁRIO</span><small>Leitura atual</small></div><span class="monitor-tv-status ${escapeHtml(focus.tec1_kind || 'unknown')}">${escapeHtml(focus.tec1 || focus.status || 'Sem agenda')}</span></div><strong class="monitor-tv-tec1-value ${countdown.kind}" id="tvCountdown">${escapeHtml(countdown.text)}</strong><h1>${escapeHtml(focus.service || 'Atividade')}</h1><div class="monitor-tv-focus-grid">${[['OS', focus.os], ['Contrato', focus.contract], ['Técnico', focus.technician], ['Login TOA', focus.technician_login], ['Bucket', focus.bucket], ['Status', focus.status], ['Agenda', formatPtBrSchedule(focus.schedule)], ['Janela', `${focus.window_start || '-'} — ${focus.window_end || '-'}`]].map(([label, value]) => `<span><small>${label}</small><strong>${escapeHtml(value || '-')}</strong></span>`).join('')}</div><footer><span><i data-lucide="info"></i>Contagem operacional pelo fim da agenda do TOA.</span><b>Monitoramento em modo somente leitura.</b></footer></article><aside class="monitor-tv-now"><header><span>OPERAÇÃO AGORA</span><strong>${tv.activeTechnicians.length} técnico${tv.activeTechnicians.length === 1 ? '' : 's'} em execução/rota</strong></header><div class="monitor-tv-technicians">${tv.activeTechnicians.length ? tv.activeTechnicians.slice(0, 4).map((item) => `<article><span class="avatar">${escapeHtml(item.technician.split(/\s+/).slice(0, 2).map((part) => part[0] || '').join(''))}</span><div><strong>${escapeHtml(item.technician)}</strong><small>OS ${escapeHtml(item.os)} · ${escapeHtml(item.service)}</small><b>${escapeHtml(item.state_label)} · ${escapeHtml(item.bucket)}</b></div></article>`).join('') : '<div class="monitor-tv-empty">Nenhum técnico iniciado na leitura atual.</div>'}</div></aside></main><footer class="monitor-tv-footer"><span class="monitor-tv-live"><i></i>Atualização visual automática</span><div class="monitor-tv-ticker"><span>${routeAlert ? `ALERTA: OS ${escapeHtml(routeAlert.os)} · ${escapeHtml(routeAlert.technician)} · ${escapeHtml(routeAlert.detail)}` : 'Nenhuma janela crítica identificada na leitura atual'}</span></div><strong>Atualizado ${localClock(new Date())}</strong></footer>`;
   const sourceBadge = tvRoot.querySelector('.monitor-tv-context .live');
   if (sourceBadge) sourceBadge.innerHTML = `<i></i>${escapeHtml(tvSourceLabel)}`;
   const focusBoard = tvRoot.querySelector('.monitor-tv-focus');
@@ -436,7 +516,7 @@ function renderTv(store, alertService) {
       ? `Exibindo ${focusPage.start}–${focusPage.end} de ${focusPage.total}`
       : 'Nenhuma prioridade na leitura atual';
     focusBoard.className = `monitor-tv-focus monitor-tv-focus-board${focusPage.items.length <= 1 ? ' single' : ''}`;
-    focusBoard.innerHTML = `<div class="monitor-tv-focus-board-head"><div><span class="monitor-tv-focus-kicker"><i></i>${focusTitle}</span><small>${focusSubtitle}</small></div><strong>${focusPageLabel}</strong></div><div class="monitor-tv-focus-cards">${focusPage.items.length ? focusPage.items.map(renderTvFocusCard).join('') : renderTvFocusEmpty()}</div><footer><span><i data-lucide="info"></i>${focusBasisText}</span><b>Monitoramento em modo somente leitura.</b></footer>`;
+    focusBoard.innerHTML = `<div class="monitor-tv-focus-board-head"><div><span class="monitor-tv-focus-kicker"><i></i>${focusTitle}</span><small>${focusSubtitle}</small></div><strong>${focusPageLabel}</strong></div><div class="monitor-tv-focus-cards">${focusPage.items.length ? focusPage.items.map((item, index) => renderTvFocusCard(item, index)).join('') : renderTvFocusEmpty()}</div><footer><span><i data-lucide="info"></i>${focusBasisText}</span><b>Monitoramento em modo somente leitura.</b></footer>`;
   }
   const technicianList = tvRoot.querySelector('.monitor-tv-technicians');
   if (technicianList) technicianList.innerHTML = renderTvTechnicianCards(technicianPage.items);
@@ -476,12 +556,22 @@ function updateTvLive(store, alertService) {
   const updatedRoot = document.querySelector('.monitor-tv-footer > strong');
   document.querySelectorAll('[data-tv-focus-slot]').forEach((card) => {
     const slot = Number(card.dataset.tvFocusSlot || 0);
-    const countdown = monitorTvCountdown(focusPage.items[slot]?.tec1_deadline, now);
+    const focusItem = focusPage.items[slot];
+    const countdown = monitorTvCountdown(focusItem?.tec1_deadline, now);
+    const urgent = countdown.urgent && focusItem?.deadline_basis === 'official_window';
     const countdownRoot = card.querySelector('[data-tv-countdown]');
-    card.className = `monitor-tv-focus-card ${countdown.kind}`;
+    card.className = `monitor-tv-focus-card ${countdown.kind}${urgent ? ' urgent-close' : ''}`;
     if (countdownRoot) {
       countdownRoot.textContent = countdown.text;
       countdownRoot.className = `monitor-tv-tec1-value ${countdown.kind}`;
+    }
+    const urgentRoot = card.querySelector('[data-tv-urgent]');
+    if (urgentRoot) {
+      urgentRoot.classList.toggle('active', urgent);
+      const urgentTitle = urgentRoot.querySelector('strong');
+      if (urgentTitle) urgentTitle.textContent = countdown.lateMinutes >= 60
+        ? `BAIXA IMEDIATA · janela vencida há ${countdown.lateMinutes} min`
+        : `BAIXA URGENTE · ${60 - countdown.lateMinutes} min para completar 1 hora`;
     }
   });
   if (clockRoot) clockRoot.textContent = now.toLocaleTimeString('pt-BR');
@@ -547,8 +637,7 @@ async function handleFiles(store, files, directory, alertService) {
     let snapshot = await loadToaFiles(files);
     snapshot = applyTechnicianNames({ ...snapshot, source: 'csv' }, directory);
     store.set({ snapshot, demo: false, demoOrders: null, view: 'routes', search: '', bucket: 'all', status: 'all' });
-    const available = PROFILE_DEFS.find((profile) => snapshot.orders.some((order) => orderProfile(order) === profile.key));
-    store.set({ city: available?.key || 'all' });
+    store.set({ cities: [] });
     renderProfileTabs(store);
     renderActiveModule(store, directory, alertService);
     toast(`${snapshot.files.length} arquivo(s) · ${snapshot.orders.length} OS carregadas.`, 'success');
@@ -596,7 +685,7 @@ function bindMonitor(store, directory, alertService) {
   document.querySelector('#monitorCsvReplace')?.addEventListener('click', open);
   input?.addEventListener('change', async () => { await handleFiles(store, [...input.files], directory, alertService); input.value = ''; });
   document.querySelector('#monitorCsvClear')?.addEventListener('click', () => {
-    store.set({ snapshot: { files: [], orders: [], timelineActivities: [], errors: [], loadedAt: null }, city: 'all', demo: false, view: 'routes', search: '', bucket: 'all', status: 'all' });
+    store.set({ snapshot: { files: [], orders: [], timelineActivities: [], errors: [], loadedAt: null }, cities: [], demo: false, view: 'routes', search: '', bucket: 'all', status: 'all' });
     renderProfileTabs(store); renderMonitor(store, alertService); toast('CSV removido do monitor.');
   });
   document.querySelector('#monitorDemo')?.addEventListener('click', () => {
@@ -673,7 +762,9 @@ export async function createApp(root) {
   globalAlertService = alertService;
 
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && document.body.classList.contains('monitor-tv-open') && !document.fullscreenElement) exitTv();
+    if (event.key !== 'Escape') return;
+    if (document.querySelector('#alertConsoleScreen')) closeAlertConsole();
+    else if (document.body.classList.contains('monitor-tv-open') && !document.fullscreenElement) exitTv();
   });
 
   try { document.documentElement.dataset.theme = localStorage.getItem('dominium-toa-theme') || 'dark'; } catch (_) { document.documentElement.dataset.theme = 'dark'; }

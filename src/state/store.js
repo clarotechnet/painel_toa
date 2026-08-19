@@ -3,7 +3,7 @@ export function createStore() {
     module: 'monitor',
     snapshot: { files: [], orders: [], timelineActivities: [], errors: [], loadedAt: null, source: 'none' },
     datalakeOnline: false,
-    city: 'all',
+    cities: [],
     view: 'routes',
     search: '',
     bucket: 'all',

@@ -41,6 +41,8 @@ jobs:
         run: test -f dist/index.html && test -f dist/config.js && grep -q '?v=' dist/index.html
 
       - name: Enviar dist para public_html/central via SFTP
+        id: deploy_primary
+        continue-on-error: true
         uses: appleboy/scp-action@v1
         with:
           host: ${{ secrets.HOSTINGER_FTP_SERVER }}
@@ -51,5 +53,20 @@ jobs:
           target: "/home/u998431343/domains/clarotechnet.com.br/public_html/central"
           strip_components: 1
           overwrite: true
-          timeout: 60s
-          command_timeout: 10m
+          timeout: 180s
+          command_timeout: 15m
+
+      - name: Repetir envio se a Hostinger estiver lenta
+        if: steps.deploy_primary.outcome == 'failure'
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.HOSTINGER_FTP_SERVER }}
+          username: ${{ secrets.HOSTINGER_FTP_USERNAME }}
+          password: ${{ secrets.HOSTINGER_FTP_PASSWORD }}
+          port: 65002
+          source: "dist/*"
+          target: "/home/u998431343/domains/clarotechnet.com.br/public_html/central"
+          strip_components: 1
+          overwrite: true
+          timeout: 180s
+          command_timeout: 15m

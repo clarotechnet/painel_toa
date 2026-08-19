@@ -38,7 +38,7 @@ jobs:
         run: npm run build
 
       - name: Validar artefato
-        run: test -f dist/index.html && test -f dist/config.js
+        run: test -f dist/index.html && test -f dist/config.js && grep -q '?v=' dist/index.html
 
       - name: Enviar dist para public_html/central via SFTP
         uses: appleboy/scp-action@v1

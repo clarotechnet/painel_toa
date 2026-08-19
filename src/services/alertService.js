@@ -75,15 +75,14 @@ export class AlertService {
 
   syncTvFocus(items) {
     if (!this.tvMode || !this.voice) return;
+    // A tela pode receber uma nova ordenação enquanto a locução ainda está em
+    // andamento. Não interrompa a frase nem substitua a fila nesse intervalo.
+    if (this.speaking) return;
     const now = new Date();
     const visible = (Array.isArray(items) ? items : [])
       .filter((item) => ['risk', 'late'].includes(item?.tec1_kind) && item?.tec1_deadline)
       .slice(0, 2)
       .map((item) => ({ ...item, voiceKey: this.tvVoiceKey(item, now) }));
-    const visibleKeys = new Set(visible.map((item) => item.voiceKey));
-    if (this.speaking && this.currentVoiceKeys.some((key) => !visibleKeys.has(key))) {
-      this.cancelVoice();
-    }
     const pending = visible.filter((item) => !this.spoken.has(item.voiceKey));
     this.queue = pending.length ? [{ tv: true, alerts: pending, keys: pending.map((item) => item.voiceKey) }] : [];
     this.processVoice();
@@ -122,11 +121,17 @@ export class AlertService {
     const pt = voices.filter((voice) => /^pt(?:-|_)/i.test(voice.lang || ''));
     const score = (voice) => {
       const name = normalize(voice.name);
-      return (name.includes('NATURAL') ? 100 : 0) + (name.includes('GOOGLE') ? 80 : 0)
-        + (name.includes('FRANCISCA') ? 70 : 0) + (name.includes('ANTONIO') ? 65 : 0)
-        + (name.includes('MICROSOFT') ? 50 : 0) + (/^pt-BR$/i.test(voice.lang || '') ? 30 : 0);
+      // Francisca Natural é a voz pt-BR equivalente ao padrão recomendado
+      // pelo Edge TTS. Mantemos alternativas locais quando ela não existir.
+      return (name.includes('FRANCISCA') ? 500 : 0) + (name.includes('NATURAL') ? 180 : 0)
+        + (name.includes('MICROSOFT') ? 120 : 0) + (name.includes('GOOGLE') ? 90 : 0)
+        + (name.includes('ANTONIO') ? 70 : 0) + (/^pt-BR$/i.test(voice.lang || '') ? 40 : 0);
     };
     return pt.sort((a, b) => score(b) - score(a))[0] || null;
+  }
+
+  isVoiceBusy() {
+    return Boolean(this.voice && this.speaking);
   }
 
   processVoice() {

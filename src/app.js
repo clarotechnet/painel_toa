@@ -406,6 +406,8 @@ export function monitorTvCountdown(deadline, now = new Date()) {
 
 const TV_TECHNICIANS_PER_PAGE = 4;
 const TV_FOCUS_PER_PAGE = 2;
+const TV_SLIDE_MIN_DURATION_MS = 18000;
+const TV_VOICE_RECHECK_MS = 750;
 
 export function pageTvFocusRows(items, pageIndex, pageSize = TV_FOCUS_PER_PAGE) {
   const source = Array.isArray(items) ? items : [];
@@ -580,19 +582,15 @@ function updateTvLive(store, alertService) {
 
 let tvTimer = null;
 let tvSlideTimer = null;
-function enterTv(store, alertService) {
-  const root = document.querySelector('#monitorTv');
-  tvSlideIndex = 0;
-  tvTechnicianPageIndex = 0;
-  document.body.classList.add('monitor-tv-open');
-  alertService.setTvMode(true);
-  root.classList.remove('hidden');
-  renderTv(store, alertService);
-  root.requestFullscreen?.().catch(() => {});
-  clearInterval(tvTimer);
-  clearInterval(tvSlideTimer);
-  tvTimer = setInterval(() => updateTvLive(store, alertService), 1000);
-  tvSlideTimer = setInterval(() => {
+
+function scheduleTvSlide(store, alertService, delay = TV_SLIDE_MIN_DURATION_MS) {
+  clearTimeout(tvSlideTimer);
+  tvSlideTimer = setTimeout(() => {
+    if (!document.body.classList.contains('monitor-tv-open')) return;
+    if (alertService.isVoiceBusy()) {
+      scheduleTvSlide(store, alertService, TV_VOICE_RECHECK_MS);
+      return;
+    }
     const model = buildModel(store.get());
     const tv = window.DominiumMonitor.buildTvDashboard(model);
     const focusPages = Math.max(1, Math.ceil(tv.tec1Rows.length / TV_FOCUS_PER_PAGE));
@@ -604,11 +602,27 @@ function enterTv(store, alertService) {
     tvTechnicianPageIndex = tv.activeTechnicians.length
       ? (tvTechnicianPageIndex + 1) % technicianPages : 0;
     renderTv(store, alertService);
-  }, 12000);
+    scheduleTvSlide(store, alertService);
+  }, delay);
+}
+
+function enterTv(store, alertService) {
+  const root = document.querySelector('#monitorTv');
+  tvSlideIndex = 0;
+  tvTechnicianPageIndex = 0;
+  document.body.classList.add('monitor-tv-open');
+  alertService.setTvMode(true);
+  root.classList.remove('hidden');
+  renderTv(store, alertService);
+  root.requestFullscreen?.().catch(() => {});
+  clearInterval(tvTimer);
+  clearTimeout(tvSlideTimer);
+  tvTimer = setInterval(() => updateTvLive(store, alertService), 1000);
+  scheduleTvSlide(store, alertService);
 }
 function exitTv() {
   clearInterval(tvTimer); tvTimer = null;
-  clearInterval(tvSlideTimer); tvSlideTimer = null;
+  clearTimeout(tvSlideTimer); tvSlideTimer = null;
   tvSlideIndex = 0;
   tvTechnicianPageIndex = 0;
   document.body.classList.remove('monitor-tv-open');

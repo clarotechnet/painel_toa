@@ -5,6 +5,8 @@ import '../src/core/operations-monitor.js';
 const storage = new Map();
 const messages = [];
 const notifications = [];
+let availableVoices = [];
+let cancelCount = 0;
 
 globalThis.localStorage = {
   getItem: (key) => storage.get(key) ?? null,
@@ -15,8 +17,8 @@ globalThis.SpeechSynthesisUtterance = class {
   constructor(text) { this.text = text; }
 };
 globalThis.speechSynthesis = {
-  getVoices: () => [],
-  cancel: () => {},
+  getVoices: () => availableVoices,
+  cancel: () => { cancelCount += 1; },
   speak: (utterance) => {
     messages.push({ text: utterance.text, rate: utterance.rate });
     queueMicrotask(() => utterance.onend?.());
@@ -28,6 +30,11 @@ globalThis.Notification = class {
 };
 
 const service = new AlertService();
+availableVoices = [
+  { name: 'Google português do Brasil', lang: 'pt-BR' },
+  { name: 'Microsoft Francisca Online (Natural) - Portuguese (Brazil)', lang: 'pt-BR' },
+];
+assert.match(service.preferredVoice().name, /Francisca/, 'Francisca Natural deve ser a voz pt-BR preferida');
 service.voice = true;
 service.setTvMode(true);
 const deadline = new Date(Date.now() + 20 * 60000).toISOString();
@@ -56,6 +63,15 @@ const urgentDeadline = new Date(Date.now() - 45 * 60000).toISOString();
 service.syncTvFocus([{ ...focus, contract: '408676249', tec1_kind: 'late', tec1_deadline: urgentDeadline, deadline_basis: 'official_window' }]);
 await new Promise((resolve) => setTimeout(resolve, 10));
 assert.match(messages.at(-1).text, /Baixe imediatamente o contrato/);
+
+const cancellationsBeforeFocusChange = cancelCount;
+service.speaking = true;
+service.currentVoiceKeys = ['prioridade-anterior'];
+service.syncTvFocus([{ ...focus, os: '2650009999', tec1_deadline: new Date(Date.now() + 8 * 60000).toISOString() }]);
+assert.equal(cancelCount, cancellationsBeforeFocusChange, 'Trocar a prioridade visual nao pode cortar a fala');
+assert.equal(service.isVoiceBusy(), true, 'A rotacao deve reconhecer uma locucao em andamento');
+service.speaking = false;
+service.currentVoiceKeys = [];
 
 const notificationService = new AlertService();
 notificationService.notifications = true;

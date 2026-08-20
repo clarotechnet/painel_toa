@@ -12,7 +12,6 @@ export function MonitorWorkspace() {
         <input class="hidden" id="monitorCsvInput" type="file" accept=".csv,text/csv" multiple>
         <button class="button monitor-tv-button" id="monitorTvOpen" type="button"><i data-lucide="monitor-play"></i><span>Modo TV</span></button>
         <button class="button primary monitor-csv-button" id="monitorCsvOpen" type="button"><i data-lucide="file-up"></i><span>Carregar CSV do TOA</span></button>
-        <button class="button secondary monitor-demo-toggle" id="monitorDemo" type="button" aria-pressed="false"><i data-lucide="presentation"></i><span>Cenários de exemplo</span></button>
         <button class="button secondary" id="monitorNotify" type="button" title="Ativar alertas locais"><i data-lucide="bell"></i><span>Alertas</span></button>
         <button class="button secondary" id="monitorVoice" type="button" title="Ativar voz para alertas de TEC1" aria-pressed="false"><i data-lucide="volume-2"></i><span>Voz TEC1</span></button>
         <button class="button secondary" id="monitorExport" type="button"><i data-lucide="download"></i><span>Exportar</span></button>
@@ -20,13 +19,9 @@ export function MonitorWorkspace() {
       </div>
     </header>
 
-    <div class="monitor-demo-banner hidden" id="monitorDemoBanner" role="status"><div><strong>Modo demonstração</strong><span>OS fictícias e isoladas da operação real.</span></div><small>Não notifica nem exporta dados reais.</small></div>
-
     <section class="monitor-source-card hidden" id="monitorCsvSource" aria-label="Fonte CSV ativa">
       <div class="monitor-source-icon"><i data-lucide="file-check-2"></i></div>
       <div class="monitor-source-copy"><strong>Fotografia do TOA carregada</strong><span id="monitorCsvSourceTitle">Arquivo CSV</span><small id="monitorCsvSourceDetail">Dados operacionais em modo somente leitura.</small></div>
-      <button class="button secondary" id="monitorCsvReplace" type="button"><i data-lucide="refresh-cw"></i><span>Trocar CSV</span></button>
-      <button class="button ghost danger" id="monitorCsvClear" type="button"><i data-lucide="trash-2"></i><span>Limpar CSV</span></button>
     </section>
 
     <section class="monitor-attention-stage" id="monitorAttentionStage" aria-label="Central visual de alertas" aria-live="polite"></section>

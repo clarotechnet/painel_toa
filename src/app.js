@@ -272,9 +272,6 @@ function renderMonitor(store, alertService) {
     document.querySelector('#monitorCsvSourceTitle').textContent = state.snapshot.files.map((file) => file.filename).join(' + ');
     document.querySelector('#monitorCsvSourceDetail').textContent = `${state.snapshot.orders.length} OS · ${state.snapshot.timelineActivities.length} pausas/refeições · ${state.snapshot.files.reduce((sum, file) => sum + Number(file.sourceRows || 0), 0)} atividades do TOA · ${isDatalake ? 'sincronização incremental' : 'processamento local no navegador'}.`;
   }
-  document.querySelector('#monitorDemoBanner').classList.toggle('hidden', !state.demo);
-  document.querySelector('#monitorDemo').classList.toggle('active', state.demo);
-  document.querySelector('#monitorDemo').setAttribute('aria-pressed', state.demo ? 'true' : 'false');
   document.querySelector('#monitorNotify').classList.toggle('active', alertService.notifications);
   document.querySelector('#monitorVoice').classList.toggle('active', alertService.voice);
   document.querySelector('#monitorVoice').setAttribute('aria-pressed', alertService.voice ? 'true' : 'false');
@@ -696,17 +693,7 @@ function bindMonitor(store, directory, alertService) {
   const input = document.querySelector('#monitorCsvInput');
   const open = () => input.click();
   document.querySelector('#monitorCsvOpen')?.addEventListener('click', open);
-  document.querySelector('#monitorCsvReplace')?.addEventListener('click', open);
   input?.addEventListener('change', async () => { await handleFiles(store, [...input.files], directory, alertService); input.value = ''; });
-  document.querySelector('#monitorCsvClear')?.addEventListener('click', () => {
-    store.set({ snapshot: { files: [], orders: [], timelineActivities: [], errors: [], loadedAt: null }, cities: [], demo: false, view: 'routes', search: '', bucket: 'all', status: 'all' });
-    renderProfileTabs(store); renderMonitor(store, alertService); toast('CSV removido do monitor.');
-  });
-  document.querySelector('#monitorDemo')?.addEventListener('click', () => {
-    const next = !store.get().demo;
-    store.set({ demo: next, demoOrders: next ? window.DominiumMonitor.buildMeetingExamples(new Date()) : null, view: 'routes', search: '', bucket: 'all', status: 'all' });
-    renderMonitor(store, alertService);
-  });
   document.querySelector('#monitorNotify')?.addEventListener('click', async () => {
     const enabled = await alertService.toggleNotifications();
     toast(enabled ? 'Notificações TEC1 ativadas.' : 'Notificações TEC1 desativadas.'); renderMonitor(store, alertService);
@@ -788,9 +775,6 @@ export async function createApp(root) {
     document.body.classList.toggle('sidebar-collapsed');
     const collapsed = document.body.classList.contains('sidebar-collapsed');
     document.querySelector('#sidebarToggle').setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-  });
-  document.querySelector('#headerToaOpen')?.addEventListener('click', () => {
-    window.open('https://clarobrasil.etadirect.com/toa/', '_blank', 'noopener,noreferrer');
   });
   document.querySelectorAll('[data-module]').forEach((button) => button.addEventListener('click', () => switchModule(store, button.dataset.module)));
 

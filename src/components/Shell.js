@@ -18,9 +18,6 @@ export function Shell() {
       <button class="theme-toggle" id="themeToggle" type="button" aria-label="Alternar tema" title="Alternar tema">
         <i data-lucide="sun-moon" aria-hidden="true"></i><span id="themeLabel">Modo claro</span>
       </button>
-      <button class="header-toa-button" id="headerToaOpen" type="button">
-        <i data-lucide="external-link" aria-hidden="true"></i><span>Abrir TOA</span>
-      </button>
       <div class="connection connected" id="connectionStatus"><span class="status-dot" aria-hidden="true"></span><span>Monitor local</span></div>
       <div class="operator" aria-label="Sistema atual"><span>TOA</span><small>Monitor TEC1</small></div>
       <div class="operator-avatar" aria-hidden="true">T1</div>

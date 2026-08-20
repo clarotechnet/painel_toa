@@ -55,6 +55,7 @@
 .monitor-kpis article,
 .monitor-tabs,
 .monitor-panel { border-radius: 10px; }
+.monitor-source-card { grid-template-columns: auto minmax(0, 1fr); }
 
 .monitor-tv {
   box-sizing: border-box;

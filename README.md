@@ -31,6 +31,14 @@ O inicializador sobe a API, a sessão dedicada do Chrome dedicado, o supervisor 
 
 A API de leitura é limitada ao próprio computador. Para ingestão remota, configure `DOMINIUM_INGEST_TOKEN` e use os endpoints documentados em `docs/API.md`.
 
+## Consulta opcional pela API do TOA
+
+A extensão opcional `toa-bridge/` mantém uma sessão autenticada do TOA como
+coletor silencioso para consultas sob demanda através do Worker/D1. Ela usa
+somente chamadas internas de leitura, não abre OS visualmente e envia apenas o
+retrato operacional sanitizado. Instalação e configuração:
+`docs/TOA-CLOUD-BRIDGE.md`.
+
 ## Painel online com Docker
 
 A pilha opcional com n8n, PostgreSQL, FastAPI, frontend e HTTPS para VPS está em

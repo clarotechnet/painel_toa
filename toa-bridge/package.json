@@ -1,0 +1,9 @@
+{
+  "name": "toa-technet-bridge",
+  "version": "2.6.2",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "test": "node test-toa-inventory-core.js && node test-disconnect-inventory.js && node test-cloud-bridge.js"
+  }
+}

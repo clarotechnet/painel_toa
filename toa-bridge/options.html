@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>DOMINIUM · Ponte TOA</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <main>
+    <p class="eyebrow">TECHNET · DOMINIUM</p>
+    <h1>Ponte privada do TOA</h1>
+    <p class="lead">Conecta esta sessão autenticada à fila privada Cloudflare. Login, senha, cookies e dados pessoais não são enviados.</p>
+    <label class="toggle"><input id="enabled" type="checkbox"><span>Ativar coleta para o Dominium primário</span></label>
+    <label>Endereço da ponte <input id="baseUrl" type="url" placeholder="https://dominium-toa-bridge.dominium-toa-cloud-bridge.workers.dev"></label>
+    <label>Chave do coletor <input id="token" type="password" autocomplete="off" placeholder="Cole a chave criada na publicação"></label>
+    <label>Identificação deste coletor <input id="collectorId" type="text" maxlength="100" value="central-toa"></label>
+    <div class="actions"><button id="save" type="button">Salvar e testar</button><span id="status"></span></div>
+    <aside>Para funcionar, mantenha uma aba do TOA autenticada. A consulta usa a rede interna da própria página e não altera atividades.</aside>
+  </main>
+  <script src="options.js"></script>
+</body>
+</html>

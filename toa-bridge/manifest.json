@@ -1,0 +1,74 @@
+{
+  "manifest_version": 3,
+  "name": "TOA TechNet Bridge",
+  "version": "2.6.2",
+  "description": "Consulta silenciosa pela arvore do TOA e ponte privada Cloudflare/D1 para o DOMINIUM.",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "offscreen"
+  ],
+  "host_permissions": [
+    "https://clarobrasil.etadirect.com/*",
+    "https://clarobrasil.fs.ocs.oraclecloud.com/*",
+    "https://*.oraclecloud.com/*",
+    "https://*.ofsc.com/*",
+    "https://www.atlas.netservicos.com.br/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*",
+    "https://*.workers.dev/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "js": [
+        "content-isolated.js"
+      ],
+      "matches": [
+        "https://clarobrasil.etadirect.com/*",
+        "https://clarobrasil.fs.ocs.oraclecloud.com/*",
+        "https://*.oraclecloud.com/*",
+        "https://*.ofsc.com/*",
+        "https://www.atlas.netservicos.com.br/*"
+      ],
+      "run_at": "document_start",
+      "all_frames": false,
+      "world": "ISOLATED"
+    },
+    {
+      "js": [
+        "toa-auto-export.js",
+        "toa-inventory-core.js",
+        "disconnect-inventory.js",
+        "content-main.js"
+      ],
+      "matches": [
+        "https://clarobrasil.etadirect.com/*",
+        "https://clarobrasil.fs.ocs.oraclecloud.com/*",
+        "https://*.oraclecloud.com/*",
+        "https://*.ofsc.com/*"
+      ],
+      "run_at": "document_end",
+      "all_frames": false,
+      "world": "MAIN"
+    },
+    {
+      "js": [
+        "content-atlas-main.js"
+      ],
+      "matches": [
+        "https://www.atlas.netservicos.com.br/*"
+      ],
+      "run_at": "document_end",
+      "all_frames": false,
+      "world": "MAIN"
+    }
+  ],
+  "action": {
+    "default_title": "TOA TechNet Bridge"
+  },
+  "options_page": "options.html"
+}

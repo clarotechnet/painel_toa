@@ -14,7 +14,7 @@ export function MonitorWorkspace() {
         <button class="button primary monitor-csv-button" id="monitorCsvOpen" type="button"><i data-lucide="file-up"></i><span>Carregar CSV do TOA</span></button>
         <button class="button secondary" id="monitorNotify" type="button" title="Ativar alertas locais"><i data-lucide="bell"></i><span>Alertas</span></button>
         <button class="button secondary" id="monitorVoice" type="button" title="Ativar voz para alertas de TEC1" aria-pressed="false"><i data-lucide="volume-2"></i><span>Voz TEC1</span></button>
-        <button class="button secondary" id="monitorExport" type="button"><i data-lucide="download"></i><span>Exportar</span></button>
+        <button class="button secondary" id="monitorExport" type="button"><i data-lucide="file-spreadsheet"></i><span>Exportar XLSX</span></button>
         <button class="button secondary" id="monitorRefresh" type="button"><i data-lucide="refresh-cw"></i><span>Atualizar</span></button>
       </div>
     </header>

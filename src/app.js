@@ -13,6 +13,7 @@ import {
 import { loadTechnicianDirectory, applyTechnicianNames } from './services/technicianService.js';
 import { AlertService } from './services/alertService.js';
 import { createStore } from './state/store.js';
+import { createXlsxBlob } from './utils/xlsx.js';
 import {
   escapeHtml,
   normalize,
@@ -635,10 +636,12 @@ function exportCurrent(store) {
   if (!rows.length) return toast('Não há dados para exportar.', 'error');
   const headers = ['OS', 'Contrato', 'Serviço', 'Cidade', 'Bucket', 'Técnico', 'Status', 'Agenda', 'TEC1'];
   const body = rows.map((row) => [row.os, row.contract, row.service, row.city, row.bucket, row.technician, row.status, row.schedule, row.tec1]);
-  const csv = [headers, ...body].map((row) => row.map((value) => `"${String(value ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
-  const blob = new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8' });
+  const blob = createXlsxBlob([headers, ...body], {
+    sheetName: 'Monitor TOA',
+    widths: [18, 16, 30, 20, 18, 32, 18, 34, 18],
+  });
   const url = URL.createObjectURL(blob); const a = document.createElement('a');
-  a.href = url; a.download = `monitor-toa-${new Date().toISOString().slice(0, 10)}.csv`; a.click(); URL.revokeObjectURL(url);
+  a.href = url; a.download = `monitor-toa-${new Date().toISOString().slice(0, 10)}.xlsx`; a.click(); URL.revokeObjectURL(url);
 }
 
 async function handleFiles(store, files, directory, alertService) {

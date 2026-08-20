@@ -13,7 +13,7 @@
     "build": "node scripts/build.mjs",
     "preview": "vite --host 0.0.0.0",
     "test": "npm run test:web && npm run test:extension && npm run test:python",
-    "test:web": "node tests/smoke.mjs && node tests/alert-service.mjs",
+    "test:web": "node tests/smoke.mjs && node tests/alert-service.mjs && node tests/xlsx-export.mjs",
     "test:extension": "node toa-discovery/test.js && node toa-discovery/service-worker.test.js",
     "test:python": "python -B -m unittest discover -s tests -p test_*.py",
     "serve": "python app.py --no-browser"

@@ -7,6 +7,7 @@
   const observedBuckets = new Map();
   const observedTreeNodes = new Map();
   const activeControllers = new Map();
+  let selectedProviderId = "";
 
   const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
   const compact = (value) => String(value ?? "").replace(/\s+/g, " ").trim();
@@ -55,7 +56,8 @@
     if (!payload || typeof payload !== "object") return;
 
     if (payload.p && typeof payload.p === "object") {
-      rememberTreeNode(payload.p, payload.pid, "Time.get:selected");
+      const selected = rememberTreeNode(payload.p, payload.pid, "Time.get:selected");
+      selectedProviderId = compact(selected?.providerId || payload.pid || selectedProviderId);
     }
 
     const trees = Array.isArray(payload.trees) ? payload.trees : [];
@@ -67,8 +69,16 @@
       }
     }
 
-    const providers = payload?.delta?.providers;
-    if (providers && typeof providers === "object") {
+    // O OFS varia o nome desta coleção entre endpoints/builds. Observar todas
+    // as formas completa a árvore sem alterar nenhuma atividade do TOA.
+    const providerCollections = [
+      payload?.delta?.providers,
+      payload?.delta?.Provider,
+      payload?.providers,
+      payload?.Provider,
+    ];
+    for (const providers of providerCollections) {
+      if (!providers || typeof providers !== "object" || Array.isArray(providers)) continue;
       for (const [fallbackId, rawProvider] of Object.entries(providers)) {
         if (!rawProvider || typeof rawProvider !== "object") continue;
         rememberTreeNode({
@@ -104,6 +114,12 @@
       currentId = compact(node.parentId);
     }
     return null;
+  }
+
+  function selectedProvider() {
+    if (!selectedProviderId) return null;
+    const node = observedTreeNodes.get(selectedProviderId);
+    return node ? { ...node, route: routeForProvider(selectedProviderId) } : null;
   }
 
   function treeStatus() {
@@ -308,5 +324,15 @@
   }
 
   installTimeResponseObserver();
-  root.TNTOAAutoExport = Object.freeze({ discoverBuckets, exportRoute, routeForProvider, treeStatus, cancelAll });
+  root.TNTOAAutoExport = Object.freeze({
+    discoverBuckets,
+    exportRoute,
+    routeForProvider,
+    selectedProvider,
+    treeStatus,
+    cancelAll,
+    // Respostas de detalhes/sincronização podem trazer um técnico que ainda
+    // não apareceu no Time.get observado após a extensão iniciar.
+    observePayload: rememberTimeResponse,
+  });
 })(globalThis);

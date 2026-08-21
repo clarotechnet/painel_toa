@@ -10,6 +10,7 @@ input { box-sizing:border-box; width:100%; padding:13px 14px; border:1px solid #
 input:focus { border-color:#ff334d; box-shadow:0 0 0 3px #ff334d22; }
 .toggle input { width:18px; height:18px; accent-color:#ff334d; }
 .actions { display:flex; align-items:center; gap:16px; margin-top:24px; }
+hr { width:100%; margin:28px 0 22px; border:0; border-top:1px solid #303744; }
 button { border:0; border-radius:10px; padding:13px 20px; background:#f21f3b; color:#fff; font-weight:900; cursor:pointer; }
-#status { color:#7ee6a8; font-size:13px; }
+#status, #toaApiStatus { color:#7ee6a8; font-size:13px; }
 aside { margin-top:24px; padding:16px; border:1px solid #263041; border-radius:12px; background:#0a0f16; font-size:13px; }

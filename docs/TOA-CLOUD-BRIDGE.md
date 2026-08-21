@@ -15,7 +15,7 @@ Sistema autorizado
 
 ## Segurança
 
-- A versão incorporada é `2.6.2` e fica em `toa-bridge/`.
+- A versão incorporada é `2.6.5` e fica em `toa-bridge/`.
 - O código não contém a chave do coletor nem credenciais do TOA.
 - A chave é gravada somente em `chrome.storage.local` pela tela de opções.
 - A integração trabalha em modo somente leitura e com `ROUTE_TREE_ONLY_MODE`.

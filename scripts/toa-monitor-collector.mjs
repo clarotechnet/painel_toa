@@ -6,8 +6,10 @@ const DEBUG_ORIGIN = process.env.DOMINIUM_TOA_DEBUG_ORIGIN || 'http://127.0.0.1:
 const API_ORIGIN = process.env.DOMINIUM_API_ORIGIN || 'http://127.0.0.1:8765';
 const CYCLE_MS = Math.max(60_000, Number(process.env.DOMINIUM_TOA_CYCLE_MS || 60_000));
 const BETWEEN_BUCKETS_MS = Math.max(1_000, Number(process.env.DOMINIUM_TOA_BUCKET_DELAY_MS || 1_000));
-const DETAILS_PER_CYCLE = Math.max(1, Math.min(80, Number(process.env.DOMINIUM_TOA_DETAILS_PER_CYCLE || 60)));
+const DETAILS_PER_CYCLE = Math.max(1, Math.min(24, Number(process.env.DOMINIUM_TOA_DETAILS_PER_CYCLE || 12)));
 const BETWEEN_DETAILS_MS = Math.max(250, Number(process.env.DOMINIUM_TOA_DETAIL_DELAY_MS || 350));
+const DETAIL_TIMEOUT_MS = Math.max(3_000, Math.min(15_000, Number(process.env.DOMINIUM_TOA_DETAIL_TIMEOUT_MS || 8_000)));
+const DETAIL_CONCURRENCY = Math.max(1, Math.min(4, Number(process.env.DOMINIUM_TOA_DETAIL_CONCURRENCY || 3)));
 const LOCK_FILE = resolve('data/toa-monitor-collector.pid');
 const BUSINESS_BUCKET = /^(?:FTZ|JCR|MRO|NPA|NTL|PWM|REC)-DMV(?:_[A-Z0-9]+)*$/i;
 const AUXILIARY_TYPES = new Set([20, 23, 24, 25, 82, 111]);
@@ -279,10 +281,10 @@ class CDPClient {
     lastNetworkAt = Date.now();
   }
 
-  async evaluate(expression) {
+  async evaluate(expression, timeoutMs = 60_000) {
     const result = await this.call('Runtime.evaluate', {
       expression, returnByValue: true, awaitPromise: true,
-    }, 60_000);
+    }, timeoutMs);
     if (result.exceptionDetails) throw new Error('Falha executando leitura dentro do TOA');
     return result.result?.value;
   }
@@ -464,26 +466,38 @@ async function enrichPriorityDetails(client, activities) {
     .slice(0, DETAILS_PER_CYCLE);
   let enriched = 0;
   let failures = 0;
-  for (const row of priority) {
-    try {
-      const response = await client.evaluate(detailReplayExpression(row));
-      if (Number(response?.status) === 401 || Number(response?.status) === 403) throw new Error('Sessao TOA expirada');
-      if (Number(response?.status) !== 200) throw new Error(`Detalhe TOA respondeu ${response?.status || 'sem status'}`);
-      const detail = normalizeOracleDetail(JSON.parse(response.text || '{}'), row.activity_id);
-      await apiPost('/api/v1/ingest/snapshot', {
-        // O detalhe complementa contrato/OS/janela, mas nao e uma rodada do
-        // coletor principal e nao deve zerar seu contador na telemetria.
-        source: 'toa-live-detail-readonly', observed_at: new Date().toISOString(),
-        details: [detail], snapshot_complete: false,
-      });
-      enriched += 1;
-    } catch (error) {
-      failures += 1;
-      process.stderr.write(`[TOA DETAIL] ${row.activity_id}: ${clean(error.message, 220)}\n`);
-      if (/sessao/i.test(error.message)) break;
+  let cursor = 0;
+  let sessionExpired = false;
+  const worker = async () => {
+    while (!sessionExpired) {
+      const index = cursor;
+      cursor += 1;
+      if (index >= priority.length) return;
+      const row = priority[index];
+      try {
+        const response = await client.evaluate(detailReplayExpression(row), DETAIL_TIMEOUT_MS);
+        if (Number(response?.status) === 401 || Number(response?.status) === 403) throw new Error('Sessao TOA expirada');
+        if (Number(response?.status) !== 200) throw new Error(`Detalhe TOA respondeu ${response?.status || 'sem status'}`);
+        const detail = normalizeOracleDetail(JSON.parse(response.text || '{}'), row.activity_id);
+        await apiPost('/api/v1/ingest/snapshot', {
+          // O detalhe complementa contrato/OS/janela, mas nao e uma rodada do
+          // coletor principal e nao deve zerar seu contador na telemetria.
+          source: 'toa-live-detail-readonly', observed_at: new Date().toISOString(),
+          details: [detail], snapshot_complete: false,
+        });
+        enriched += 1;
+      } catch (error) {
+        failures += 1;
+        process.stderr.write(`[TOA DETAIL] ${row.activity_id}: ${clean(error.message, 220)}\n`);
+        if (/sessao/i.test(error.message)) sessionExpired = true;
+      }
+      await sleep(BETWEEN_DETAILS_MS);
     }
-    await sleep(BETWEEN_DETAILS_MS);
-  }
+  };
+  await Promise.all(Array.from(
+    { length: Math.min(DETAIL_CONCURRENCY, priority.length) },
+    () => worker(),
+  ));
   if (priority.length) process.stdout.write(`[TOA DETAIL] ${enriched}/${priority.length} atividades enriquecidas\n`);
   return { enriched, failures };
 }

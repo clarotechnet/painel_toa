@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime as dt
 import hashlib
 import json
+import math
 import re
 import sqlite3
 import threading
@@ -148,6 +149,28 @@ class TOADatalakeStore:
               collector TEXT PRIMARY KEY, state TEXT, source TEXT, bucket TEXT,
               last_success_at TEXT, last_attempt_at TEXT, last_error TEXT,
               records INTEGER DEFAULT 0, details_json TEXT DEFAULT '{}');
+            CREATE TABLE IF NOT EXISTS technician_location_points(
+              point_key TEXT PRIMARY KEY, technician_id TEXT, technician_login TEXT,
+              technician_name TEXT, bucket TEXT, profile TEXT, observed_date TEXT,
+              observed_at TEXT, latitude REAL, longitude REAL, accuracy_m REAL,
+              speed_kmh REAL, heading REAL, altitude_m REAL, source TEXT,
+              received_at TEXT);
+            CREATE INDEX IF NOT EXISTS idx_location_points_date_technician
+              ON technician_location_points(observed_date, technician_login, technician_id, observed_at);
+            CREATE INDEX IF NOT EXISTS idx_location_points_profile_date
+              ON technician_location_points(profile, observed_date, observed_at);
+            CREATE TABLE IF NOT EXISTS technician_location_visits(
+              visit_key TEXT PRIMARY KEY, technician_id TEXT, technician_login TEXT,
+              technician_name TEXT, bucket TEXT, profile TEXT, observed_date TEXT,
+              scheduled_at TEXT, latitude REAL, longitude REAL, marker_label TEXT,
+              activity_id TEXT, os_number TEXT, contract TEXT, service TEXT,
+              status TEXT, source TEXT, received_at TEXT);
+            CREATE INDEX IF NOT EXISTS idx_location_visits_date_technician
+              ON technician_location_visits(observed_date, technician_login, technician_id, scheduled_at);
+            CREATE TABLE IF NOT EXISTS technician_daily_closures(
+              closure_date TEXT PRIMARY KEY, closed_at TEXT, source TEXT,
+              technician_count INTEGER DEFAULT 0, point_count INTEGER DEFAULT 0,
+              details_json TEXT DEFAULT '{}');
             """)
             columns = {row[1] for row in db.execute("PRAGMA table_info(activities)")}
             for name in ("duration_min", "travel_min", "route_position", "detail_checked_at"):
@@ -160,6 +183,296 @@ class TOADatalakeStore:
         db.execute("PRAGMA journal_mode=WAL")
         db.execute("PRAGMA busy_timeout=20000")
         return db
+
+    @staticmethod
+    def _finite_number(value: Any) -> float | None:
+        try:
+            parsed = float(value)
+        except (TypeError, ValueError):
+            return None
+        return parsed if math.isfinite(parsed) else None
+
+    @staticmethod
+    def _location_timestamp(value: Any, fallback_date: str = "") -> dt.datetime | None:
+        text = _text(value, 80)
+        if not text:
+            return None
+        if re.fullmatch(r"\d{10,13}", text):
+            raw = int(text)
+            if len(text) == 13:
+                raw /= 1000
+            try:
+                return dt.datetime.fromtimestamp(raw, tz=dt.timezone.utc).astimezone()
+            except (OverflowError, OSError, ValueError):
+                return None
+        normalized = text.replace("Z", "+00:00")
+        try:
+            parsed = dt.datetime.fromisoformat(normalized)
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=dt.datetime.now().astimezone().tzinfo)
+            return parsed.astimezone()
+        except ValueError:
+            pass
+        for pattern in ("%d/%m/%Y %H:%M:%S", "%d/%m/%Y %H:%M", "%H:%M:%S", "%H:%M"):
+            try:
+                parsed = dt.datetime.strptime(text, pattern)
+                if pattern.startswith("%H"):
+                    date_value = dt.date.fromisoformat(fallback_date) if fallback_date else dt.date.today()
+                    parsed = dt.datetime.combine(date_value, parsed.time())
+                return parsed.replace(tzinfo=dt.datetime.now().astimezone().tzinfo)
+            except ValueError:
+                continue
+        return None
+
+    @staticmethod
+    def _distance_meters(left: sqlite3.Row | dict[str, Any], right: sqlite3.Row | dict[str, Any]) -> float:
+        lat1, lon1 = math.radians(float(left["latitude"])), math.radians(float(left["longitude"]))
+        lat2, lon2 = math.radians(float(right["latitude"])), math.radians(float(right["longitude"]))
+        delta_lat = lat2 - lat1
+        delta_lon = lon2 - lon1
+        value = math.sin(delta_lat / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(delta_lon / 2) ** 2
+        return 6371008.8 * 2 * math.atan2(math.sqrt(value), math.sqrt(max(0.0, 1 - value)))
+
+    def ingest_locations(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Grava somente telemetria operacional do recurso; nunca dados do cliente."""
+        source = _text(payload.get("source") or "toa-location-bridge", 120)
+        fallback_date = _text(payload.get("date"), 10)
+        batches = _items(payload.get("resources"))
+        if not batches:
+            batches = [{
+                "technician": payload.get("technician") or {},
+                "bucket": payload.get("bucket"), "profile": payload.get("profile"),
+                "points": payload.get("points") or [],
+                "visits": payload.get("visits") or [],
+            }]
+        received_at = _now()
+        inserted = 0
+        visits_inserted = 0
+        ignored = 0
+        technicians: set[str] = set()
+        with self.lock, self._connect() as db:
+            for batch in batches:
+                technician = batch.get("technician") if isinstance(batch.get("technician"), dict) else {}
+                technician_id = _text(_first(batch, "technician_id", "resource_id", "provider_id") or technician.get("id"), 160)
+                technician_login = _text(_first(batch, "technician_login", "login", "external_id") or technician.get("login"), 160)
+                technician_name = _text(_first(batch, "technician_name", "name") or technician.get("name"), 240)
+                bucket = _text(batch.get("bucket"), 120)
+                profile = _profile(bucket, _text(batch.get("profile"), 40))
+                technician_key = technician_login or technician_id
+                if not technician_key:
+                    ignored += len(batch.get("points") or []) if isinstance(batch.get("points"), list) else 1
+                    continue
+                technicians.add(technician_key)
+                for raw in _items(batch.get("points")):
+                    latitude = self._finite_number(_first(raw, "latitude", "lat"))
+                    longitude = self._finite_number(_first(raw, "longitude", "lng", "lon"))
+                    timestamp = self._location_timestamp(
+                        _first(raw, "observed_at", "timestamp", "time", "captured_at"),
+                        fallback_date,
+                    )
+                    if latitude is None or longitude is None or timestamp is None:
+                        ignored += 1
+                        continue
+                    if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
+                        ignored += 1
+                        continue
+                    observed_at = timestamp.isoformat(timespec="seconds")
+                    observed_date = timestamp.date().isoformat()
+                    accuracy = self._finite_number(_first(raw, "accuracy_m", "accuracy"))
+                    speed = self._finite_number(_first(raw, "speed_kmh", "speed"))
+                    heading = self._finite_number(raw.get("heading"))
+                    altitude = self._finite_number(_first(raw, "altitude_m", "altitude"))
+                    key_source = f"{technician_key}|{observed_at}|{latitude:.7f}|{longitude:.7f}"
+                    point_key = hashlib.sha256(key_source.encode("utf-8")).hexdigest()
+                    cursor = db.execute("""
+                      INSERT OR IGNORE INTO technician_location_points(
+                        point_key,technician_id,technician_login,technician_name,bucket,profile,
+                        observed_date,observed_at,latitude,longitude,accuracy_m,speed_kmh,
+                        heading,altitude_m,source,received_at)
+                      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    """, (point_key, technician_id, technician_login, technician_name, bucket, profile,
+                          observed_date, observed_at, latitude, longitude, accuracy, speed,
+                          heading, altitude, source, received_at))
+                    inserted += max(0, cursor.rowcount)
+                for raw in _items(batch.get("visits")):
+                    latitude = self._finite_number(_first(raw, "latitude", "lat"))
+                    longitude = self._finite_number(_first(raw, "longitude", "lng", "lon"))
+                    if latitude is None or longitude is None or not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
+                        ignored += 1
+                        continue
+                    scheduled = self._location_timestamp(
+                        _first(raw, "scheduled_at", "start_at", "timestamp", "time"), fallback_date,
+                    )
+                    visit_date = _text(raw.get("date"), 10)
+                    if scheduled:
+                        scheduled_at = scheduled.isoformat(timespec="seconds")
+                        observed_date = scheduled.date().isoformat()
+                    else:
+                        scheduled_at = ""
+                        observed_date = visit_date if re.fullmatch(r"\d{4}-\d{2}-\d{2}", visit_date) else (fallback_date or dt.date.today().isoformat())
+                    activity_id = _text(_first(raw, "activity_id", "aid"), 160)
+                    marker_label = _text(_first(raw, "marker_label", "label"), 8).upper()
+                    key_source = f"{technician_key}|{observed_date}|{activity_id}|{latitude:.7f}|{longitude:.7f}"
+                    visit_key = hashlib.sha256(key_source.encode("utf-8")).hexdigest()
+                    cursor = db.execute("""
+                      INSERT INTO technician_location_visits(
+                        visit_key,technician_id,technician_login,technician_name,bucket,profile,
+                        observed_date,scheduled_at,latitude,longitude,marker_label,activity_id,
+                        os_number,contract,service,status,source,received_at)
+                      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                      ON CONFLICT(visit_key) DO UPDATE SET
+                        technician_name=excluded.technician_name,bucket=excluded.bucket,
+                        profile=excluded.profile,scheduled_at=excluded.scheduled_at,
+                        marker_label=excluded.marker_label,os_number=excluded.os_number,
+                        contract=excluded.contract,service=excluded.service,status=excluded.status,
+                        received_at=excluded.received_at
+                    """, (visit_key, technician_id, technician_login, technician_name, bucket, profile,
+                          observed_date, scheduled_at, latitude, longitude, marker_label, activity_id,
+                          _text(_first(raw, "os_number", "os"), 160), _text(raw.get("contract"), 160),
+                          _text(raw.get("service"), 400), _text(raw.get("status"), 120), source, received_at))
+                    visits_inserted += max(0, cursor.rowcount)
+        return {"ok": True, "schema": self.SCHEMA, "inserted": inserted,
+                "visits_inserted": visits_inserted, "ignored": ignored,
+                "technicians": len(technicians), "received_at": received_at}
+
+    @staticmethod
+    def _track_metrics(rows: list[sqlite3.Row]) -> dict[str, Any]:
+        distance_m = 0.0
+        accepted_segments = 0
+        rejected_segments = 0
+        for previous, current in zip(rows, rows[1:]):
+            segment = TOADatalakeStore._distance_meters(previous, current)
+            try:
+                left_time = dt.datetime.fromisoformat(previous["observed_at"])
+                right_time = dt.datetime.fromisoformat(current["observed_at"])
+                elapsed = max(0.0, (right_time - left_time).total_seconds())
+            except (TypeError, ValueError):
+                elapsed = 0.0
+            derived_speed = (segment / elapsed) * 3.6 if elapsed else float("inf")
+            accuracy = max(float(previous["accuracy_m"] or 0), float(current["accuracy_m"] or 0))
+            if elapsed <= 0 or elapsed > 7200 or segment > 20000 or derived_speed > 160 or accuracy > 1000:
+                rejected_segments += 1
+                continue
+            # Oscilacoes menores que a margem combinada de GPS nao contam como deslocamento.
+            if segment <= max(8.0, accuracy * 0.35):
+                accepted_segments += 1
+                continue
+            distance_m += segment
+            accepted_segments += 1
+        return {
+            "distance_km": round(distance_m / 1000, 3),
+            "accepted_segments": accepted_segments,
+            "rejected_segments": rejected_segments,
+        }
+
+    def technician_location_summary(self, *, date: str = "", profile: str = "") -> dict[str, Any]:
+        selected_date = date if re.fullmatch(r"\d{4}-\d{2}-\d{2}", date or "") else dt.date.today().isoformat()
+        clauses = ["observed_date=?"]
+        values: list[Any] = [selected_date]
+        if profile:
+            clauses.append("profile=?")
+            values.append(profile.casefold())
+        with self._connect() as db:
+            rows = db.execute(
+                f"SELECT * FROM technician_location_points WHERE {' AND '.join(clauses)} "
+                "ORDER BY technician_login,technician_id,observed_at", values,
+            ).fetchall()
+            visit_rows = db.execute(
+                f"SELECT * FROM technician_location_visits WHERE {' AND '.join(clauses)} "
+                "ORDER BY technician_login,technician_id,scheduled_at,marker_label", values,
+            ).fetchall()
+        visits_grouped: dict[str, list[sqlite3.Row]] = {}
+        for row in visit_rows:
+            visits_grouped.setdefault(row["technician_login"] or row["technician_id"], []).append(row)
+        grouped: dict[str, list[sqlite3.Row]] = {}
+        for row in rows:
+            grouped.setdefault(row["technician_login"] or row["technician_id"], []).append(row)
+        items = []
+        for key, track in grouped.items():
+            metrics = self._track_metrics(track)
+            items.append({
+                "technician_id": track[0]["technician_id"],
+                "technician_login": track[0]["technician_login"],
+                "technician_name": track[-1]["technician_name"] or key,
+                "bucket": track[-1]["bucket"], "profile": track[-1]["profile"],
+                "point_count": len(track), "first_at": track[0]["observed_at"],
+                "last_at": track[-1]["observed_at"], "visit_count": len(visits_grouped.get(key, [])), **metrics,
+            })
+        for key, visits in visits_grouped.items():
+            if key in grouped:
+                continue
+            first = visits[0]
+            items.append({
+                "technician_id": first["technician_id"],
+                "technician_login": first["technician_login"],
+                "technician_name": first["technician_name"] or key,
+                "bucket": first["bucket"], "profile": first["profile"],
+                "point_count": 0, "visit_count": len(visits),
+                "first_at": "", "last_at": "", "distance_km": 0.0,
+                "accepted_segments": 0, "rejected_segments": 0,
+            })
+        items.sort(key=lambda row: (-row["distance_km"], row["technician_name"].casefold()))
+        return {"ok": True, "schema": self.SCHEMA, "date": selected_date,
+                "technician_count": len(items), "point_count": len(rows), "items": items}
+
+    def technician_location_track(self, identifier: str, *, date: str = "") -> dict[str, Any]:
+        selected_date = date if re.fullmatch(r"\d{4}-\d{2}-\d{2}", date or "") else dt.date.today().isoformat()
+        key = _text(identifier, 160)
+        with self._connect() as db:
+            rows = db.execute("""
+              SELECT * FROM technician_location_points
+              WHERE observed_date=? AND (technician_login=? OR technician_id=?)
+              ORDER BY observed_at
+            """, (selected_date, key, key)).fetchall()
+            visit_rows = db.execute("""
+              SELECT * FROM technician_location_visits
+              WHERE observed_date=? AND (technician_login=? OR technician_id=?)
+              ORDER BY scheduled_at,marker_label,activity_id
+            """, (selected_date, key, key)).fetchall()
+        points = [{
+            "observed_at": row["observed_at"], "latitude": row["latitude"],
+            "longitude": row["longitude"], "accuracy_m": row["accuracy_m"],
+            "speed_kmh": row["speed_kmh"], "heading": row["heading"],
+            "altitude_m": row["altitude_m"],
+        } for row in rows]
+        metrics = self._track_metrics(rows)
+        visits = [{
+            "scheduled_at": row["scheduled_at"], "latitude": row["latitude"],
+            "longitude": row["longitude"], "marker_label": row["marker_label"],
+            "activity_id": row["activity_id"], "os_number": row["os_number"],
+            "contract": row["contract"], "service": row["service"], "status": row["status"],
+        } for row in visit_rows]
+        return {"ok": True, "schema": self.SCHEMA, "date": selected_date,
+                "technician": ({
+                    "id": rows[0]["technician_id"], "login": rows[0]["technician_login"],
+                    "name": rows[-1]["technician_name"], "bucket": rows[-1]["bucket"],
+                } if rows else {"id": key, "login": key, "name": key, "bucket": ""}),
+                "point_count": len(points), "visit_count": len(visits), **metrics,
+                "points": points, "visits": visits}
+
+    def close_technician_location_day(self, *, date: str = "", source: str = "") -> dict[str, Any]:
+        selected_date = date if re.fullmatch(r"\d{4}-\d{2}-\d{2}", date or "") else dt.date.today().isoformat()
+        summary = self.technician_location_summary(date=selected_date)
+        closed_at = _now()
+        details = {
+            "distance_km": round(sum(float(item.get("distance_km") or 0) for item in summary["items"]), 3),
+            "technicians": summary["items"],
+        }
+        with self.lock, self._connect() as db:
+            db.execute("""
+              INSERT INTO technician_daily_closures(
+                closure_date,closed_at,source,technician_count,point_count,details_json)
+              VALUES(?,?,?,?,?,?)
+              ON CONFLICT(closure_date) DO UPDATE SET
+                closed_at=excluded.closed_at,source=excluded.source,
+                technician_count=excluded.technician_count,point_count=excluded.point_count,
+                details_json=excluded.details_json
+            """, (selected_date, closed_at, _text(source or "toa-location-bridge", 120),
+                  summary["technician_count"], summary["point_count"],
+                  json.dumps(details, ensure_ascii=False, separators=(",", ":"))))
+        return {"ok": True, "schema": self.SCHEMA, "date": selected_date,
+                "closed_at": closed_at, "technician_count": summary["technician_count"],
+                "point_count": summary["point_count"], **details}
 
     @staticmethod
     def _set_collector_state(

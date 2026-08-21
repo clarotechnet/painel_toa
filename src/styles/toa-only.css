@@ -138,6 +138,83 @@ html[data-theme="light"] .monitor-source-card {
 }
 html[data-theme="light"] .monitor-source-copy strong { color: #0d6ca8; }
 html[data-theme="light"] .monitor-source-copy span { color: #17212b; }
+
+/* Monitoramento Técnico: histórico protegido de deslocamento do TOA. */
+.technician-monitor-workspace { min-width: 0; padding-bottom: 24px; }
+.technician-monitor-heading { align-items: flex-end; }
+.technician-monitor-heading > div:first-child > p:last-child { margin: 6px 0 0; color: var(--text-secondary); }
+.technician-monitor-controls { display: flex; align-items: flex-end; gap: 8px; }
+.technician-monitor-controls label { display: grid; gap: 5px; color: var(--text-muted); font-size: .66rem; font-weight: 750; text-transform: uppercase; }
+.technician-monitor-controls input,
+.technician-monitor-controls button,
+.technician-route-toolbar select,
+.technician-history-access button {
+  min-height: 36px;
+  padding: 0 11px;
+  color: var(--text-primary);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: 5px;
+}
+.technician-monitor-controls button { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; }
+.technician-monitor-controls button svg { width: 15px; }
+.technician-history-access { margin: 0 0 12px; padding: 12px 14px; display: flex; align-items: center; gap: 12px; background: color-mix(in srgb, var(--state-info) 10%, var(--bg-surface)); border: 1px solid color-mix(in srgb, var(--state-info) 55%, var(--border-default)); border-radius: 6px; }
+.technician-history-access.hidden { display: none; }
+.technician-history-access span { flex: 1; color: var(--text-secondary); font-size: .72rem; }
+.technician-history-access button { cursor: pointer; font-weight: 750; }
+.technician-monitor-status { margin: 0 0 12px; color: var(--text-muted); font-size: .7rem; }
+.technician-monitor-status.online { color: var(--state-success); }
+.technician-monitor-status.warning { color: var(--state-warning); }
+.technician-monitor-status.error { color: var(--state-danger); }
+.technician-service-marker-shell { background: transparent; border: 0; }
+.technician-service-marker { width: 28px; height: 28px; display: grid; place-items: center; color: #07111d; background: #70bdff; border: 2px solid #0a4f91; border-radius: 50% 50% 50% 5px; box-shadow: 0 2px 8px rgba(0, 0, 0, .38); font-size: .76rem; font-weight: 900; transform: rotate(-45deg); }
+.technician-service-marker { line-height: 1; }
+.technician-service-marker > b { display: block; font-weight: 900; transform: rotate(45deg); }
+.technician-service-popup { min-width: 190px; display: grid; gap: 7px; color: #111827; }
+.technician-service-popup > strong { display: flex; align-items: center; gap: 7px; font-size: .86rem; }
+.technician-service-popup > strong i { width: 22px; height: 22px; display: grid; place-items: center; color: #07111d; background: #70bdff; border: 1px solid #0a4f91; border-radius: 50%; font-style: normal; }
+.technician-service-popup span { display: grid; grid-template-columns: 62px 1fr; gap: 8px; font-size: .72rem; }
+.technician-service-popup b { color: #64748b; font-weight: 700; }
+.technician-monitor-kpis { margin-bottom: 12px; display: grid; grid-template-columns: repeat(6, minmax(120px, 1fr)); gap: 8px; }
+.technician-monitor-kpis article { min-width: 0; padding: 12px; display: grid; gap: 6px; background: var(--bg-surface); border: 1px solid var(--border-default); border-top: 3px solid var(--state-info); border-radius: 6px; }
+.technician-monitor-kpis span { color: var(--text-muted); font-size: .61rem; text-transform: uppercase; }
+.technician-monitor-kpis strong { overflow: hidden; color: var(--text-primary); font-size: 1.12rem; text-overflow: ellipsis; white-space: nowrap; }
+.technician-route-card,
+.technician-summary-card { margin-bottom: 12px; min-width: 0; background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: 7px; overflow: hidden; }
+.technician-route-toolbar,
+.technician-summary-card > div:first-child { padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--border-default); }
+.technician-summary-heading { flex-wrap: wrap; }
+.technician-summary-search { margin-left: auto; display: flex; align-items: center; gap: 9px; color: var(--text-muted); font-size: .62rem; }
+.technician-summary-search input { width: min(310px, 52vw); min-height: 34px; padding: 7px 10px; color: var(--text-primary); background: var(--bg-elevated); border: 1px solid var(--border-default); border-radius: 5px; outline: none; }
+.technician-summary-search input:focus { border-color: var(--toa-blue); box-shadow: 0 0 0 2px color-mix(in srgb, var(--toa-blue) 18%, transparent); }
+.technician-route-toolbar h3,
+.technician-summary-card h3 { margin: 0; color: var(--text-primary); font-size: .9rem; }
+.technician-route-toolbar p,
+.technician-summary-card p { margin: 4px 0 0; color: var(--text-muted); font-size: .64rem; }
+.technician-route-toolbar select { width: min(360px, 42vw); }
+.technician-route-map { min-height: 440px; background: #d8e2e8; }
+.technician-route-map .leaflet-control-attribution { font-size: 9px; }
+.technician-summary-card .table-scroll { max-height: 360px; }
+.technician-summary-card table { width: 100%; border-collapse: collapse; }
+.technician-summary-card th { position: sticky; top: 0; z-index: 1; padding: 9px 12px; color: var(--text-muted); background: var(--bg-elevated); border-bottom: 1px solid var(--border-default); font-size: .58rem; text-align: left; text-transform: uppercase; }
+.technician-summary-card td { padding: 10px 12px; color: var(--text-secondary); border-bottom: 1px solid var(--border-default); font-size: .67rem; }
+.technician-summary-card tbody tr[data-technician-key] { cursor: pointer; }
+.technician-summary-card tbody tr[data-technician-key]:hover { background: var(--bg-elevated); }
+.technician-summary-card td strong { display: block; color: var(--text-primary); }
+.technician-summary-card td small { margin-top: 3px; display: block; color: var(--text-muted); }
+.technician-summary-card .empty-table { padding: 28px; color: var(--text-muted); text-align: center; }
+
+@media (max-width: 1180px) {
+  .technician-monitor-kpis { grid-template-columns: repeat(3, minmax(140px, 1fr)); }
+}
+
+@media (max-width: 760px) {
+  .technician-monitor-controls,
+  .technician-route-toolbar { width: 100%; align-items: stretch; flex-direction: column; }
+  .technician-monitor-kpis { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
+  .technician-route-toolbar select { width: 100%; }
+  .technician-route-map { min-height: 360px; }
+}
 html[data-theme="light"] .monitor-source-copy small { color: #60758a; }
 html[data-theme="light"] .monitor-source-card .button.secondary { background: #ffffff; }
 

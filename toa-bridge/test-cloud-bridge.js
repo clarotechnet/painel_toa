@@ -9,13 +9,22 @@ const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'u
 const background = fs.readFileSync(path.join(root, 'background.js'), 'utf8');
 const content = fs.readFileSync(path.join(root, 'content-main.js'), 'utf8');
 const options = fs.readFileSync(path.join(root, 'options.js'), 'utf8');
+const locationHook = fs.readFileSync(path.join(root, 'location-network-hook.js'), 'utf8');
 
 assert.equal(manifest.name, 'TOA TechNet Bridge');
-assert.equal(manifest.version, '2.6.2');
+assert.equal(manifest.version, '2.6.5');
 assert.match(background, /DEFAULT_CLOUD_BASE_URL = 'https:\/\/dominium-toa-bridge\.dominium-toa-cloud-bridge\.workers\.dev'/);
 assert.match(background, /String\(stored\.dominiumCollectorToken \|\| ''\)/);
 assert.match(options, /DEFAULT_COLLECTOR_ID = 'central-toa'/);
 assert.match(content, /const ROUTE_TREE_ONLY_MODE = true;/);
+assert.ok(manifest.content_scripts.some((entry) => entry.run_at === 'document_start'
+  && entry.world === 'MAIN' && entry.js.includes('location-network-hook.js')));
+assert.match(locationHook, /TN_TOA_LOCATION_NETWORK_PAYLOAD/);
+assert.match(content, /coordinateY/);
+assert.match(content, /respostasDeMapaAnalisadas/);
+assert.match(content, /queueLocationVisit/);
+assert.match(content, /marker_label/);
+assert.match(content, /__TN_TOA_LOCATION_SYNC_ALL__/);
 
 const snapshotStart = content.indexOf('function buildOperationalSnapshot');
 const snapshotEnd = content.indexOf('function buildDisconnectSnapshot', snapshotStart);

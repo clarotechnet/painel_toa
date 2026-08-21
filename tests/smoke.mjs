@@ -14,6 +14,11 @@ import {
 import { formatPtBrDate, formatPtBrDateTime, formatPtBrSchedule } from '../src/utils/text.js';
 import { applyTechnicianNames } from '../src/services/technicianService.js';
 import { normalizeOracleDetail } from '../scripts/toa-detail-reader.mjs';
+import {
+  filterTechnicianLocationsByProfiles,
+  mergeTechnicianLocationRoster,
+  technicianLocationProfile,
+} from '../src/components/TechnicianMonitorWorkspace.js';
 
 await import(pathToFileURL(resolve('src/core/operations-monitor.js')));
 assert.ok(globalThis.DominiumMonitor, 'Motor do monitor não carregou');
@@ -34,6 +39,23 @@ assert.ok(model.views.routes.console.totalActivities >= 2, 'Timeline incompleta'
 assert.equal(orderProfile({ bucket: 'JCR-DMV_ADM', city: 'RECIFE' }), 'recife');
 assert.equal(orderProfile({ bucket: 'JCR-DMV_ADM', city: '' }), 'recife');
 assert.equal(orderProfile({ bucket: 'FTZ-DMV_ADM', city: 'FORTALEZA' }), 'fortaleza');
+assert.equal(technicianLocationProfile({ bucket: 'PWM-DMV_ADM' }), 'natal');
+assert.equal(technicianLocationProfile({ bucket: 'JCR-DMV' }), 'recife');
+const filteredTechnicianLocations = filterTechnicianLocationsByProfiles([
+  { technician_login: 'ZN', bucket: 'NTL-DMV', profile: 'natal' },
+  { technician_login: 'ZF', bucket: 'FTZ-DMV_01', profile: 'fortaleza' },
+  { technician_login: 'ZR', bucket: 'JCR-DMV', profile: 'recife' },
+], ['fortaleza', 'recife']);
+assert.deepEqual(filteredTechnicianLocations.map((item) => item.technician_login), ['ZF', 'ZR']);
+const locationRoster = mergeTechnicianLocationRoster([
+  { technician_login: 'ZF', technician_name: 'FORTALEZA COM GPS', bucket: '', profile: 'other', point_count: 4, distance_km: 2 },
+], [
+  { technician_login: 'ZF', technician_name: 'FORTALEZA COM GPS', bucket: 'FTZ-DMV_01', profile: 'fortaleza' },
+  { technician_login: 'ZN', technician_name: 'NATAL SEM GPS', bucket: 'NTL-DMV', profile: 'natal' },
+]);
+assert.equal(locationRoster.length, 2);
+assert.equal(locationRoster.find((item) => item.technician_login === 'ZF').profile, 'fortaleza');
+assert.equal(locationRoster.find((item) => item.technician_login === 'ZN').point_count, 0);
 const multiCitySnapshot = filterSnapshotByProfiles({
   orders: [
     { num_os: '1', city: 'FORTALEZA', bucket: 'FTZ-DMV', technician_login: 'ZF' },

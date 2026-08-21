@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "TOA TechNet Bridge",
-  "version": "2.6.2",
+  "version": "2.6.5",
   "description": "Consulta silenciosa pela arvore do TOA e ponte privada Cloudflare/D1 para o DOMINIUM.",
   "permissions": [
     "storage",
@@ -23,6 +23,20 @@
     "service_worker": "background.js"
   },
   "content_scripts": [
+    {
+      "js": [
+        "location-network-hook.js"
+      ],
+      "matches": [
+        "https://clarobrasil.etadirect.com/*",
+        "https://clarobrasil.fs.ocs.oraclecloud.com/*",
+        "https://*.oraclecloud.com/*",
+        "https://*.ofsc.com/*"
+      ],
+      "run_at": "document_start",
+      "all_frames": false,
+      "world": "MAIN"
+    },
     {
       "js": [
         "content-isolated.js"

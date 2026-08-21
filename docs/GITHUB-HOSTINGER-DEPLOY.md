@@ -12,7 +12,9 @@ O GitHub armazena o código-fonte. A GitHub Action executa os testes, gera
 
 A configuração web de `public/config.js`, incluindo a Firebase Web API Key, é
 pública por definição e precisa chegar ao navegador. A proteção de leitura e
-escrita é controlada pelas regras do Realtime Database.
+escrita é controlada pelas regras do Realtime Database. Portanto, não crie um
+Secret do GitHub para `FIREBASE_API_KEY`: depois do build ele seria público do
+mesmo jeito.
 
 ## 1. Criar o repositório
 
@@ -53,6 +55,9 @@ No repositório, abra **Settings > Secrets and variables > Actions** e clique em
 
 Não use a senha da conta do GitHub ou do hPanel. O workflow usa somente os três
 Secrets acima; nenhum segredo do n8n ou do coletor é necessário na hospedagem.
+
+Também não crie Secrets no GitHub para a conta de serviço Firebase, token do n8n
+ou Bearer token do TOA. Eles são usados somente no computador Central/n8n.
 
 ## 4. Primeira publicação
 

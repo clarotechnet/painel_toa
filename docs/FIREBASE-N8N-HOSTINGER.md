@@ -7,6 +7,8 @@ TOA -> coletor Windows -> webhook n8n local -> Firebase Realtime Database
                                                    |
                                                    v
                                       frontend estático na Hostinger
+                                                   |
+                                      histórico GPS protegido por login
 ```
 
 O computador do coletor e o Docker Desktop precisam permanecer ligados. O n8n
@@ -55,16 +57,25 @@ Com `firebasePublicRead: true`, qualquer visitante pode visualizar o painel.
 2. Copie todo o conteúdo de `firebase/database.rules.json`.
 3. Cole no editor e clique em **Publicar**.
 
-As regras permitem leitura pública apenas de `dominium/toa/current`. Escritas do
-navegador permanecem bloqueadas; a conta de serviço do n8n continua responsável
-pela publicação. Isso significa que qualquer pessoa que conheça o endereço do
-site ou do banco poderá ler os dados operacionais.
+As regras permitem leitura pública apenas de `dominium/toa/current`. O caminho
+`dominium/toa/history` exige login e um UID liberado em `authorizedUsers`.
+Escritas do navegador permanecem bloqueadas; a conta de serviço do n8n continua
+responsável pela publicação.
 
-## 4. Login Google não é necessário no modo público
+## 4. Habilitar login somente para o histórico GPS
 
-Com `firebasePublicRead: true`, não é preciso habilitar Authentication nem
-cadastrar domínios OAuth. Para voltar a exigir usuários autorizados, altere essa
-opção para `false` e restaure regras privadas antes de publicar novamente.
+O monitor ao vivo continua público. A aba **Monitoramento Técnico** contém
+localização e exige conta autorizada:
+
+1. Abra **Authentication > Sign-in method** e habilite **Google**.
+2. Em **Authentication > Configurações > Domínios autorizados**, adicione
+   `central.clarotechnet.com.br`.
+3. Entre uma vez na nova aba. Se a conta ainda não estiver autorizada, o painel
+   exibirá o UID.
+4. No Realtime Database, crie `authorizedUsers/SEU_UID` com valor booleano
+   `true`.
+
+Não coloque o UID dentro de `public/config.js`.
 
 ## 5. Criar a conta de serviço usada pelo n8n
 
@@ -103,6 +114,7 @@ O `.env.local` deve possuir exatamente o mesmo token:
 
 ```dotenv
 DOMINIUM_N8N_WEBHOOK_URL=http://localhost:5678/webhook/dominium-toa-snapshot
+DOMINIUM_N8N_LOCATION_WEBHOOK_URL=http://localhost:5678/webhook/dominium-toa-technician-locations
 DOMINIUM_INGEST_TOKEN=O_MESMO_TOKEN_DO_ENV_DOCKER
 ```
 
@@ -139,11 +151,23 @@ https://SEU_PROJETO-default-rtdb.firebaseio.com/.json
 
 7. Salve e publique/ative o workflow.
 
-O workflow mantém somente o estado atual. Depois da primeira carga, ele compara
-as ordens e atividades e envia ao Firebase apenas os caminhos alterados. Uma
-reconciliação completa é feita a cada 30 minutos. Isso evita acumular histórico
-e reduz de forma importante o tráfego do plano gratuito. Em falhas de internet,
-o coletor mantém o retrato mais novo na fila e tenta novamente.
+Depois importe também
+`docker/n8n/workflows/dominium-toa-technician-locations.json`:
+
+1. No webhook **Receber pontos GPS**, selecione a mesma credencial Header Auth.
+2. No nó **Gravar histórico no Firebase**, selecione
+   `Firebase TOA - Service Account`.
+3. Confirme a URL do Realtime Database e publique o workflow.
+
+O workflow GPS grava por data em
+`dominium/toa/history/technicianLocations/AAAA-MM-DD/technicians`.
+
+O workflow principal mantém somente o estado operacional atual. Depois da
+primeira carga, ele compara as ordens e atividades e envia ao Firebase apenas os
+caminhos alterados. Uma reconciliação completa é feita a cada 30 minutos. Já o
+workflow GPS acumula os pontos separados por data, pois são eles que permitem
+consultar dias anteriores e calcular a quilometragem. Em falhas de internet, o
+coletor preserva a fila pendente e tenta novamente.
 
 ## 8. Testar o envio
 
@@ -152,15 +176,27 @@ o coletor mantém o retrato mais novo na fila e tenta novamente.
 3. No n8n, abra **Executions** e confirme uma execução verde.
 4. No Firebase, abra **Realtime Database > Dados**.
 5. Confirme o caminho `dominium/toa/current/feed` e verifique `loadedAt`.
+6. Depois que o TOA fornecer posições, confirme também o caminho
+   `dominium/toa/history/technicianLocations/AAAA-MM-DD`.
+
+Na página do TOA, execute no Console do navegador:
+
+```js
+window.__TN_TOA_LOCATION_STATUS__()
+```
+
+`enviado` deve aumentar. Se a Core API oficial estiver configurada, os campos
+`coreApiConfigurada` e `coreApiUltimaSincronizacao` também serão preenchidos.
 
 Se o n8n responder `401`, confira a credencial Header Auth. Se responder `403`,
 confira a conta de serviço e os dois escopos. Se a URL estiver incorreta, confira
 `FIREBASE_DATABASE_URL` e recrie o contêiner n8n.
 
-## 9. Testar o acesso público
+## 9. Testar acesso público e histórico protegido
 
 Execute `npm run build` e abra o painel em uma janela anônima. Ele deve carregar
-diretamente, sem solicitar conta Google.
+diretamente, sem solicitar conta Google. Ao abrir **Monitoramento Técnico**, deve
+pedir login. Uma conta não cadastrada em `authorizedUsers` não pode ler o mapa.
 
 ## 10. Publicar na Hostinger
 
@@ -175,8 +211,25 @@ npm run build
    normalmente `public_html`.
 4. Adicione o domínio usado na Hostinger em **Firebase Authentication >
    Configurações > Domínios autorizados**.
-5. Acesse o domínio, entre com Google e confirme que mudanças no TOA aparecem sem
-   atualizar a página.
+5. Acesse o domínio e confirme que o monitor ao vivo abre sem login.
+6. Abra **Monitoramento Técnico**, entre com Google e confirme o histórico.
+
+## Core API oficial do TOA (opcional)
+
+O Bridge 2.6.3 também suporta o endpoint somente leitura
+`GET /rest/ofscCore/v1/resources/{resourceId}/positionHistory`. Para usar:
+
+1. Recarregue a extensão descompactada em `chrome://extensions`.
+2. Abra **Detalhes > Opções da extensão**.
+3. Na seção **API oficial do TOA**, informe a URL
+   `https://SUA_INSTANCIA.fs.ocs.oraclecloud.com` e um Bearer token OAuth com
+   permissão de leitura de recursos.
+4. Ative e salve.
+
+Esse token não vai para GitHub, Hostinger, Firebase, n8n nem para o JavaScript
+da página do TOA. Ele permanece no armazenamento local da extensão. Sem token,
+o modo passivo continua funcionando sempre que a própria tela do TOA carregar
+os pontos do mapa.
 
 ## O que não deve ir ao GitHub
 
@@ -185,6 +238,7 @@ npm run build
 - JSON da conta de serviço
 - `backend/toa/config/toa_credentials.dat`
 - perfil dedicado do Chrome
+- Bearer token da Core API do TOA
 
 Esses caminhos já estão cobertos pelo `.gitignore`; mantenha no GitHub apenas os
 arquivos `.example` e as regras sem segredos.

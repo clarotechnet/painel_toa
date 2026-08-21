@@ -15,7 +15,7 @@
     "test": "npm run test:web && npm run test:extension && npm run test:bridge && npm run test:python",
     "test:web": "node tests/smoke.mjs && node tests/alert-service.mjs && node tests/xlsx-export.mjs",
     "test:extension": "node toa-discovery/test.js && node toa-discovery/service-worker.test.js",
-    "test:bridge": "node toa-bridge/test-toa-inventory-core.js && node toa-bridge/test-disconnect-inventory.js && node toa-bridge/test-cloud-bridge.js",
+    "test:bridge": "node toa-bridge/test-toa-inventory-core.js && node toa-bridge/test-disconnect-inventory.js && node toa-bridge/test-toa-route-tree.cjs && node toa-bridge/test-cloud-bridge.js",
     "test:python": "python -B -m unittest discover -s tests -p test_*.py",
     "serve": "python app.py --no-browser"
   },

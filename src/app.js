@@ -4,6 +4,7 @@ import { DashboardWorkspace } from './components/DashboardWorkspace.js';
 import { OrdersWorkspace } from './components/OrdersWorkspace.js';
 import { ImportWorkspace } from './components/ImportWorkspace.js';
 import { TechniciansWorkspace } from './components/TechniciansWorkspace.js';
+import { TechnicianMonitorWorkspace, mountTechnicianMonitor } from './components/TechnicianMonitorWorkspace.js';
 import { loadToaFiles } from './services/csvService.js';
 import {
   datalakeUsesRealtime,
@@ -64,6 +65,25 @@ function selectedSnapshot(state) {
     ? { files: [], orders: state.demoOrders || window.DominiumMonitor.buildMeetingExamples(new Date()), timelineActivities: [], errors: [], loadedAt: new Date().toISOString(), demo: true }
     : state.snapshot;
   return filterSnapshotByProfiles(snapshot, state.cities);
+}
+
+function technicianLocationRoster(state) {
+  const technicians = new Map();
+  for (const order of state.snapshot.orders || []) {
+    const login = String(order.technician_login || '').trim();
+    const name = String(order.technician || '').trim();
+    const key = (login || name).toUpperCase();
+    if (!key || key === 'NAO INFORMADO' || key === 'NÃO INFORMADO') continue;
+    const existing = technicians.get(key) || {};
+    technicians.set(key, {
+      technician_id: String(order.technician_id || existing.technician_id || '').trim(),
+      technician_login: login || existing.technician_login || '',
+      technician_name: name || existing.technician_name || login,
+      bucket: String(order.bucket || existing.bucket || '').trim(),
+      profile: orderProfile(order),
+    });
+  }
+  return [...technicians.values()];
 }
 
 function buildModel(state) {
@@ -738,6 +758,16 @@ function renderActiveModule(store, directory = globalDirectory, alertService = g
   } else if (state.module === 'technicians') {
     root.innerHTML = TechniciansWorkspace(); renderTechnicians(store, directory);
     document.querySelector('#techSearch')?.addEventListener('input', () => renderTechnicians(store, directory));
+  } else if (state.module === 'technician-monitor') {
+    root.innerHTML = TechnicianMonitorWorkspace();
+    mountTechnicianMonitor({
+      profiles: state.cities,
+      roster: technicianLocationRoster(state),
+    }).catch((error) => {
+      console.error('Falha ao abrir Monitoramento Técnico', error);
+      const status = document.querySelector('#technicianMonitorStatus');
+      if (status) { status.textContent = error.message; status.className = 'technician-monitor-status error'; }
+    });
   } else {
     root.innerHTML = MonitorWorkspace(); bindMonitor(store, directory, alertService); renderMonitor(store, alertService);
   }

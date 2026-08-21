@@ -16,6 +16,13 @@
     <label>Chave do coletor <input id="token" type="password" autocomplete="off" placeholder="Cole a chave criada na publicação"></label>
     <label>Identificação deste coletor <input id="collectorId" type="text" maxlength="100" value="central-toa"></label>
     <div class="actions"><button id="save" type="button">Salvar e testar</button><span id="status"></span></div>
+    <hr>
+    <p class="eyebrow">API OFICIAL DO TOA · OPCIONAL</p>
+    <p class="lead">Baixa o histórico GPS oficial sem expor o token à página. O token fica somente neste computador.</p>
+    <label class="toggle"><input id="toaApiEnabled" type="checkbox"><span>Ativar histórico GPS pela Core API</span></label>
+    <label>URL da instância <input id="toaApiBaseUrl" type="url" placeholder="https://sua-instancia.fs.ocs.oraclecloud.com"></label>
+    <label>Bearer token da Core API <input id="toaApiToken" type="password" autocomplete="off" placeholder="Token OAuth do Oracle Field Service"></label>
+    <div class="actions"><button id="saveToaApi" type="button">Salvar API TOA</button><span id="toaApiStatus"></span></div>
     <aside>Para funcionar, mantenha uma aba do TOA autenticada. A consulta usa a rede interna da própria página e não altera atividades.</aside>
   </main>
   <script src="options.js"></script>

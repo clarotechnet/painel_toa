@@ -1,4 +1,25 @@
-# TOA TechNet Bridge 2.6.2
+# TOA TechNet Bridge 2.6.5
+
+## Correção de associação do trajeto 2.6.5
+
+- associa ao técnico selecionado os pontos do mapa que o TOA envia sem repetir o PID;
+- só interpreta chaves numéricas como PID quando elas pertencem a um recurso conhecido;
+- evita misturar sequência/timestamp numérico com identificador de técnico.
+
+## Coleta GPS 2.6.4
+
+- a consulta oficial de `positionHistory` percorre todos os recursos identificados pelo TOA, mesmo quando o bucket não está aberto no mapa;
+- recursos repetidos são consultados uma única vez pelo login externo;
+- o bucket conhecido acompanha os pontos enviados para permitir os filtros por cidade no painel.
+- `window.__TN_TOA_LOCATION_SYNC_ALL__()` força uma consulta completa imediata para diagnóstico;
+- paradas de serviço capturadas no mapa são enviadas separadamente da trilha GPS, com marcador, OS, contrato, serviço, status e janela.
+
+## Correção 2.6.3
+
+- completa a árvore de rotas usando também `delta.Provider` das respostas do TOA;
+- antes de recusar uma atividade como externa à DMV, consulta seus detalhes em
+  modo somente leitura e valida novamente o vínculo técnico → bucket;
+- mantém bloqueadas atividades realmente externas à árvore DMV.
 
 ## Ponte Cloudflare do Dominium
 

@@ -2,6 +2,7 @@
 // Proxy HTTP para bridge local
 
 const BOT_BRIDGE_PORT = 8787;
+const MONITOR_API_PORT = 8765;
 const BOT_BRIDGE_TOKEN = '';
 const DEFAULT_CLOUD_BASE_URL = 'https://dominium-toa-bridge.dominium-toa-cloud-bridge.workers.dev';
 const DEFAULT_COLLECTOR_ID = 'central-toa';
@@ -10,6 +11,11 @@ const CLOUD_CONFIG_KEYS = [
   'dominiumCloudBaseUrl',
   'dominiumCollectorToken',
   'dominiumCollectorId',
+];
+const TOA_CORE_CONFIG_KEYS = [
+  'toaCoreApiEnabled',
+  'toaCoreApiBaseUrl',
+  'toaCoreApiToken',
 ];
 
 const BRIDGE_HOSTS_CANDIDATES = [
@@ -105,12 +111,19 @@ async function bridgeFetch(path, options = {}) {
   if (String(path || '').startsWith('/cloud/')) {
     return cloudFetch(String(path).slice('/cloud'.length), options);
   }
-  const host = await getHost();
-  const url = `http://${host}:${BOT_BRIDGE_PORT}${path}`;
+  if (String(path || '').startsWith('/toa-core/')) {
+    return toaCoreFetch(String(path).slice('/toa-core'.length), options);
+  }
+  const monitorApiRequest = String(path || '').startsWith('/monitor-api/');
+  const host = monitorApiRequest ? '127.0.0.1' : await getHost();
+  const requestPath = monitorApiRequest
+    ? String(path).slice('/monitor-api'.length)
+    : String(path || '');
+  const url = `http://${host}:${monitorApiRequest ? MONITOR_API_PORT : BOT_BRIDGE_PORT}${requestPath}`;
 
   const headers = {
     'content-type': 'application/json',
-    ...(BOT_BRIDGE_TOKEN ? { 'x-toa-token': BOT_BRIDGE_TOKEN } : {}),
+    ...(!monitorApiRequest && BOT_BRIDGE_TOKEN ? { 'x-toa-token': BOT_BRIDGE_TOKEN } : {}),
     ...(options.headers || {})
   };
 
@@ -178,6 +191,58 @@ async function wakeAtlasTabs() {
   }
 
   return delivered;
+}
+
+async function toaCoreConfig() {
+  const stored = await chrome.storage.local.get(TOA_CORE_CONFIG_KEYS);
+  const baseUrl = String(stored.toaCoreApiBaseUrl || '').trim().replace(/\/+$/, '');
+  let parsed = null;
+  try { parsed = baseUrl ? new URL(baseUrl) : null; } catch {}
+  const allowed = parsed
+    && parsed.protocol === 'https:'
+    && /\.fs\.ocs\.oraclecloud\.com$/i.test(parsed.hostname);
+  return {
+    enabled: stored.toaCoreApiEnabled === true,
+    baseUrl: allowed ? baseUrl : '',
+    token: String(stored.toaCoreApiToken || '').trim(),
+  };
+}
+
+async function toaCoreFetch(path) {
+  const config = await toaCoreConfig();
+  if (String(path || '') === '/status') {
+    return {
+      ok: true,
+      status: 200,
+      data: { enabled: config.enabled, configured: Boolean(config.baseUrl && config.token) },
+    };
+  }
+  if (!config.enabled || !config.baseUrl || !config.token) {
+    return { ok: false, status: 503, data: { ok: false, error: 'toa_core_api_not_configured' } };
+  }
+  const parsed = new URL(String(path || '/'), 'https://bridge.invalid');
+  if (parsed.pathname !== '/position-history') {
+    return { ok: false, status: 404, data: { ok: false, error: 'toa_core_endpoint_not_allowed' } };
+  }
+  const resourceId = String(parsed.searchParams.get('resource_id') || '').trim();
+  const date = String(parsed.searchParams.get('date') || '').trim();
+  if (!/^[A-Za-z0-9_.@-]{1,160}$/.test(resourceId) || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return { ok: false, status: 400, data: { ok: false, error: 'invalid_position_history_parameters' } };
+  }
+  const endpoint = `${config.baseUrl}/rest/ofscCore/v1/resources/${encodeURIComponent(resourceId)}/positionHistory?date=${encodeURIComponent(date)}`;
+  try {
+    const response = await fetch(endpoint, {
+      method: 'GET',
+      headers: { Accept: 'application/json', Authorization: `Bearer ${config.token}` },
+      cache: 'no-store',
+    });
+    const raw = await response.text();
+    let data = null;
+    try { data = JSON.parse(raw); } catch { data = raw; }
+    return { ok: response.ok, status: response.status, data };
+  } catch (error) {
+    return { ok: false, status: 502, data: { ok: false, error: String(error?.message || error) } };
+  }
 }
 
 async function cloudConfig() {
@@ -271,6 +336,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         configured: Boolean(config.baseUrl && config.token),
         baseUrl: config.baseUrl,
         collectorId: config.collectorId,
+      }))
+      .catch(error => sendResponse({ ok: false, error: error?.message || String(error) }));
+    return true;
+  }
+
+  if (message.action === 'toa_core_api_status') {
+    toaCoreConfig()
+      .then(config => sendResponse({
+        ok: true,
+        enabled: config.enabled,
+        configured: Boolean(config.baseUrl && config.token),
+        baseUrl: config.baseUrl,
       }))
       .catch(error => sendResponse({ ok: false, error: error?.message || String(error) }));
     return true;

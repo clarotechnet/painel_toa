@@ -1,0 +1,39 @@
+{
+  "id": "tN8gP5sL2vR7cX4m",
+  "name": "DOMINIUM TOA - Histórico GPS e serviços no Firebase",
+  "nodes": [
+    {
+      "parameters": { "authentication": "headerAuth", "httpMethod": "POST", "path": "dominium-toa-technician-locations", "responseMode": "lastNode", "options": {} },
+      "type": "n8n-nodes-base.webhook", "typeVersion": 2.1, "position": [-420, 0],
+      "id": "12ab60c2-3c80-4ef5-91c5-22f89a791d70", "name": "Receber pontos GPS", "webhookId": "81a65826-a029-44ef-9652-583e14d2c2c4"
+    },
+    {
+      "parameters": {
+        "jsCode": "const request = $input.first().json;\nconst envelope = request.body && typeof request.body === 'object' ? request.body : request;\nif (envelope.schema !== 'dominium.toa.technician-locations.v1') throw new Error('Schema GPS inválido');\nif (!Array.isArray(envelope.resources)) throw new Error('Lote sem resources');\nconst safeKey = (value) => String(value || 'sem-id').replace(/[.#$\\[\\]\\/]/g, '_').slice(0, 180);\nconst hash = (value) => { const text = JSON.stringify(value); let result = 2166136261; for (let index = 0; index < text.length; index += 1) { result ^= text.charCodeAt(index); result = Math.imul(result, 16777619); } return (result >>> 0).toString(16); };\nconst updates = {};\nlet accepted = 0;\nlet visits = 0;\nlet ignored = 0;\nfor (const resource of envelope.resources) {\n  const technician = resource.technician && typeof resource.technician === 'object' ? resource.technician : {};\n  const technicianKey = safeKey(technician.login || technician.id);\n  if (technicianKey === 'sem-id') { ignored += 1; continue; }\n  const metadata = (base) => { updates[`${base}/technician_id`] = String(technician.id || ''); updates[`${base}/technician_login`] = String(technician.login || ''); updates[`${base}/technician_name`] = String(technician.name || technician.login || technician.id || ''); updates[`${base}/bucket`] = String(resource.bucket || ''); updates[`${base}/profile`] = String(resource.profile || ''); updates[`${base}/updated_at`] = envelope.publishedAt || new Date().toISOString(); };\n  for (const point of resource.points || []) {\n    const observedAt = String(point.observed_at || ''); const day = observedAt.slice(0, 10); const latitude = Number(point.latitude); const longitude = Number(point.longitude);\n    if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(day) || !Number.isFinite(latitude) || !Number.isFinite(longitude)) { ignored += 1; continue; }\n    const base = `dominium/toa/history/technicianLocations/${day}/technicians/${technicianKey}`; metadata(base); updates[`${base}/last_at`] = observedAt;\n    const pointKey = safeKey(`${observedAt}_${hash([latitude, longitude])}`);\n    updates[`${base}/points/${pointKey}`] = { observed_at: observedAt, latitude, longitude, accuracy_m: Number.isFinite(Number(point.accuracy_m)) ? Number(point.accuracy_m) : null, speed_kmh: Number.isFinite(Number(point.speed_kmh)) ? Number(point.speed_kmh) : null, heading: Number.isFinite(Number(point.heading)) ? Number(point.heading) : null, altitude_m: Number.isFinite(Number(point.altitude_m)) ? Number(point.altitude_m) : null }; accepted += 1;\n  }\n  for (const visit of resource.visits || []) {\n    const latitude = Number(visit.latitude); const longitude = Number(visit.longitude); const day = String(visit.date || visit.scheduled_at || '').slice(0, 10);\n    if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(day) || !Number.isFinite(latitude) || !Number.isFinite(longitude)) { ignored += 1; continue; }\n    const base = `dominium/toa/history/technicianLocations/${day}/technicians/${technicianKey}`; metadata(base);\n    const visitKey = safeKey(`${visit.activity_id || 'atividade'}_${latitude.toFixed(6)}_${longitude.toFixed(6)}`);\n    updates[`${base}/visits/${visitKey}`] = { date: day, scheduled_at: String(visit.scheduled_at || ''), latitude, longitude, marker_label: String(visit.marker_label || ''), activity_id: String(visit.activity_id || ''), os_number: String(visit.os_number || ''), contract: String(visit.contract || ''), service: String(visit.service || ''), status: String(visit.status || ''), service_window: String(visit.service_window || '') }; visits += 1;\n  }\n}\nif (!accepted && !visits) throw new Error('Nenhum ponto GPS ou atendimento válido no lote');\nreturn [{ json: { updates, summary: { accepted, visits, ignored, paths: Object.keys(updates).length } } }];"
+      },
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [-160, 0],
+      "id": "f4f127a2-e94f-4f2d-96a8-fcdd06494b89", "name": "Preparar histórico do técnico"
+    },
+    {
+      "parameters": { "method": "PATCH", "url": "https://dominium-toa-default-rtdb.firebaseio.com/.json", "authentication": "predefinedCredentialType", "nodeCredentialType": "googleApi", "sendBody": true, "contentType": "raw", "rawContentType": "application/json", "body": "={{ JSON.stringify($json.updates) }}", "options": { "timeout": 30000 } },
+      "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [100, 0],
+      "id": "8b5e0b68-42c5-46ec-9ffc-f0374c5d62ac", "name": "Gravar histórico no Firebase", "retryOnFail": true, "maxTries": 5, "waitBetweenTries": 5000
+    },
+    {
+      "parameters": { "jsCode": "const prepared = $('Preparar histórico do técnico').first().json;\nreturn [{ json: { ok: true, provider: 'firebase-realtime-database', ...prepared.summary } }];" },
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [360, 0],
+      "id": "0b985c9a-93df-44a5-2d2fa19e146d", "name": "Confirmar histórico"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Receber pontos GPS": { "main": [[{ "node": "Preparar histórico do técnico", "type": "main", "index": 0 }]] },
+    "Preparar histórico do técnico": { "main": [[{ "node": "Gravar histórico no Firebase", "type": "main", "index": 0 }]] },
+    "Gravar histórico no Firebase": { "main": [[{ "node": "Confirmar histórico", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "versionId": "a25b4b17-706e-4ba7-8576-5eb026040264",
+  "meta": { "templateCredsSetupCompleted": false },
+  "tags": []
+}

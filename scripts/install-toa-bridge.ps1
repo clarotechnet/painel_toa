@@ -12,7 +12,7 @@ if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
 }
 
 $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
-if ($manifest.name -ne 'TOA TechNet Bridge' -or $manifest.version -ne '2.6.2') {
+if ($manifest.name -ne 'TOA TechNet Bridge' -or $manifest.version -ne '2.6.5') {
     throw "Pacote inesperado: $($manifest.name) $($manifest.version)"
 }
 

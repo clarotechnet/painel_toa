@@ -12,6 +12,8 @@ Base local: `http://127.0.0.1:8765/api/v1`
 | `GET /activities` | Lista paginada e sanitizada |
 | `GET /buckets` | Totais por bucket |
 | `GET /technicians` | Técnicos, logins, buckets e situação |
+| `GET /technician-monitor/summary?date=AAAA-MM-DD` | KM e quantidade de pontos por técnico |
+| `GET /technician-monitor/track/{login}?date=AAAA-MM-DD` | Trajeto ponto a ponto de um técnico |
 | `GET /tec1/alerts?minutes=30` | Alertas por contrato |
 | `GET /contracts/{id}` | Atividades, OS, materiais e histórico de um contrato |
 | `GET /activities/{id}` | Registro detalhado de uma atividade |
@@ -23,6 +25,8 @@ Filtros de `activities`: `profile`, `date`, `status`, `bucket`, `limit` e `offse
 - `POST /api/v1/ingest/snapshot`
 - `POST /api/v1/ingest/history`
 - `POST /api/v1/collector/heartbeat`
+- `POST /api/v1/ingest/technician-locations`
+- `POST /api/v1/technician-monitor/close-day`
 
 Chamadas locais são aceitas sem token. Pela rede, envie `Authorization: Bearer <DOMINIUM_INGEST_TOKEN>`.
 

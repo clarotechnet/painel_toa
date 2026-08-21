@@ -41,6 +41,10 @@ def load_local_environment(path: Path) -> None:
 load_local_environment(ROOT / ".env.local")
 STORE = TOADatalakeStore(ROOT / "data" / "toa_datalake.sqlite3")
 PUBLISHER = CloudPublisher()
+LOCATION_PUBLISHER = CloudPublisher(
+    url_env="DOMINIUM_N8N_LOCATION_WEBHOOK_URL",
+    channel="technician-locations",
+)
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -97,6 +101,7 @@ class Handler(BaseHTTPRequestHandler):
         if parsed.path == "/api/toa-datalake/status":
             payload = STORE.status()
             payload["cloud_sync"] = PUBLISHER.status()
+            payload["location_cloud_sync"] = LOCATION_PUBLISHER.status()
             self._json(HTTPStatus.OK, payload)
             return
         query = parse_qs(parsed.query)
@@ -105,6 +110,7 @@ class Handler(BaseHTTPRequestHandler):
         if parsed.path == "/api/v1/health":
             payload = STORE.health()
             payload["cloud_sync"] = PUBLISHER.status()
+            payload["location_cloud_sync"] = LOCATION_PUBLISHER.status()
             self._json(HTTPStatus.OK, payload)
             return
         if parsed.path == "/api/v1/monitor/summary":
@@ -130,6 +136,17 @@ class Handler(BaseHTTPRequestHandler):
             return
         if parsed.path == "/api/v1/technicians":
             self._json(HTTPStatus.OK, STORE.technicians(profile=profile, date=date))
+            return
+        if parsed.path == "/api/v1/technician-monitor/summary":
+            self._json(HTTPStatus.OK, STORE.technician_location_summary(
+                profile=profile, date=date,
+            ))
+            return
+        location_track = re.fullmatch(r"/api/v1/technician-monitor/track/([^/]+)", parsed.path)
+        if location_track:
+            self._json(HTTPStatus.OK, STORE.technician_location_track(
+                location_track.group(1), date=date,
+            ))
             return
         if parsed.path == "/api/v1/tec1/alerts":
             try:
@@ -191,9 +208,11 @@ class Handler(BaseHTTPRequestHandler):
             "/api/v1/ingest/snapshot": "/api/toa-datalake/ingest",
             "/api/v1/ingest/history": "/api/toa-datalake/ingest-history",
             "/api/v1/collector/heartbeat": "/api/v1/collector/heartbeat",
+            "/api/v1/ingest/technician-locations": "/api/v1/ingest/technician-locations",
+            "/api/v1/technician-monitor/close-day": "/api/v1/technician-monitor/close-day",
         }
         path = aliases.get(path, path)
-        if path not in {"/api/toa-datalake/ingest", "/api/toa-datalake/ingest-history", "/api/toa-datalake/detail-queue", "/api/v1/collector/heartbeat"}:
+        if path not in {"/api/toa-datalake/ingest", "/api/toa-datalake/ingest-history", "/api/toa-datalake/detail-queue", "/api/v1/collector/heartbeat", "/api/v1/ingest/technician-locations", "/api/v1/technician-monitor/close-day"}:
             self._json(HTTPStatus.NOT_FOUND, {"ok": False, "error": "Endpoint inexistente"})
             return
         if not self._ingest_authorized():
@@ -208,6 +227,14 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(HTTPStatus.OK, result)
             elif path == "/api/v1/collector/heartbeat":
                 self._json(HTTPStatus.OK, STORE.collector_heartbeat(body))
+            elif path == "/api/v1/ingest/technician-locations":
+                result = STORE.ingest_locations(body)
+                result["cloud_queued"] = LOCATION_PUBLISHER.publish_locations(body, trigger=path)
+                self._json(HTTPStatus.OK, result)
+            elif path == "/api/v1/technician-monitor/close-day":
+                self._json(HTTPStatus.OK, STORE.close_technician_location_day(
+                    date=str(body.get("date") or ""), source=str(body.get("source") or ""),
+                ))
             else:
                 result = STORE.ingest(body)
                 PUBLISHER.publish(STORE.feed(), trigger=path)

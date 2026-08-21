@@ -80,6 +80,60 @@ class LocalServerTests(unittest.TestCase):
         self.assertEqual(status, 200, body)
         self.assertTrue(json.loads(body)["ok"])
 
+    def test_location_ingest_and_track_endpoints(self) -> None:
+        points = [
+            {"observed_at": "2026-08-21T08:00:00-03:00", "latitude": -3.73746,
+             "longitude": -38.54362, "accuracy_m": 12, "speed_kmh": 20},
+            {"observed_at": "2026-08-21T08:05:00-03:00", "latitude": -3.73246,
+             "longitude": -38.54362, "accuracy_m": 10, "speed_kmh": 18},
+        ]
+        visits = [{
+            "date": "2026-08-21", "scheduled_at": "2026-08-21T08:00:00-03:00",
+            "latitude": -3.73740, "longitude": -38.54360, "marker_label": "A",
+            "activity_id": "196900001", "os_number": "2650000001",
+            "contract": "4242424", "service": "INSTALACAO", "status": "complete",
+        }]
+        status, _, body = self.request(
+            "/api/v1/ingest/technician-locations", method="POST", payload={
+                "source": "unit-test", "technician": {
+                    "id": "101", "login": "Z641921", "name": "TECNICO TESTE",
+                }, "bucket": "FTZ-DMV_01", "points": points, "visits": visits,
+            },
+        )
+        self.assertEqual(status, 200, body)
+        self.assertEqual(json.loads(body)["inserted"], 2)
+        self.assertEqual(json.loads(body)["visits_inserted"], 1)
+
+        status, _, body = self.request(
+            "/api/v1/technician-monitor/summary?date=2026-08-21",
+        )
+        summary = json.loads(body)
+        self.assertEqual(status, 200, body)
+        self.assertEqual(summary["technician_count"], 1)
+        self.assertGreater(summary["items"][0]["distance_km"], 0.5)
+
+        status, _, body = self.request(
+            "/api/v1/technician-monitor/track/Z641921?date=2026-08-21",
+        )
+        track = json.loads(body)
+        self.assertEqual(status, 200, body)
+        self.assertEqual(track["point_count"], 2)
+        self.assertEqual(track["visit_count"], 1)
+        self.assertEqual(track["visits"][0]["marker_label"], "A")
+        self.assertEqual(track["visits"][0]["contract"], "4242424")
+        self.assertEqual(track["technician"]["name"], "TECNICO TESTE")
+
+        status, _, body = self.request(
+            "/api/v1/technician-monitor/close-day", method="POST", payload={
+                "date": "2026-08-21", "source": "unit-test",
+            },
+        )
+        closure = json.loads(body)
+        self.assertEqual(status, 200, body)
+        self.assertTrue(closure["ok"])
+        self.assertEqual(closure["technician_count"], 1)
+        self.assertGreater(closure["distance_km"], 0.5)
+
 
 class DiscoveryConfigurationTests(unittest.TestCase):
     def test_extension_path_points_to_packaged_extension(self) -> None:

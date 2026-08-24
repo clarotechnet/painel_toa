@@ -1,9 +1,9 @@
 {
   "name": "toa-technet-bridge",
-  "version": "2.6.5",
+  "version": "2.6.10",
   "private": true,
   "type": "commonjs",
   "scripts": {
-    "test": "node test-toa-inventory-core.js && node test-disconnect-inventory.js && node test-toa-route-tree.cjs && node test-cloud-bridge.js"
+    "test": "node test-toa-inventory-core.js && node test-disconnect-inventory.js && node test-toa-route-tree.cjs && node test-cloud-bridge.js && node test-location-route-parser.js && node test-location-trace-probe.js"
   }
 }

@@ -109,7 +109,7 @@ function destroyMap() {
   routeLayer = null;
 }
 
-async function drawTrack(points, visits = []) {
+async function drawTrack(points, visits = [], plannedRoute = []) {
   const root = document.querySelector('#technicianRouteMap');
   if (!root) return;
   const L = await leaflet();
@@ -126,6 +126,9 @@ async function drawTrack(points, visits = []) {
     }))
     .filter(({ coordinate: [latitude, longitude] }) => Number.isFinite(latitude) && Number.isFinite(longitude));
   const coordinates = routePoints.map(({ coordinate }) => coordinate);
+  const plannedCoordinates = (plannedRoute || [])
+    .map((point) => [Number(point.latitude), Number(point.longitude)])
+    .filter(([latitude, longitude]) => Number.isFinite(latitude) && Number.isFinite(longitude));
   const visitPoints = (visits || [])
     .map((visit, index) => ({
       visit,
@@ -138,7 +141,17 @@ async function drawTrack(points, visits = []) {
     return;
   }
   routeLayer = L.featureGroup().addTo(routeMap);
-  if (coordinates.length > 1) L.polyline(coordinates, { color: '#2388ff', weight: 4, opacity: 0.9 }).addTo(routeLayer);
+  // A linha planejada só existe quando a fonte fornece a geometria real. Nunca
+  // ligamos as paradas das OS para inventar uma rota. A trilha tracejada abaixo
+  // conecta exclusivamente amostras GPS reais e não entra como rota planejada.
+  if (plannedCoordinates.length > 1) {
+    L.polyline(plannedCoordinates, { color: '#1746d1', weight: 5, opacity: 0.9 }).addTo(routeLayer);
+  }
+  if (coordinates.length > 1) {
+    L.polyline(coordinates, {
+      color: '#36a9ff', weight: 3, opacity: 0.8, dashArray: '7 7',
+    }).addTo(routeLayer);
+  }
   routePoints.forEach(({ point, coordinate }, index) => {
     L.circleMarker(coordinate, {
       radius: index === 0 || index === coordinates.length - 1 ? 6 : 3,
@@ -226,7 +239,7 @@ async function selectTechnician(identifier, date) {
   document.querySelector('#routeDistance').textContent = `${Number(track.distance_km || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} km`;
   document.querySelector('#routePoints').textContent = Number(track.point_count || 0).toLocaleString('pt-BR');
   document.querySelector('#routeTechnician').textContent = track.technician?.name || identifier;
-  await drawTrack(track.points || [], track.visits || []);
+  await drawTrack(track.points || [], track.visits || [], track.planned_route || []);
   if (track.point_count) {
     setStatus(`Trajeto carregado · ${track.provider === 'firebase' ? 'Firebase histórico' : 'API local'}`, 'online');
   } else {
@@ -294,7 +307,7 @@ export function TechnicianMonitorWorkspace() {
       <article><span>Pontos no trajeto</span><strong id="routePoints">0</strong></article>
     </div>
     <section class="technician-route-card">
-      <div class="technician-route-toolbar"><div><h3>Mapa de deslocamento</h3><p>Cada ponto mostra o horário registrado pelo TOA.</p></div><select id="technicianMonitorSelect" aria-label="Selecionar técnico"><option value="">Selecione um técnico</option></select></div>
+      <div class="technician-route-toolbar"><div><h3>Mapa de deslocamento</h3><p>Cada ponto mostra o horário registrado pelo TOA.</p><p class="technician-map-legend"><span>● GPS real</span><span>Ⓐ Parada de OS</span><span>━ Rota planejada (somente quando fornecida pelo TOA)</span></p></div><select id="technicianMonitorSelect" aria-label="Selecionar técnico"><option value="">Selecione um técnico</option></select></div>
       <div id="technicianRouteMap" class="technician-route-map" aria-label="Mapa do deslocamento do técnico"></div>
     </section>
     <section class="technician-summary-card"><div class="technician-summary-heading"><div><h3>Resumo por técnico</h3><p>Selecione uma linha para abrir o trajeto e os atendimentos no mapa.</p></div><label class="technician-summary-search"><span id="technicianSummaryCount">0 técnicos</span><input id="technicianSummarySearch" type="search" value="${escapeHtml(summarySearch)}" placeholder="Filtrar por nome, login ou bucket" autocomplete="off"></label></div><div class="table-scroll"><table><thead><tr><th>Técnico</th><th>Bucket</th><th>KM</th><th>Pontos</th><th>Atendimentos</th><th>Primeiro ponto</th><th>Último ponto</th></tr></thead><tbody id="technicianSummaryRows"></tbody></table></div></section>

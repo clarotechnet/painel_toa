@@ -17,6 +17,7 @@ backend/toa/config/toa_chrome_profile/
 __pycache__/
 .pytest_cache/
 .coverage
+.audit/
 
 # Chaves privadas do Firebase nunca pertencem ao repositorio.
 firebase-service-account*.json
@@ -27,3 +28,4 @@ serviceAccountKey*.json
 
 .DS_Store
 Thumbs.db
+/toa.rar

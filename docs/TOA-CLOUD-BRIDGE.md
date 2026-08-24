@@ -15,7 +15,7 @@ Sistema autorizado
 
 ## Segurança
 
-- A versão incorporada é `2.6.5` e fica em `toa-bridge/`.
+- A versão incorporada é `2.6.7` e fica em `toa-bridge/`.
 - O código não contém a chave do coletor nem credenciais do TOA.
 - A chave é gravada somente em `chrome.storage.local` pela tela de opções.
 - A integração trabalha em modo somente leitura e com `ROUTE_TREE_ONLY_MODE`.
@@ -52,6 +52,36 @@ Em seguida:
 
 Resultado esperado: `Ponte online. Mantenha o TOA aberto.`
 
+## Worker e banco D1
+
+O código auditável do Worker recebido foi incorporado em `toa_cloud_bridge/`.
+Arquivos locais (`.dev.vars`, `.wrangler/` e `node_modules/`) e extensões antigas
+do pacote não fazem parte do projeto.
+
+Para validar localmente:
+
+```powershell
+cd toa_cloud_bridge
+npm install
+npm run check
+npm test
+```
+
+Para publicar ou atualizar o Worker, autentique o Wrangler, aplique a migração
+e cadastre as duas chaves diretamente no Cloudflare:
+
+```powershell
+npx wrangler login
+npm run db:remote
+npx wrangler secret put DOMINIUM_PRIMARY_TOKEN
+npx wrangler secret put DOMINIUM_COLLECTOR_TOKEN
+npm run deploy
+```
+
+Essas chaves não pertencem aos Secrets do deploy estático da Hostinger. O
+frontend publicado não pode receber `DOMINIUM_PRIMARY_TOKEN`; somente um backend
+autorizado deve criar e consultar jobs da ponte.
+
 ## Operação
 
 Mantenha uma aba autenticada em `https://clarobrasil.etadirect.com/toa/` na
@@ -82,6 +112,7 @@ do cliente, materiais, miscelâneas e alertas de validação.
 
 ```powershell
 npm run test:bridge
+npm run test:cloud-bridge
 ```
 
 Sem uma chave válida não é possível concluir o teste online do Worker. A chave

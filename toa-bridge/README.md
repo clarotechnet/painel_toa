@@ -1,4 +1,28 @@
-# TOA TechNet Bridge 2.6.5
+# TOA TechNet Bridge 2.6.10
+
+## Validação por PID, data e atividade 2.6.10
+
+- usa a porta real da API local (`8765`) para publicar GPS e paradas;
+- rejeita e repete uma resposta `Map.get` quando o PID devolvido pelo TOA não
+  corresponde ao PID solicitado;
+- transporta o identificador da atividade (`ta`) junto ao ponto GPS real;
+- mantém trilha GPS, fotografia das paradas de OS e eventual rota planejada em
+  camadas independentes, sem fabricar coordenadas ou associações.
+
+## Vínculo seguro da rota ao técnico 2.6.9
+
+- cada replay silencioso de `Map.get` transporta o PID solicitado até o parser;
+- `queue[aid]` é tratada uma única vez como fotografia oficial das paradas;
+- impede que o técnico visualmente selecionado receba a rota de outro técnico;
+- elimina marcadores duplicados sem misturar a rota planejada aos pontos reais de GPS.
+
+## Rota corrente sem acúmulo 2.6.8
+
+- cada resposta `Map.get` substitui a fotografia de paradas do técnico naquele dia;
+- somente atividades da fila com coordenadas reais viram marcadores A, B, C...;
+- Na Base, treinamento, refeição e outros itens sem coordenada não viram ponto `(0,0)`;
+- a trilha de GPS continua incremental e separada da rota planejada;
+- coordenadas nulas, vazias, `(0,0)` ou fora da área operacional brasileira são descartadas.
 
 ## Correção de associação do trajeto 2.6.5
 
@@ -88,4 +112,46 @@ vazio porque desconexao nao usa miscelaneas.
 ```powershell
 node test-toa-inventory-core.js
 node test-disconnect-inventory.js
+```
+
+## Diagnostico do trace tecnico
+
+Depois que o mapa do TOA fizer ao menos uma consulta normal, o hook guarda somente
+o formato efemero do ultimo `Map.get`. Para testar a hipotese encontrada no HAR,
+execute no console:
+
+```js
+await window.__TN_TOA_TEST_TECH_TRACE__()
+```
+
+O teste repete a requisicao da propria sessao alterando apenas
+`filter[show_tech_trace]` para `1`. A resposta devolvida ao console e um resumo
+sanitizado com contagens, nomes de campos relacionados a trace e ate 12 amostras
+de coordenada/horario. Ela nao e enviada ao bridge, n8n ou PostgreSQL.
+
+Estado do diagnostico:
+
+```js
+window.__TN_TOA_TECH_TRACE_STATUS__()
+```
+
+## Varredura GPS silenciosa 2.6.6
+
+Depois que o mapa fizer uma consulta normal, a extensao preserva somente o
+molde efemero do `Map.get` da sessao. A arvore `Time.get` fornece os PIDs dos
+tecnicos e seus buckets DMV. A cada cinco minutos, a extensao consulta esses
+PIDs sequencialmente, com intervalo minimo de um segundo, sem clicar na arvore
+e sem abrir atividades. Cada resposta volta ao mesmo pipeline de normalizacao
+e envio GPS usado pelas consultas visiveis.
+
+Assim, o mapa precisa ser aberto uma vez depois de recarregar a extensao ou
+renovar o login. Depois disso, a pagina pode permanecer na arvore de rotas.
+Se a sessao expirar, a varredura para e aguarda um novo login.
+
+Diagnostico e acionamento manual:
+
+```js
+window.__TN_TOA_LOCATION_STATUS__()
+await window.__TN_TOA_LOCATION_SYNC_MAP_ALL__()
+window.__TN_TOA_CANCEL_TECHNICIAN_SYNC__()
 ```

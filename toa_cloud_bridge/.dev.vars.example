@@ -1,0 +1,5 @@
+# Copie para .dev.vars somente no ambiente local.
+# Gere duas chaves diferentes, longas e aleatorias.
+DOMINIUM_PRIMARY_TOKEN=TROQUE_POR_UMA_CHAVE_PRIMARIA_ALEATORIA
+DOMINIUM_COLLECTOR_TOKEN=TROQUE_POR_UMA_CHAVE_DE_COLETOR_ALEATORIA
+

@@ -87,6 +87,8 @@ class CloudPublisher:
                 "profile": payload.get("profile") or "",
                 "points": payload.get("points") or [],
                 "visits": payload.get("visits") or [],
+                "replace_visits": payload.get("replace_visits"),
+                "visit_snapshot_date": payload.get("visit_snapshot_date") or "",
             }]
         envelope = {
             "schema": "dominium.toa.technician-locations.v1",
@@ -126,10 +128,16 @@ class CloudPublisher:
                 "profile": raw.get("profile") or "",
                 "points": [],
                 "visits": [],
+                "replace_visits": False,
+                "visit_snapshot_date": "",
             })
             batch["technician"].update({name: value for name, value in technician.items() if value})
             batch["bucket"] = raw.get("bucket") or batch["bucket"]
             batch["profile"] = raw.get("profile") or batch["profile"]
+            if raw.get("replace_visits"):
+                batch["replace_visits"] = True
+                batch["visit_snapshot_date"] = str(raw.get("visit_snapshot_date") or "")[:10]
+                batch["visits"] = []
             known = {
                 f"{point.get('observed_at')}|{point.get('latitude')}|{point.get('longitude')}"
                 for point in batch["points"] if isinstance(point, dict)

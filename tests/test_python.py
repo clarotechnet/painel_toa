@@ -10,6 +10,7 @@ import unittest
 from pathlib import Path
 
 import app
+from cloud_sync import CloudPublisher
 from toa_datalake_store import TOADatalakeStore
 from backend.toa import toa_discovery_browser
 
@@ -133,6 +134,162 @@ class LocalServerTests(unittest.TestCase):
         self.assertTrue(closure["ok"])
         self.assertEqual(closure["technician_count"], 1)
         self.assertGreater(closure["distance_km"], 0.5)
+
+    def test_location_monitor_merges_aliases_and_rejects_foreign_visits(self) -> None:
+        app.STORE.ingest({"source": "unit-test", "activities": [{
+            "activity_id": "196900101", "scheduled_date": "2026-08-21",
+            "technician_id": "101", "technician_login": "Z641921",
+            "technician_name": "TECNICO CERTO", "bucket": "FTZ-DMV_01",
+            "route_position": "1", "contract": "111", "description": "INSTALACAO",
+        }, {
+            "activity_id": "196900202", "scheduled_date": "2026-08-21",
+            "technician_id": "202", "technician_login": "Z999999",
+            "technician_name": "OUTRO TECNICO", "bucket": "REC-DMV",
+            "route_position": "2", "contract": "222", "description": "REPARO",
+        }]})
+        payload = {
+            "source": "unit-test", "date": "2026-08-21", "resources": [{
+                "technician": {"id": "101", "login": "Z641921", "name": "TECNICO CERTO"},
+                "bucket": "FTZ-DMV_01",
+                "points": [
+                    {"observed_at": "2026-08-21T08:00:00-03:00", "latitude": -3.73746, "longitude": -38.54362},
+                    {"observed_at": "2026-08-21T08:05:00-03:00", "latitude": -3.73246, "longitude": -38.54362},
+                ],
+                "visits": [
+                    {"date": "2026-08-21", "latitude": -3.73740, "longitude": -38.54360,
+                     "marker_label": "A", "activity_id": "196900101"},
+                    {"date": "2026-08-21", "latitude": -23.55052, "longitude": -46.63331,
+                     "marker_label": "B", "activity_id": "196900202"},
+                ],
+            }, {
+                # Mesmo tecnico visto somente pelo PID: deve ser unido ao login externo.
+                "technician": {"id": "101", "name": "TECNICO CERTO"},
+                "bucket": "FTZ-DMV_01",
+                "visits": [{"date": "2026-08-21", "latitude": -3.73740,
+                            "longitude": -38.54360, "marker_label": "A",
+                            "activity_id": "196900101", "contract": "111"}],
+            }],
+        }
+        status, _, body = self.request(
+            "/api/v1/ingest/technician-locations", method="POST", payload=payload,
+        )
+        self.assertEqual(status, 200, body)
+
+        summary = json.loads(self.request(
+            "/api/v1/technician-monitor/summary?date=2026-08-21",
+        )[2])
+        self.assertEqual(summary["technician_count"], 1)
+        self.assertEqual(summary["items"][0]["technician_login"], "Z641921")
+        self.assertEqual(summary["items"][0]["visit_count"], 1)
+
+        track_by_login = json.loads(self.request(
+            "/api/v1/technician-monitor/track/Z641921?date=2026-08-21",
+        )[2])
+        track_by_pid = json.loads(self.request(
+            "/api/v1/technician-monitor/track/101?date=2026-08-21",
+        )[2])
+        self.assertEqual(track_by_login["point_count"], 2)
+        self.assertEqual(track_by_login["visit_count"], 1)
+        self.assertEqual(track_by_login["visits"][0]["activity_id"], "196900101")
+        self.assertEqual(track_by_login["visits"][0]["contract"], "111")
+        self.assertEqual(track_by_pid["technician"]["login"], "Z641921")
+        self.assertEqual(track_by_pid["point_count"], 2)
+
+    def test_location_snapshot_replaces_only_visits_for_pid_and_date(self) -> None:
+        app.STORE.ingest({"source": "unit-test", "activities": [{
+            "activity_id": "196901001", "scheduled_date": "2026-08-21",
+            "technician_id": "301", "technician_login": "Z301",
+            "technician_name": "TECNICO 301", "bucket": "NTL-DMV",
+        }, {
+            "activity_id": "196902001", "scheduled_date": "2026-08-21",
+            "technician_id": "302", "technician_login": "Z302",
+            "technician_name": "TECNICO 302", "bucket": "NTL-DMV",
+        }]})
+        first = {
+            "source": "unit-test", "date": "2026-08-21", "resources": [{
+                "technician": {"id": "301", "login": "Z301", "name": "TECNICO 301"},
+                "bucket": "NTL-DMV", "replace_visits": True,
+                "visit_snapshot_date": "2026-08-21",
+                "points": [{
+                    "observed_at": "2026-08-21T08:00:00-03:00",
+                    "latitude": -5.80, "longitude": -35.20, "activity_id": "196901001",
+                }],
+                "visits": [
+                    {"date": "2026-08-21", "latitude": -5.81, "longitude": -35.21,
+                     "activity_id": "196901001", "marker_label": "A"},
+                    {"date": "2026-08-21", "latitude": -5.82, "longitude": -35.22,
+                     "activity_id": "196901002", "marker_label": "B"},
+                ],
+            }, {
+                "technician": {"id": "302", "login": "Z302", "name": "TECNICO 302"},
+                "bucket": "NTL-DMV", "visits": [{
+                    "date": "2026-08-21", "latitude": -5.90, "longitude": -35.30,
+                    "activity_id": "196902001", "marker_label": "A",
+                }],
+            }],
+        }
+        self.assertTrue(app.STORE.ingest_locations(first)["ok"])
+        replacement = {
+            "source": "unit-test", "date": "2026-08-21", "resources": [{
+                # A fotografia nova chega somente pelo PID e deve substituir as
+                # visitas do mesmo recurso, sem apagar GPS nem outro técnico.
+                "technician": {"id": "301", "name": "TECNICO 301"},
+                "bucket": "NTL-DMV", "replace_visits": True,
+                "visit_snapshot_date": "2026-08-21", "visits": [],
+            }],
+        }
+        result = app.STORE.ingest_locations(replacement)
+        self.assertEqual(result["visits_deleted"], 2)
+        track_301 = app.STORE.technician_location_track("Z301", date="2026-08-21")
+        track_302 = app.STORE.technician_location_track("Z302", date="2026-08-21")
+        self.assertEqual(track_301["point_count"], 1)
+        self.assertEqual(track_301["points"][0]["activity_id"], "196901001")
+        self.assertEqual(track_301["visit_count"], 0)
+        self.assertEqual(track_302["visit_count"], 1)
+
+    def test_location_alias_points_are_sorted_and_deduplicated(self) -> None:
+        app.STORE.ingest({"source": "unit-test", "activities": [{
+            "activity_id": "196903001", "scheduled_date": "2026-08-21",
+            "technician_id": "401", "technician_login": "Z401",
+            "technician_name": "TECNICO 401", "bucket": "FTZ-DMV_01",
+        }]})
+        app.STORE.ingest_locations({"source": "unit-test", "resources": [{
+            "technician": {"id": "401"}, "bucket": "FTZ-DMV_01", "points": [{
+                "observed_at": "2026-08-21T08:05:00-03:00",
+                "latitude": -3.73, "longitude": -38.54,
+            }],
+        }, {
+            "technician": {"login": "Z401"}, "bucket": "FTZ-DMV_01", "points": [{
+                "observed_at": "2026-08-21T08:00:00-03:00",
+                "latitude": -3.74, "longitude": -38.55,
+            }, {
+                "observed_at": "2026-08-21T08:05:00-03:00",
+                "latitude": -3.73, "longitude": -38.54, "activity_id": "196903001",
+            }],
+        }]})
+        track = app.STORE.technician_location_track("401", date="2026-08-21")
+        self.assertEqual(track["point_count"], 2)
+        self.assertEqual(track["points"][0]["observed_at"], "2026-08-21T08:00:00-03:00")
+        self.assertEqual(track["points"][1]["activity_id"], "196903001")
+
+    def test_cloud_location_merge_preserves_latest_visit_snapshot(self) -> None:
+        previous = [{
+            "technician": {"id": "501", "login": "Z501"},
+            "points": [{"observed_at": "2026-08-21T08:00:00-03:00", "latitude": -5.8, "longitude": -35.2}],
+            "visits": [{"activity_id": "old", "latitude": -5.8, "longitude": -35.2}],
+        }]
+        current = [{
+            "technician": {"id": "501", "login": "Z501"},
+            "replace_visits": True, "visit_snapshot_date": "2026-08-21",
+            "points": [{"observed_at": "2026-08-21T08:05:00-03:00", "latitude": -5.81, "longitude": -35.21}],
+            "visits": [{"activity_id": "new", "latitude": -5.81, "longitude": -35.21}],
+        }]
+        merged = CloudPublisher._merge_location_resources(previous, current)
+        self.assertEqual(len(merged), 1)
+        self.assertTrue(merged[0]["replace_visits"])
+        self.assertEqual(merged[0]["visit_snapshot_date"], "2026-08-21")
+        self.assertEqual([row["activity_id"] for row in merged[0]["visits"]], ["new"])
+        self.assertEqual(len(merged[0]["points"]), 2)
 
 
 class DiscoveryConfigurationTests(unittest.TestCase):

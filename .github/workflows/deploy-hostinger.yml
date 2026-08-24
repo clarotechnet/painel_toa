@@ -31,8 +31,8 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
-      - name: Testar o painel
-        run: npm run test:web
+      - name: Testar painel, extensoes e Cloud Bridge
+        run: npm run test:web && npm run test:extension && npm run test:bridge && npm run test:cloud-bridge
 
       - name: Gerar site estatico
         run: npm run build

@@ -154,7 +154,7 @@ class TOADatalakeStore:
               technician_name TEXT, bucket TEXT, profile TEXT, observed_date TEXT,
               observed_at TEXT, latitude REAL, longitude REAL, accuracy_m REAL,
               speed_kmh REAL, heading REAL, altitude_m REAL, source TEXT,
-              received_at TEXT);
+              received_at TEXT, activity_id TEXT DEFAULT '');
             CREATE INDEX IF NOT EXISTS idx_location_points_date_technician
               ON technician_location_points(observed_date, technician_login, technician_id, observed_at);
             CREATE INDEX IF NOT EXISTS idx_location_points_profile_date
@@ -176,6 +176,9 @@ class TOADatalakeStore:
             for name in ("duration_min", "travel_min", "route_position", "detail_checked_at"):
                 if name not in columns:
                     db.execute(f"ALTER TABLE activities ADD COLUMN {name} TEXT DEFAULT ''")
+            point_columns = {row[1] for row in db.execute("PRAGMA table_info(technician_location_points)")}
+            if "activity_id" not in point_columns:
+                db.execute("ALTER TABLE technician_location_points ADD COLUMN activity_id TEXT DEFAULT ''")
 
     def _connect(self) -> sqlite3.Connection:
         db = sqlite3.connect(self.path, timeout=20)
@@ -233,6 +236,120 @@ class TOADatalakeStore:
         value = math.sin(delta_lat / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(delta_lon / 2) ** 2
         return 6371008.8 * 2 * math.atan2(math.sqrt(value), math.sqrt(max(0.0, 1 - value)))
 
+    @staticmethod
+    def _location_identity_maps(db: sqlite3.Connection) -> tuple[dict[str, dict[str, str]], dict[str, sqlite3.Row]]:
+        """Relaciona PID numerico, login externo e atividade ao mesmo tecnico real."""
+        aliases: dict[str, dict[str, str]] = {}
+        activities: dict[str, sqlite3.Row] = {}
+        rows = db.execute("""
+          SELECT activity_id,technician_id,technician_login,technician_name,bucket,
+                 scheduled_date,route_position,start_min,contract,description,status,updated_at
+          FROM activities
+          ORDER BY updated_at
+        """).fetchall()
+        for row in rows:
+            technician_id = _text(row["technician_id"], 160)
+            technician_login = _text(row["technician_login"], 160).upper()
+            technician_name = _text(row["technician_name"], 240)
+            bucket = _text(row["bucket"], 120).upper()
+            if not technician_id and not technician_login:
+                continue
+            # Nos de rota aparecem no payload Provider, mas nao sao pessoas.
+            if technician_name and bucket and technician_name.upper() == bucket:
+                continue
+            identity = {
+                "id": technician_id,
+                "login": technician_login,
+                "name": technician_name,
+                "bucket": bucket,
+            }
+            for alias in (technician_id, technician_login):
+                if alias:
+                    aliases[alias.casefold()] = identity
+            activity_id = _text(row["activity_id"], 160)
+            if activity_id:
+                activities[activity_id] = row
+        return aliases, activities
+
+    @staticmethod
+    def _canonical_location_identity(
+        row: sqlite3.Row | dict[str, Any], aliases: dict[str, dict[str, str]],
+    ) -> dict[str, str]:
+        technician_id = _text(row["technician_id"], 160)
+        technician_login = _text(row["technician_login"], 160).upper()
+        mapped = aliases.get(technician_login.casefold()) or aliases.get(technician_id.casefold())
+        if mapped:
+            return mapped
+        return {
+            "id": technician_id,
+            "login": technician_login,
+            "name": _text(row["technician_name"], 240),
+            "bucket": _text(row["bucket"], 120).upper(),
+        }
+
+    @staticmethod
+    def _location_identity_key(identity: dict[str, str]) -> str:
+        return (identity.get("login") or identity.get("id") or "").casefold()
+
+    @classmethod
+    def _canonical_location_points(cls, rows: list[sqlite3.Row]) -> list[sqlite3.Row]:
+        """Ordena e deduplica amostras reais depois da união PID/login."""
+        ordered = sorted(rows, key=lambda row: (
+            cls._location_timestamp(row["observed_at"]) or dt.datetime.min.replace(tzinfo=dt.timezone.utc),
+            _text(row["point_key"], 80),
+        ))
+        unique: dict[str, sqlite3.Row] = {}
+        for row in ordered:
+            fingerprint = "|".join((
+                _text(row["observed_at"], 80),
+                f"{float(row['latitude']):.7f}",
+                f"{float(row['longitude']):.7f}",
+            ))
+            previous = unique.get(fingerprint)
+            if previous is None or (not _text(previous["activity_id"], 160) and _text(row["activity_id"], 160)):
+                unique[fingerprint] = row
+        return list(unique.values())
+
+    @classmethod
+    def _valid_location_visits(
+        cls, rows: list[sqlite3.Row], aliases: dict[str, dict[str, str]],
+        activities: dict[str, sqlite3.Row], selected_date: str,
+    ) -> list[tuple[sqlite3.Row, sqlite3.Row | None]]:
+        """Aceita somente marcadores cuja atividade pertence ao mesmo tecnico e dia."""
+        valid: dict[str, tuple[sqlite3.Row, sqlite3.Row | None]] = {}
+        for row in rows:
+            activity = activities.get(_text(row["activity_id"], 160))
+            visit_identity = cls._canonical_location_identity(row, aliases)
+            if not cls._location_identity_key(visit_identity):
+                continue
+            # Quando o datalake já possui o retrato de atividades, uma parada só
+            # pode aparecer no mapa se o AID comprovar o mesmo PID/login e dia.
+            # Isso impede que respostas atrasadas do Map.get contaminem outro
+            # recurso. Em uma instalação vazia, o lote independente ainda pode
+            # ser consultado até o primeiro retrato operacional chegar.
+            if activities and not activity:
+                continue
+            if activity:
+                if _text(activity["scheduled_date"], 10) != selected_date:
+                    continue
+                activity_identity = cls._canonical_location_identity(activity, aliases)
+                if cls._location_identity_key(visit_identity) != cls._location_identity_key(activity_identity):
+                    continue
+            fingerprint = "|".join((
+                cls._location_identity_key(visit_identity), _text(row["activity_id"], 160),
+                f"{float(row['latitude']):.7f}", f"{float(row['longitude']):.7f}",
+            ))
+            previous = valid.get(fingerprint)
+            current_score = sum(bool(_text(row[name])) for name in (
+                "scheduled_at", "marker_label", "os_number", "contract", "service", "status",
+            ))
+            previous_score = sum(bool(_text(previous[0][name])) for name in (
+                "scheduled_at", "marker_label", "os_number", "contract", "service", "status",
+            )) if previous else -1
+            if current_score > previous_score:
+                valid[fingerprint] = (row, activity)
+        return list(valid.values())
+
     def ingest_locations(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Grava somente telemetria operacional do recurso; nunca dados do cliente."""
         source = _text(payload.get("source") or "toa-location-bridge", 120)
@@ -244,13 +361,17 @@ class TOADatalakeStore:
                 "bucket": payload.get("bucket"), "profile": payload.get("profile"),
                 "points": payload.get("points") or [],
                 "visits": payload.get("visits") or [],
+                "replace_visits": payload.get("replace_visits"),
+                "visit_snapshot_date": payload.get("visit_snapshot_date"),
             }]
         received_at = _now()
         inserted = 0
         visits_inserted = 0
+        visits_deleted = 0
         ignored = 0
         technicians: set[str] = set()
         with self.lock, self._connect() as db:
+            aliases, _ = self._location_identity_maps(db)
             for batch in batches:
                 technician = batch.get("technician") if isinstance(batch.get("technician"), dict) else {}
                 technician_id = _text(_first(batch, "technician_id", "resource_id", "provider_id") or technician.get("id"), 160)
@@ -263,6 +384,31 @@ class TOADatalakeStore:
                     ignored += len(batch.get("points") or []) if isinstance(batch.get("points"), list) else 1
                     continue
                 technicians.add(technician_key)
+                replace_visits = bool(batch.get("replace_visits"))
+                snapshot_date = _text(batch.get("visit_snapshot_date") or fallback_date, 10)
+                if replace_visits:
+                    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", snapshot_date):
+                        identity = self._canonical_location_identity({
+                            "technician_id": technician_id,
+                            "technician_login": technician_login,
+                            "technician_name": technician_name,
+                            "bucket": bucket,
+                        }, aliases)
+                        delete_aliases = {
+                            value.casefold() for value in (
+                                technician_id, technician_login, identity.get("id", ""), identity.get("login", ""),
+                            ) if value
+                        }
+                        placeholders = ",".join("?" for _ in delete_aliases)
+                        if placeholders:
+                            cursor = db.execute(
+                                f"DELETE FROM technician_location_visits WHERE observed_date=? AND "
+                                f"(lower(technician_id) IN ({placeholders}) OR lower(technician_login) IN ({placeholders}))",
+                                [snapshot_date, *delete_aliases, *delete_aliases],
+                            )
+                            visits_deleted += max(0, cursor.rowcount)
+                    else:
+                        ignored += 1
                 for raw in _items(batch.get("points")):
                     latitude = self._finite_number(_first(raw, "latitude", "lat"))
                     longitude = self._finite_number(_first(raw, "longitude", "lng", "lon"))
@@ -282,17 +428,18 @@ class TOADatalakeStore:
                     speed = self._finite_number(_first(raw, "speed_kmh", "speed"))
                     heading = self._finite_number(raw.get("heading"))
                     altitude = self._finite_number(_first(raw, "altitude_m", "altitude"))
+                    activity_id = _text(_first(raw, "activity_id", "activityId", "aid", "ta"), 160)
                     key_source = f"{technician_key}|{observed_at}|{latitude:.7f}|{longitude:.7f}"
                     point_key = hashlib.sha256(key_source.encode("utf-8")).hexdigest()
                     cursor = db.execute("""
                       INSERT OR IGNORE INTO technician_location_points(
                         point_key,technician_id,technician_login,technician_name,bucket,profile,
                         observed_date,observed_at,latitude,longitude,accuracy_m,speed_kmh,
-                        heading,altitude_m,source,received_at)
-                      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                        heading,altitude_m,source,received_at,activity_id)
+                      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                     """, (point_key, technician_id, technician_login, technician_name, bucket, profile,
                           observed_date, observed_at, latitude, longitude, accuracy, speed,
-                          heading, altitude, source, received_at))
+                          heading, altitude, source, received_at, activity_id))
                     inserted += max(0, cursor.rowcount)
                 for raw in _items(batch.get("visits")):
                     latitude = self._finite_number(_first(raw, "latitude", "lat"))
@@ -332,7 +479,7 @@ class TOADatalakeStore:
                           _text(raw.get("service"), 400), _text(raw.get("status"), 120), source, received_at))
                     visits_inserted += max(0, cursor.rowcount)
         return {"ok": True, "schema": self.SCHEMA, "inserted": inserted,
-                "visits_inserted": visits_inserted, "ignored": ignored,
+                "visits_inserted": visits_inserted, "visits_deleted": visits_deleted, "ignored": ignored,
                 "technicians": len(technicians), "received_at": received_at}
 
     @staticmethod
@@ -373,6 +520,7 @@ class TOADatalakeStore:
             clauses.append("profile=?")
             values.append(profile.casefold())
         with self._connect() as db:
+            aliases, activities = self._location_identity_maps(db)
             rows = db.execute(
                 f"SELECT * FROM technician_location_points WHERE {' AND '.join(clauses)} "
                 "ORDER BY technician_login,technician_id,observed_at", values,
@@ -381,72 +529,90 @@ class TOADatalakeStore:
                 f"SELECT * FROM technician_location_visits WHERE {' AND '.join(clauses)} "
                 "ORDER BY technician_login,technician_id,scheduled_at,marker_label", values,
             ).fetchall()
-        visits_grouped: dict[str, list[sqlite3.Row]] = {}
-        for row in visit_rows:
-            visits_grouped.setdefault(row["technician_login"] or row["technician_id"], []).append(row)
+        valid_visits = self._valid_location_visits(visit_rows, aliases, activities, selected_date)
+        visits_grouped: dict[str, list[tuple[sqlite3.Row, sqlite3.Row | None]]] = {}
+        for row, activity in valid_visits:
+            identity = self._canonical_location_identity(row, aliases)
+            visits_grouped.setdefault(self._location_identity_key(identity), []).append((row, activity))
         grouped: dict[str, list[sqlite3.Row]] = {}
         for row in rows:
-            grouped.setdefault(row["technician_login"] or row["technician_id"], []).append(row)
+            identity = self._canonical_location_identity(row, aliases)
+            if identity["name"] and identity["bucket"] and identity["name"].upper() == identity["bucket"]:
+                continue
+            grouped.setdefault(self._location_identity_key(identity), []).append(row)
         items = []
         for key, track in grouped.items():
+            track = self._canonical_location_points(track)
             metrics = self._track_metrics(track)
+            identity = self._canonical_location_identity(track[-1], aliases)
             items.append({
-                "technician_id": track[0]["technician_id"],
-                "technician_login": track[0]["technician_login"],
-                "technician_name": track[-1]["technician_name"] or key,
-                "bucket": track[-1]["bucket"], "profile": track[-1]["profile"],
+                "technician_id": identity["id"],
+                "technician_login": identity["login"],
+                "technician_name": identity["name"] or track[-1]["technician_name"] or key,
+                "bucket": identity["bucket"] or track[-1]["bucket"], "profile": track[-1]["profile"],
                 "point_count": len(track), "first_at": track[0]["observed_at"],
                 "last_at": track[-1]["observed_at"], "visit_count": len(visits_grouped.get(key, [])), **metrics,
             })
         for key, visits in visits_grouped.items():
             if key in grouped:
                 continue
-            first = visits[0]
+            first, _ = visits[0]
+            identity = self._canonical_location_identity(first, aliases)
             items.append({
-                "technician_id": first["technician_id"],
-                "technician_login": first["technician_login"],
-                "technician_name": first["technician_name"] or key,
-                "bucket": first["bucket"], "profile": first["profile"],
+                "technician_id": identity["id"],
+                "technician_login": identity["login"],
+                "technician_name": identity["name"] or first["technician_name"] or key,
+                "bucket": identity["bucket"] or first["bucket"], "profile": first["profile"],
                 "point_count": 0, "visit_count": len(visits),
                 "first_at": "", "last_at": "", "distance_km": 0.0,
                 "accepted_segments": 0, "rejected_segments": 0,
             })
         items.sort(key=lambda row: (-row["distance_km"], row["technician_name"].casefold()))
         return {"ok": True, "schema": self.SCHEMA, "date": selected_date,
-                "technician_count": len(items), "point_count": len(rows), "items": items}
+                "technician_count": len(items),
+                "point_count": sum(item["point_count"] for item in items), "items": items}
 
     def technician_location_track(self, identifier: str, *, date: str = "") -> dict[str, Any]:
         selected_date = date if re.fullmatch(r"\d{4}-\d{2}-\d{2}", date or "") else dt.date.today().isoformat()
         key = _text(identifier, 160)
         with self._connect() as db:
-            rows = db.execute("""
-              SELECT * FROM technician_location_points
-              WHERE observed_date=? AND (technician_login=? OR technician_id=?)
-              ORDER BY observed_at
-            """, (selected_date, key, key)).fetchall()
-            visit_rows = db.execute("""
+            aliases, activities = self._location_identity_maps(db)
+            requested = aliases.get(key.casefold()) or {"id": key, "login": key, "name": key, "bucket": ""}
+            requested_key = self._location_identity_key(requested)
+            all_rows = db.execute("""
+              SELECT * FROM technician_location_points WHERE observed_date=? ORDER BY observed_at
+            """, (selected_date,)).fetchall()
+            all_visit_rows = db.execute("""
               SELECT * FROM technician_location_visits
-              WHERE observed_date=? AND (technician_login=? OR technician_id=?)
-              ORDER BY scheduled_at,marker_label,activity_id
-            """, (selected_date, key, key)).fetchall()
+              WHERE observed_date=? ORDER BY scheduled_at,marker_label,activity_id
+            """, (selected_date,)).fetchall()
+        rows = [row for row in all_rows if self._location_identity_key(
+            self._canonical_location_identity(row, aliases)) == requested_key]
+        rows = self._canonical_location_points(rows)
+        valid_visits = self._valid_location_visits(
+            all_visit_rows, aliases, activities, selected_date,
+        )
+        visit_rows = [(row, activity) for row, activity in valid_visits if self._location_identity_key(
+            self._canonical_location_identity(row, aliases)) == requested_key]
         points = [{
             "observed_at": row["observed_at"], "latitude": row["latitude"],
             "longitude": row["longitude"], "accuracy_m": row["accuracy_m"],
             "speed_kmh": row["speed_kmh"], "heading": row["heading"],
-            "altitude_m": row["altitude_m"],
+            "altitude_m": row["altitude_m"], "activity_id": row["activity_id"],
         } for row in rows]
         metrics = self._track_metrics(rows)
         visits = [{
             "scheduled_at": row["scheduled_at"], "latitude": row["latitude"],
-            "longitude": row["longitude"], "marker_label": row["marker_label"],
+            "longitude": row["longitude"],
+            "marker_label": row["marker_label"] or (_text(activity["route_position"], 8) if activity else ""),
             "activity_id": row["activity_id"], "os_number": row["os_number"],
-            "contract": row["contract"], "service": row["service"], "status": row["status"],
-        } for row in visit_rows]
+            "contract": row["contract"] or (activity["contract"] if activity else ""),
+            "service": row["service"] or (activity["description"] if activity else ""),
+            "status": row["status"] or (activity["status"] if activity else ""),
+        } for row, activity in visit_rows]
+        identity = self._canonical_location_identity(rows[-1], aliases) if rows else requested
         return {"ok": True, "schema": self.SCHEMA, "date": selected_date,
-                "technician": ({
-                    "id": rows[0]["technician_id"], "login": rows[0]["technician_login"],
-                    "name": rows[-1]["technician_name"], "bucket": rows[-1]["bucket"],
-                } if rows else {"id": key, "login": key, "name": key, "bucket": ""}),
+                "technician": identity,
                 "point_count": len(points), "visit_count": len(visits), **metrics,
                 "points": points, "visits": visits}
 

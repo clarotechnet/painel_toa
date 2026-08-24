@@ -11,6 +11,7 @@
 
   const BOT_BRIDGE_HOST = '127.0.0.1';
   const BOT_BRIDGE_PORT = 8787;
+  const SILENT_UI_MODE = true;
 
   // Estado
   const state = {
@@ -57,9 +58,14 @@
       coreApiSyncing: false,
       coreApiResources: 0,
       coreApiLastSyncAt: null,
+      mapSweepSyncing: false,
+      mapSweepResources: 0,
+      mapSweepLastSyncAt: null,
+      mapSweepLastResult: null,
       networkPayloads: 0,
       coordinateCandidates: 0,
       selectedTechnicianFallbacks: 0,
+      pidMismatches: 0,
       rejectedNumericProviderKeys: 0,
       lastNetworkUrl: '',
     },
@@ -1449,8 +1455,16 @@
   }
 
   function locationNumber(value) {
+    if (value === null || value === undefined || value === '') return null;
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  function operationalLocationCoordinate(latitude, longitude) {
+    return Number.isFinite(latitude) && Number.isFinite(longitude)
+      && !(Math.abs(latitude) < 0.0001 && Math.abs(longitude) < 0.0001)
+      && latitude >= -35 && latitude <= 6.5
+      && longitude >= -75 && longitude <= -30;
   }
 
   function locationTimestamp(value) {
@@ -1493,12 +1507,24 @@
   function locationCoordinates(raw) {
     let latitude = locationValue(raw, [
       'latitude', 'lat', 'coordinateY', 'coordinatey', 'coordinate_y', 'activity_latitude',
-      'address_latitude', 'acoord_y', 'acoordy', 'y',
+      'address_latitude', 'acoord_y', 'acoordy',
     ]);
     let longitude = locationValue(raw, [
       'longitude', 'lng', 'lon', 'coordinateX', 'coordinatex', 'coordinate_x', 'activity_longitude',
-      'address_longitude', 'acoord_x', 'acoordx', 'x',
+      'address_longitude', 'acoord_x', 'acoordx',
     ]);
+    // No Map/get do Oracle Field Service, x e longitude e y e latitude.
+    // Os HARs reais de 22 e 24/08 confirmam esse formato (ex.: x=-35.20, y=-5.78).
+    if (latitude === undefined || longitude === undefined) {
+      const toaLongitude = locationNumber(raw.x);
+      const toaLatitude = locationNumber(raw.y);
+      if (toaLatitude !== null && toaLongitude !== null
+        && toaLatitude >= -90 && toaLatitude <= 90
+        && toaLongitude >= -180 && toaLongitude <= 180) {
+        latitude = latitude ?? toaLatitude;
+        longitude = longitude ?? toaLongitude;
+      }
+    }
     const nested = locationValue(raw, ['coordinates', 'coordinate', 'coords', 'position', 'point']);
     if ((latitude === undefined || longitude === undefined) && nested && typeof nested === 'object' && !Array.isArray(nested)) {
       latitude = latitude ?? locationValue(nested, ['latitude', 'lat', 'coordinateY', 'coordinatey', 'coordinate_y', 'y']);
@@ -1570,8 +1596,7 @@
       'observed_at', 'observedAt', 'captured_at', 'capturedAt', 'timestamp', 'datetime', 'time', 'ts', 't',
     ]));
     if (latitude !== null && longitude !== null) state.locationCapture.coordinateCandidates += 1;
-    if (latitude === null || longitude === null || !observedAt
-      || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) return false;
+    if (!observedAt || !operationalLocationCoordinate(latitude, longitude)) return false;
 
     const provider = providerForLocation(raw, context.providerId);
     const technicianKey = provider.login || provider.id;
@@ -1613,6 +1638,10 @@
       speed_kmh: locationNumber(locationValue(raw, ['speed_kmh', 'speed'])),
       heading: locationNumber(raw.heading),
       altitude_m: locationNumber(locationValue(raw, ['altitude_m', 'altitude'])),
+      activity_id: firstText(
+        locationValue(raw, ['activity_id', 'activityId', 'aid', 'ta']),
+        context.activityId,
+      ),
     });
     state.locationCapture.resources.set(technicianKey, current);
     state.locationCapture.observed += 1;
@@ -1629,6 +1658,64 @@
       ? String.fromCharCode(64 + position) : '';
   }
 
+  function replaceMapVisitSnapshot(payload, inheritedProviderId = '') {
+    if (!payload?.queue || Array.isArray(payload.queue) || typeof payload.queue !== 'object') return false;
+    const provider = providerForLocation(payload, inheritedProviderId);
+    const technicianKey = provider.login || provider.id;
+    if (!technicianKey) return false;
+
+    const datedRows = Object.entries(payload.queue).map(([activityId, raw]) => {
+      if (!raw || typeof raw !== 'object') return null;
+      const { latitude, longitude } = locationCoordinates(raw);
+      if (!operationalLocationCoordinate(latitude, longitude)) return null;
+      const scheduledAt = locationTimestamp(locationValue(raw, ['ETA', 'eta', 'scheduled_at', 'scheduledAt']));
+      return {
+        activityId, raw, latitude, longitude, scheduledAt,
+        routeOrder: Number(raw.show_order),
+      };
+    }).filter(Boolean).sort((left, right) => (
+      (Number.isFinite(left.routeOrder) ? left.routeOrder : Number.MAX_SAFE_INTEGER)
+      - (Number.isFinite(right.routeOrder) ? right.routeOrder : Number.MAX_SAFE_INTEGER)
+      || String(left.scheduledAt || '').localeCompare(String(right.scheduledAt || ''))
+    ));
+    const snapshotDate = String(
+      datedRows.find((row) => row.scheduledAt)?.scheduledAt?.slice(0, 10)
+      || locationTimestamp(payload.queue_calendar_start)?.slice(0, 10)
+      || todayIsoSaoPaulo(),
+    );
+    const visits = datedRows.map((row, index) => ({
+      date: snapshotDate,
+      scheduled_at: row.scheduledAt,
+      latitude: row.latitude,
+      longitude: row.longitude,
+      marker_label: String.fromCharCode(65 + Math.min(index, 25)),
+      activity_id: String(row.activityId),
+      os_number: '',
+      contract: '',
+      service: firstText(row.raw?.hints?.ident, row.raw.aworktype),
+      status: firstText(row.raw.astatus, row.raw.status),
+      service_window: '',
+    }));
+
+    const current = state.locationCapture.resources.get(technicianKey) || {
+      technician: { id: provider.id, login: provider.login, name: provider.name },
+      bucket: provider.bucket,
+      points: [],
+      visits: [],
+    };
+    current.technician = {
+      id: provider.id || current.technician.id,
+      login: provider.login || current.technician.login,
+      name: provider.name || current.technician.name,
+    };
+    current.bucket = provider.bucket || current.bucket;
+    current.visits = visits;
+    current.replace_visits = true;
+    current.visit_snapshot_date = snapshotDate;
+    state.locationCapture.resources.set(technicianKey, current);
+    return true;
+  }
+
   function queueLocationVisit(raw, context = {}) {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return false;
     const activityId = String(locationValue(raw, [
@@ -1636,20 +1723,25 @@
     ]) ?? context.activityId ?? '').trim();
     if (!activityId) return false;
     const { latitude, longitude } = locationCoordinates(raw);
-    if (latitude === null || longitude === null
-      || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) return false;
+    if (!operationalLocationCoordinate(latitude, longitude)) return false;
     const provider = providerForLocation(raw, context.providerId);
     const technicianKey = provider.login || provider.id;
     if (!technicianKey) return false;
     const known = state.byAid.get(Number(activityId)) || state.byAid.get(activityId) || {};
     const markerLabel = routeMarkerLabel(locationValue(raw, [
       'marker_label', 'markerLabel', 'route_label', 'routeLabel', 'route_position',
-      'routePosition', 'sequence', 'route_sequence', 'position_in_route', 'position', 'i',
+      'routePosition', 'show_order', 'sequence', 'route_sequence', 'position_in_route', 'position',
     ]));
-    const date = String(locationValue(raw, ['date', 'scheduled_date', 'activity_date']) || known.date || todayIsoSaoPaulo()).slice(0, 10);
     const scheduledAt = locationTimestamp(locationValue(raw, [
       'scheduled_at', 'scheduledAt', 'start_at', 'startAt', 'activity_start', 'astart', 'time_slot_start',
+      'ETA', 'eta',
     ]));
+    const date = String(
+      locationValue(raw, ['date', 'scheduled_date', 'activity_date'])
+      || scheduledAt?.slice(0, 10)
+      || known.date
+      || todayIsoSaoPaulo(),
+    ).slice(0, 10);
     const visit = {
       date: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : todayIsoSaoPaulo(),
       scheduled_at: scheduledAt,
@@ -1704,7 +1796,7 @@
     return true;
   }
 
-  function observeLocationPayload(payload, requestUrl = '') {
+  function observeLocationPayload(payload, requestUrl = '', requestedProviderId = '') {
     if (!payload || typeof payload !== 'object') return;
     const urlText = String(requestUrl || '').toLowerCase();
     const capture = state.locationCapture;
@@ -1714,11 +1806,36 @@
     const visited = new WeakSet();
     let visitedNodes = 0;
 
-    const selectedProviderId = selectedProviderIdForLocation();
+    const isMapGet = /(?:[?&]|\b)m=map(?:&|$)/.test(urlText)
+      && /(?:[?&]|\b)a=get(?:&|$)/.test(urlText);
+    // Map/get informa o tecnico consultado no pid raiz. A resposta so pode ser
+    // aceita quando pertence ao mesmo PID solicitado; a selecao visual nunca e
+    // usada para preencher essa lacuna durante uma varredura silenciosa.
+    const responseProviderId = String(locationValue(payload, [
+      'pid', 'provider_id', 'providerId', 'resource_id', 'resourceId',
+    ]) ?? locationValue(payload?.track, ['pid', 'provider_id', 'providerId']) ?? '').trim();
+    const requestedPid = String(requestedProviderId || '').trim();
+    if (requestedPid && responseProviderId && requestedPid !== responseProviderId) {
+      capture.lastError = `Resposta Map.get ignorada: PID solicitado ${requestedPid}, recebido ${responseProviderId}.`;
+      capture.pidMismatches = Number(capture.pidMismatches || 0) + 1;
+      return;
+    }
+    if (isMapGet && !responseProviderId && !requestedPid) {
+      capture.lastError = 'Resposta Map.get ignorada por não informar o PID do recurso.';
+      capture.pidMismatches = Number(capture.pidMismatches || 0) + 1;
+      return;
+    }
+    const visualFallback = !isMapGet && !responseProviderId && !requestedPid
+      ? selectedProviderIdForLocation() : '';
+    const selectedProviderId = responseProviderId || requestedPid || visualFallback;
+    const hasAuthoritativeQueue = Boolean(
+      payload?.queue && !Array.isArray(payload.queue) && typeof payload.queue === 'object',
+    );
     const scan = (value, context = {
       path: '',
       providerId: selectedProviderId,
       trackingPath: urlTracking,
+      skipVisit: false,
     }, depth = 0) => {
       if (!value || typeof value !== 'object' || depth > 12 || visitedNodes > 25000) return;
       if (visited.has(value)) return;
@@ -1726,7 +1843,7 @@
       visitedNodes += 1;
 
       if (!Array.isArray(value)) {
-        queueLocationVisit(value, context);
+        if (!context.skipVisit) queueLocationVisit(value, context);
         queueLocationPoint(value, context);
       }
       const entries = Array.isArray(value) ? value.entries() : Object.entries(value);
@@ -1736,10 +1853,11 @@
         const trackingPath = context.trackingPath || /(?:gps|location|locations|position|positions|track|tracks|route_points|position_history|history|trace|movement|coordinates)/.test(key);
         let providerId = context.providerId;
         let activityId = context.activityId;
-        if (/\/(?:activity|activities)$/.test(context.path) && /^\d+$/.test(String(rawKey))) {
+        if (/\/(?:activity|activities|queue)$/.test(context.path) && /^\d+$/.test(String(rawKey))) {
           activityId = String(rawKey);
         }
-        if (!Array.isArray(value) && /^\d+$/.test(String(rawKey)) && trackingPath) {
+        if (!Array.isArray(value) && /^\d+$/.test(String(rawKey)) && trackingPath
+          && !/\/queue$/.test(context.path)) {
           if (state.providersByPid.has(String(rawKey))) providerId = String(rawKey);
           else capture.rejectedNumericProviderKeys += 1;
         }
@@ -1754,19 +1872,26 @@
             'activity_id', 'activityId', 'aid',
           ]) ?? activityId ?? '').trim();
         }
-        scan(child, { path: `${context.path}/${key}`, providerId, activityId, trackingPath }, depth + 1);
+        // queue[aid] e a fotografia oficial das paradas. Ela sera normalizada
+        // uma unica vez por replaceMapVisitSnapshot; o parser recursivo fica
+        // reservado aos pontos GPS e a payloads antigos sem essa fotografia.
+        const skipVisit = context.skipVisit || (hasAuthoritativeQueue && context.path === '' && key === 'queue');
+        scan(child, {
+          path: `${context.path}/${key}`, providerId, activityId, trackingPath, skipVisit,
+        }, depth + 1);
       }
     };
 
     scan(payload);
-    if (selectedProviderId) capture.selectedTechnicianFallbacks += 1;
+    replaceMapVisitSnapshot(payload, selectedProviderId);
+    if (visualFallback) capture.selectedTechnicianFallbacks += 1;
   }
 
   function consumeEarlyLocationRecord(record) {
     if (!record?.payload || typeof record.payload !== 'object') return;
     try { rememberProviders(record.payload); } catch {}
     try { deepScanOFSC(record.payload); } catch {}
-    try { observeLocationPayload(record.payload, record.url); } catch {}
+    try { observeLocationPayload(record.payload, record.url, record.providerId); } catch {}
   }
 
   window.addEventListener('TN_TOA_LOCATION_NETWORK_PAYLOAD', (event) => {
@@ -1786,7 +1911,9 @@
       bucket: resource.bucket,
       points: resource.points.slice(),
       visits: (resource.visits || []).slice(),
-    })).filter((resource) => resource.points.length || resource.visits.length);
+      replace_visits: Boolean(resource.replace_visits),
+      visit_snapshot_date: resource.visit_snapshot_date || '',
+    })).filter((resource) => resource.points.length || resource.visits.length || resource.replace_visits);
     try {
       const response = await bridgeFetch('/monitor-api/api/v1/ingest/technician-locations', {
         method: 'POST',
@@ -1799,7 +1926,11 @@
         if (!current) continue;
         current.points.splice(0, batch.points.length);
         current.visits?.splice(0, batch.visits.length);
-        if (!current.points.length && !current.visits?.length) capture.resources.delete(key);
+        if (batch.replace_visits) {
+          current.replace_visits = false;
+          current.visit_snapshot_date = '';
+        }
+        if (!current.points.length && !current.visits?.length && !current.replace_visits) capture.resources.delete(key);
       }
       const sentNow = batches.reduce((total, batch) => total + batch.points.length + batch.visits.length, 0);
       capture.sent += sentNow;
@@ -1834,7 +1965,7 @@
 
   async function syncCorePositionHistory() {
     const capture = state.locationCapture;
-    if (capture.coreApiSyncing) return;
+    if (capture.coreApiSyncing || capture.mapSweepSyncing) return;
     capture.coreApiSyncing = true;
     try {
       const status = await bridgeFetch('/toa-core/status');
@@ -1889,6 +2020,52 @@
       capture.lastError = String(error?.message || error);
     } finally {
       capture.coreApiSyncing = false;
+    }
+  }
+
+  async function syncMapPositionHistory() {
+    const capture = state.locationCapture;
+    if (capture.mapSweepSyncing || capture.coreApiSyncing || capture.coreApiConfigured) return;
+    const syncTechnicians = window.__TN_TOA_SYNC_TECHNICIANS__;
+    if (typeof syncTechnicians !== 'function') {
+      capture.lastError = 'Coletor de mapa ainda não carregou; recarregue a extensão e o TOA.';
+      return;
+    }
+
+    const traceStatus = window.__TN_TOA_TECH_TRACE_STATUS__?.() || {};
+    if (!traceStatus.templateAvailable) {
+      capture.lastError = 'Abra o mapa do TOA uma vez para capturar o molde da consulta GPS.';
+      return;
+    }
+
+    const providerIds = Array.from(state.providersByPid.values())
+      .map((provider) => String(provider?.pid || '').trim())
+      .filter((pid) => /^\d+$/.test(pid))
+      .filter((pid) => Boolean(window.TNTOAAutoExport?.routeForProvider?.(pid)))
+      .filter((pid, index, values) => values.indexOf(pid) === index)
+      .slice(0, 400);
+    capture.mapSweepResources = providerIds.length;
+    if (!providerIds.length) {
+      capture.lastError = 'Árvore DMV ainda não carregada; mantenha o TOA aberto até os técnicos aparecerem.';
+      return;
+    }
+
+    capture.mapSweepSyncing = true;
+    try {
+      capture.mapSweepLastResult = await syncTechnicians(providerIds, {
+        delayMs: 1200,
+        timeoutMs: 20000,
+      });
+      await flushLocationPoints();
+      capture.mapSweepLastSyncAt = new Date().toISOString();
+      capture.lastError = '';
+    } catch (error) {
+      const message = String(error?.message || error || 'Falha na varredura GPS do mapa');
+      capture.lastError = message === 'toa_sem_sessao'
+        ? 'Sessão do TOA expirada; entre novamente para retomar a coleta GPS.'
+        : message;
+    } finally {
+      capture.mapSweepSyncing = false;
     }
   }
 
@@ -3089,9 +3266,15 @@
       coreApiSincronizando: capture.coreApiSyncing,
       coreApiRecursos: capture.coreApiResources,
       coreApiUltimaSincronizacao: capture.coreApiLastSyncAt,
+      varreduraMapaSincronizando: capture.mapSweepSyncing,
+      varreduraMapaRecursos: capture.mapSweepResources,
+      varreduraMapaUltimaSincronizacao: capture.mapSweepLastSyncAt,
+      varreduraMapaResultado: capture.mapSweepLastResult,
+      moldeMapa: window.__TN_TOA_TECH_TRACE_STATUS__?.() || null,
       respostasDeMapaAnalisadas: capture.networkPayloads,
       objetosComCoordenadas: capture.coordinateCandidates,
       respostasVinculadasAoTecnicoSelecionado: capture.selectedTechnicianFallbacks,
+      respostasDescartadasPorPidDivergente: capture.pidMismatches,
       chavesNumericasIgnoradasComoTecnico: capture.rejectedNumericProviderKeys,
       ultimaRespostaDeMapa: capture.lastNetworkUrl,
     };
@@ -3099,6 +3282,12 @@
 
   window.__TN_TOA_LOCATION_SYNC_ALL__ = async function () {
     await syncCorePositionHistory();
+    if (!state.locationCapture.coreApiConfigured) await syncMapPositionHistory();
+    return window.__TN_TOA_LOCATION_STATUS__();
+  };
+
+  window.__TN_TOA_LOCATION_SYNC_MAP_ALL__ = async function () {
+    await syncMapPositionHistory();
     return window.__TN_TOA_LOCATION_STATUS__();
   };
 
@@ -3134,6 +3323,13 @@
     if (!document.body || window.innerHeight < 150) return;
     state.currentAid = getActiveAidFromUrl();
     state.currentContract = getContractFromScreen();
+
+    // O DOMINIUM usa a ponte em segundo plano. O painel legado de copiar,
+    // relatorio, sync manual e contatos nao faz parte do fluxo operacional.
+    if (SILENT_UI_MODE) {
+      document.getElementById('tn-panel')?.remove();
+      return;
+    }
 
     let panel = document.getElementById('tn-panel');
     if (!panel) {
@@ -3271,6 +3467,8 @@
     closeLocationDayIfNeeded();
     setTimeout(syncCorePositionHistory, 2 * 60 * 1000);
     setInterval(syncCorePositionHistory, 30 * 60 * 1000);
+    setTimeout(syncMapPositionHistory, 30 * 1000);
+    setInterval(syncMapPositionHistory, 5 * 60 * 1000);
     setInterval(render, 1200);
     render();
     state.exportStatus = state.bridgeAvailable 

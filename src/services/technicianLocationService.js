@@ -107,8 +107,12 @@ function trackDistance(points) {
 }
 
 function normalizeTechnician(value, fallbackKey = '') {
-  const points = collection(value?.points).sort((left, right) => String(left.observed_at || '').localeCompare(String(right.observed_at || '')));
-  const visits = collection(value?.visits).sort((left, right) => (
+  const points = collection(value?.gpsReal ?? value?.points).sort((left, right) => String(left.observed_at || '').localeCompare(String(right.observed_at || '')));
+  const visits = collection(value?.serviceStops ?? value?.visits).sort((left, right) => (
+    String(left.scheduled_at || '').localeCompare(String(right.scheduled_at || ''))
+    || String(left.marker_label || '').localeCompare(String(right.marker_label || ''))
+  ));
+  const plannedRoute = collection(value?.plannedRoute ?? value?.planned_route).sort((left, right) => (
     String(left.scheduled_at || '').localeCompare(String(right.scheduled_at || ''))
     || String(left.marker_label || '').localeCompare(String(right.marker_label || ''))
   ));
@@ -125,6 +129,7 @@ function normalizeTechnician(value, fallbackKey = '') {
     points,
     visit_count: Number(value?.visit_count ?? visits.length),
     visits,
+    planned_route: plannedRoute,
   };
 }
 
@@ -187,6 +192,7 @@ export async function loadTechnicianLocationTrack(identifier, date, options = {}
     points: selected?.points || [],
     visit_count: selected?.visit_count || 0,
     visits: selected?.visits || [],
+    planned_route: selected?.planned_route || [],
   };
 }
 

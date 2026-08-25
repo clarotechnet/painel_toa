@@ -28,6 +28,7 @@
     directLookupBusy: false,
     lastDirectResult: null,
     lastDirectSearchRows: [],
+    directLookupDiagnostic: null,
     lastExport: null,
     exportStatus: "Aguardando dados...",
     exporting: false,
@@ -1153,6 +1154,7 @@
         text: xhr.responseText || '',
         url: xhr.responseURL || url,
         redirected: Boolean(xhr.responseURL && xhr.responseURL !== url),
+        contentType: xhr.getResponseHeader('content-type') || '',
       });
       xhr.onerror = () => reject(makeToaError('toa_falha_rede'));
       xhr.ontimeout = () => reject(makeToaError('toa_timeout'));
@@ -1170,7 +1172,46 @@
     if (!response.ok) throw makeToaError(`toa_http_${response.status}`, response.status);
     if (isLoginLikeResponse(response, response.text)) throw makeToaError('toa_sem_sessao');
     try { return JSON.parse(response.text); }
-    catch { throw makeToaError(invalidCode); }
+    catch {
+      let pathname = '';
+      try { pathname = new URL(response.url, location.origin).pathname; } catch {}
+      state.directLookupDiagnostic = {
+        code: invalidCode,
+        phase: 'json-parse',
+        status: response.status,
+        content_type: response.contentType,
+        response_length: response.text.length,
+        redirected: response.redirected,
+        pathname,
+        observed_at: new Date().toISOString(),
+      };
+      throw makeToaError(invalidCode);
+    }
+  }
+
+  function safeDirectResponseShape(value) {
+    const type = Array.isArray(value) ? 'array' : (value === null ? 'null' : typeof value);
+    const keys = value && typeof value === 'object'
+      ? Object.keys(value).slice(0, 20).map((key) => String(key).slice(0, 80))
+      : [];
+    return { type, keys, length: Array.isArray(value) ? value.length : undefined };
+  }
+
+  function customerNumberRows(value) {
+    if (!value || typeof value !== 'object') return null;
+    if (Array.isArray(value)) {
+      const section = value.find((item) => item?.key === 'customer_number');
+      if (Array.isArray(section?.value?.rows)) return section.value.rows;
+    }
+    if (Array.isArray(value?.customer_number?.value?.rows)) return value.customer_number.value.rows;
+    if (Array.isArray(value?.customer_number?.rows)) return value.customer_number.rows;
+    for (const key of ['data', 'result', 'response', 'sections', 'items']) {
+      const candidate = value?.[key];
+      if (!candidate || candidate === value) continue;
+      const rows = customerNumberRows(candidate);
+      if (Array.isArray(rows)) return rows;
+    }
+    return null;
   }
 
   function normalizeContractDirect(value) {
@@ -1206,17 +1247,36 @@
       params.set('skip_delta', '0');
     }
 
-    const json = await xhrToaJson(url.href, {
-      method: 'POST',
-      headers: replayHeaders(tpl, {
-        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
-      }),
-      body: params.toString(),
-    }, 10000, 'toa_resposta_busca_invalida');
-    if (!Array.isArray(json)) throw makeToaError('toa_resposta_busca_invalida');
-    const section = json.find(item => item?.key === 'customer_number');
-    if (!section || !Array.isArray(section?.value?.rows)) throw makeToaError('toa_resposta_busca_invalida');
-    return section.value.rows;
+    let json;
+    try {
+      json = await xhrToaJson(url.href, {
+        method: 'POST',
+        headers: replayHeaders(tpl, {
+          'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+        }),
+        body: params.toString(),
+      }, 10000, 'toa_resposta_busca_invalida');
+    } catch (error) {
+      if (error?.code === 'toa_resposta_busca_invalida' && capturedSearch) {
+        state.searchTemplate = null;
+      }
+      throw error;
+    }
+    const rows = customerNumberRows(json);
+    if (!Array.isArray(rows)) {
+      state.directLookupDiagnostic = {
+        code: 'toa_resposta_busca_invalida',
+        phase: 'response-shape',
+        ...safeDirectResponseShape(json),
+        observed_at: new Date().toISOString(),
+      };
+      // Um template capturado antes de uma atualização do TOA pode ficar obsoleto.
+      // Removê-lo faz a próxima tentativa reconstruir a busca a partir da sessão atual.
+      if (capturedSearch) state.searchTemplate = null;
+      throw makeToaError('toa_resposta_busca_invalida');
+    }
+    state.directLookupDiagnostic = null;
+    return rows;
   }
 
   async function fetchActivityDirect(row) {
@@ -1906,33 +1966,57 @@
     const capture = state.locationCapture;
     if (capture.flushing || capture.resources.size === 0) return;
     capture.flushing = true;
-    const batches = Array.from(capture.resources.values()).map((resource) => ({
-      technician: { ...resource.technician },
-      bucket: resource.bucket,
-      points: resource.points.slice(),
-      visits: (resource.visits || []).slice(),
-      replace_visits: Boolean(resource.replace_visits),
-      visit_snapshot_date: resource.visit_snapshot_date || '',
-    })).filter((resource) => resource.points.length || resource.visits.length || resource.replace_visits);
+    const batches = Array.from(capture.resources.values()).map((resource) => {
+      const gpsReal = resource.points.slice();
+      const serviceStops = (resource.visits || []).slice();
+      const plannedRoute = serviceStops.map((visit) => ({
+        scheduled_at: visit.scheduled_at || '',
+        latitude: visit.latitude,
+        longitude: visit.longitude,
+        marker_label: visit.marker_label || '',
+        activity_id: visit.activity_id || '',
+      }));
+      return {
+        technician: { ...resource.technician },
+        bucket: resource.bucket,
+        gps_real: gpsReal,
+        planned_route: plannedRoute,
+        service_stops: serviceStops,
+        replace_planned_route: Boolean(resource.replace_visits),
+        replace_service_stops: Boolean(resource.replace_visits),
+        visit_snapshot_date: resource.visit_snapshot_date || '',
+      };
+    }).filter((resource) => (
+      resource.gps_real.length || resource.service_stops.length
+      || resource.replace_planned_route || resource.replace_service_stops
+    ));
     try {
       const response = await bridgeFetch('/monitor-api/api/v1/ingest/technician-locations', {
         method: 'POST',
-        body: JSON.stringify({ source: 'toa-extension-location-observer', resources: batches }),
+        body: JSON.stringify({
+          schema: 'dominium.toa.technician-location-batch.v2',
+          source: 'toa-extension-location-observer',
+          captured_at: new Date().toISOString(),
+          resources: batches,
+        }),
       });
       if (!response?.ok) throw new Error(`API local respondeu ${response?.status || 'erro'}`);
       for (const batch of batches) {
         const key = batch.technician.login || batch.technician.id;
         const current = capture.resources.get(key);
         if (!current) continue;
-        current.points.splice(0, batch.points.length);
-        current.visits?.splice(0, batch.visits.length);
-        if (batch.replace_visits) {
+        current.points.splice(0, batch.gps_real.length);
+        current.visits?.splice(0, batch.service_stops.length);
+        if (batch.replace_planned_route || batch.replace_service_stops) {
           current.replace_visits = false;
           current.visit_snapshot_date = '';
         }
         if (!current.points.length && !current.visits?.length && !current.replace_visits) capture.resources.delete(key);
       }
-      const sentNow = batches.reduce((total, batch) => total + batch.points.length + batch.visits.length, 0);
+      const sentNow = batches.reduce(
+        (total, batch) => total + batch.gps_real.length + batch.service_stops.length,
+        0,
+      );
       capture.sent += sentNow;
       capture.queued = Math.max(0, capture.queued - sentNow);
       capture.lastFlushAt = new Date().toISOString();
@@ -3246,6 +3330,9 @@
       sessaoCapturadaEm: state.syncTemplate?.capturedAt || null,
       ultimaQuantidadeOs: state.lastDirectSearchRows.length,
       ultimoContrato: state.lastDirectResult?.contrato || '',
+      ultimoDiagnosticoSeguro: state.directLookupDiagnostic
+        ? { ...state.directLookupDiagnostic }
+        : null,
     };
   };
 

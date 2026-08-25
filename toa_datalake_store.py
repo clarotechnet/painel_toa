@@ -359,9 +359,11 @@ class TOADatalakeStore:
             batches = [{
                 "technician": payload.get("technician") or {},
                 "bucket": payload.get("bucket"), "profile": payload.get("profile"),
-                "points": payload.get("points") or [],
-                "visits": payload.get("visits") or [],
-                "replace_visits": payload.get("replace_visits"),
+                "gps_real": payload.get("gps_real") or payload.get("points") or [],
+                "planned_route": payload.get("planned_route") or [],
+                "service_stops": payload.get("service_stops") or payload.get("visits") or [],
+                "replace_planned_route": payload.get("replace_planned_route"),
+                "replace_service_stops": payload.get("replace_service_stops") or payload.get("replace_visits"),
                 "visit_snapshot_date": payload.get("visit_snapshot_date"),
             }]
         received_at = _now()
@@ -373,6 +375,14 @@ class TOADatalakeStore:
         with self.lock, self._connect() as db:
             aliases, _ = self._location_identity_maps(db)
             for batch in batches:
+                gps_real = _items(batch.get("gps_real") if isinstance(batch.get("gps_real"), list) else batch.get("points"))
+                service_stops = _items(
+                    batch.get("service_stops") if isinstance(batch.get("service_stops"), list) else batch.get("visits")
+                )
+                planned_route = _items(batch.get("planned_route"))
+                # A tabela local guarda as paradas autoritativas. Se um produtor v2
+                # enviar apenas a rota planejada, preservamos os marcadores mínimos.
+                visit_records = service_stops or planned_route
                 technician = batch.get("technician") if isinstance(batch.get("technician"), dict) else {}
                 technician_id = _text(_first(batch, "technician_id", "resource_id", "provider_id") or technician.get("id"), 160)
                 technician_login = _text(_first(batch, "technician_login", "login", "external_id") or technician.get("login"), 160)
@@ -381,10 +391,14 @@ class TOADatalakeStore:
                 profile = _profile(bucket, _text(batch.get("profile"), 40))
                 technician_key = technician_login or technician_id
                 if not technician_key:
-                    ignored += len(batch.get("points") or []) if isinstance(batch.get("points"), list) else 1
+                    ignored += len(gps_real) + len(visit_records) or 1
                     continue
                 technicians.add(technician_key)
-                replace_visits = bool(batch.get("replace_visits"))
+                replace_visits = bool(
+                    batch.get("replace_service_stops")
+                    or batch.get("replace_planned_route")
+                    or batch.get("replace_visits")
+                )
                 snapshot_date = _text(batch.get("visit_snapshot_date") or fallback_date, 10)
                 if replace_visits:
                     if re.fullmatch(r"\d{4}-\d{2}-\d{2}", snapshot_date):
@@ -409,7 +423,7 @@ class TOADatalakeStore:
                             visits_deleted += max(0, cursor.rowcount)
                     else:
                         ignored += 1
-                for raw in _items(batch.get("points")):
+                for raw in gps_real:
                     latitude = self._finite_number(_first(raw, "latitude", "lat"))
                     longitude = self._finite_number(_first(raw, "longitude", "lng", "lon"))
                     timestamp = self._location_timestamp(
@@ -441,7 +455,7 @@ class TOADatalakeStore:
                           observed_date, observed_at, latitude, longitude, accuracy, speed,
                           heading, altitude, source, received_at, activity_id))
                     inserted += max(0, cursor.rowcount)
-                for raw in _items(batch.get("visits")):
+                for raw in visit_records:
                     latitude = self._finite_number(_first(raw, "latitude", "lat"))
                     longitude = self._finite_number(_first(raw, "longitude", "lng", "lon"))
                     if latitude is None or longitude is None or not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
@@ -610,11 +624,18 @@ class TOADatalakeStore:
             "service": row["service"] or (activity["description"] if activity else ""),
             "status": row["status"] or (activity["status"] if activity else ""),
         } for row, activity in visit_rows]
+        planned_route = [{
+            "scheduled_at": visit["scheduled_at"],
+            "latitude": visit["latitude"],
+            "longitude": visit["longitude"],
+            "marker_label": visit["marker_label"],
+            "activity_id": visit["activity_id"],
+        } for visit in visits]
         identity = self._canonical_location_identity(rows[-1], aliases) if rows else requested
         return {"ok": True, "schema": self.SCHEMA, "date": selected_date,
                 "technician": identity,
                 "point_count": len(points), "visit_count": len(visits), **metrics,
-                "points": points, "visits": visits}
+                "points": points, "visits": visits, "planned_route": planned_route}
 
     def close_technician_location_day(self, *, date: str = "", source: str = "") -> dict[str, Any]:
         selected_date = date if re.fullmatch(r"\d{4}-\d{2}-\d{2}", date or "") else dt.date.today().isoformat()

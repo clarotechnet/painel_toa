@@ -1,4 +1,11 @@
-# TOA TechNet Bridge 2.6.10
+# TOA TechNet Bridge 2.6.11
+
+## Lote de monitoramento técnico 2.6.11
+
+- envia `gps_real`, `planned_route` e `service_stops` como conjuntos separados;
+- mantém compatibilidade de leitura com os lotes GPS da versão anterior;
+- aceita respostas de busca do TOA encapsuladas em `data`, `result`, `response`, `sections` ou `items`;
+- descarta automaticamente um template de busca obsoleto e expõe somente um diagnóstico seguro em `window.__TN_TOA_DIRECT_STATUS__()`.
 
 ## Validação por PID, data e atividade 2.6.10
 

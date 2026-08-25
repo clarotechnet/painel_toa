@@ -159,8 +159,22 @@ Depois importe também
    `Firebase TOA - Service Account`.
 3. Confirme a URL do Realtime Database e publique o workflow.
 
+Ao atualizar um workflow GPS já existente, primeiro deixe somente esse workflow
+como **unpublished**, importe o arquivo novo, configure as duas credenciais e
+publique a versão nova. Não deixe dois workflows publicados com o mesmo caminho
+de webhook.
+
 O workflow GPS grava por data em
 `dominium/toa/history/technicianLocations/AAAA-MM-DD/technicians`.
+Desde o lote v2, cada técnico possui três ramos independentes:
+
+- `gpsReal`: posições realmente observadas, usadas na quilometragem;
+- `plannedRoute`: sequência planejada das atividades A, B, C etc.;
+- `serviceStops`: OS, contrato, serviço e status das paradas.
+
+O workflow continua aceitando o lote v1 durante a atualização, mas todo lote
+novo é gravado nos ramos v2. O painel lê primeiro os ramos v2 e mantém fallback
+para `points` e `visits` históricos.
 
 O workflow principal mantém somente o estado operacional atual. Depois da
 primeira carga, ele compara as ordens e atividades e envia ao Firebase apenas os

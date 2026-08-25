@@ -30,6 +30,11 @@ Filtros de `activities`: `profile`, `date`, `status`, `bucket`, `limit` e `offse
 
 Chamadas locais são aceitas sem token. Pela rede, envie `Authorization: Bearer <DOMINIUM_INGEST_TOKEN>`.
 
+O endpoint de localização aceita o esquema
+`dominium.toa.technician-location-batch.v2`. Cada item de `resources` separa
+`gps_real`, `planned_route` e `service_stops`. Os campos antigos `points`,
+`visits` e `replace_visits` permanecem aceitos durante a migração.
+
 ## Privacidade
 
 A API não publica endereço, telefone, e-mail, CPF nem credenciais de sessão. O coletor só envia dados operacionais necessários ao monitoramento. Cookies, token, CSRF e senha permanecem dentro do navegador/DPAPI.

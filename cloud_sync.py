@@ -85,13 +85,16 @@ class CloudPublisher:
                 "technician": payload.get("technician") or {},
                 "bucket": payload.get("bucket") or "",
                 "profile": payload.get("profile") or "",
-                "points": payload.get("points") or [],
-                "visits": payload.get("visits") or [],
-                "replace_visits": payload.get("replace_visits"),
+                "gps_real": payload.get("gps_real") or payload.get("points") or [],
+                "planned_route": payload.get("planned_route") or [],
+                "service_stops": payload.get("service_stops") or payload.get("visits") or [],
+                "replace_planned_route": payload.get("replace_planned_route"),
+                "replace_service_stops": payload.get("replace_service_stops") or payload.get("replace_visits"),
                 "visit_snapshot_date": payload.get("visit_snapshot_date") or "",
             }]
+        resources = [self._normalize_location_resource(item) for item in resources if isinstance(item, dict)]
         envelope = {
-            "schema": "dominium.toa.technician-locations.v1",
+            "schema": "dominium.toa.technician-location-batch.v2",
             "publishedAt": datetime.now().astimezone().isoformat(),
             "trigger": str(trigger)[:120],
             "source": str(payload.get("source") or "toa-location-bridge")[:120],
@@ -113,6 +116,28 @@ class CloudPublisher:
         return True
 
     @staticmethod
+    def _normalize_location_resource(raw: dict[str, Any]) -> dict[str, Any]:
+        service_stops = raw.get("service_stops") if isinstance(raw.get("service_stops"), list) else raw.get("visits")
+        planned_route = raw.get("planned_route") if isinstance(raw.get("planned_route"), list) else []
+        if not planned_route and isinstance(service_stops, list):
+            planned_route = [{
+                name: stop.get(name) for name in (
+                    "scheduled_at", "latitude", "longitude", "marker_label", "activity_id",
+                ) if stop.get(name) not in (None, "")
+            } for stop in service_stops if isinstance(stop, dict)]
+        return {
+            "technician": dict(raw.get("technician") or {}),
+            "bucket": raw.get("bucket") or "",
+            "profile": raw.get("profile") or "",
+            "gps_real": list(raw.get("gps_real") if isinstance(raw.get("gps_real"), list) else raw.get("points") or []),
+            "planned_route": list(planned_route or []),
+            "service_stops": list(service_stops or []),
+            "replace_planned_route": bool(raw.get("replace_planned_route") or raw.get("replace_visits")),
+            "replace_service_stops": bool(raw.get("replace_service_stops") or raw.get("replace_visits")),
+            "visit_snapshot_date": str(raw.get("visit_snapshot_date") or "")[:10],
+        }
+
+    @staticmethod
     def _merge_location_resources(previous: list[Any], current: list[Any]) -> list[dict[str, Any]]:
         grouped: dict[str, dict[str, Any]] = {}
         for raw in [*previous, *current]:
@@ -126,45 +151,65 @@ class CloudPublisher:
                 "technician": dict(technician),
                 "bucket": raw.get("bucket") or "",
                 "profile": raw.get("profile") or "",
-                "points": [],
-                "visits": [],
-                "replace_visits": False,
+                "gps_real": [],
+                "planned_route": [],
+                "service_stops": [],
+                "replace_planned_route": False,
+                "replace_service_stops": False,
                 "visit_snapshot_date": "",
             })
             batch["technician"].update({name: value for name, value in technician.items() if value})
             batch["bucket"] = raw.get("bucket") or batch["bucket"]
             batch["profile"] = raw.get("profile") or batch["profile"]
-            if raw.get("replace_visits"):
-                batch["replace_visits"] = True
+            normalized = CloudPublisher._normalize_location_resource(raw)
+            if normalized.get("replace_planned_route"):
+                batch["replace_planned_route"] = True
                 batch["visit_snapshot_date"] = str(raw.get("visit_snapshot_date") or "")[:10]
-                batch["visits"] = []
+                batch["planned_route"] = []
+            if normalized.get("replace_service_stops"):
+                batch["replace_service_stops"] = True
+                batch["visit_snapshot_date"] = str(raw.get("visit_snapshot_date") or "")[:10]
+                batch["service_stops"] = []
             known = {
                 f"{point.get('observed_at')}|{point.get('latitude')}|{point.get('longitude')}"
-                for point in batch["points"] if isinstance(point, dict)
+                for point in batch["gps_real"] if isinstance(point, dict)
             }
-            for point in raw.get("points") or []:
+            for point in normalized["gps_real"]:
                 if not isinstance(point, dict):
                     continue
                 fingerprint = f"{point.get('observed_at')}|{point.get('latitude')}|{point.get('longitude')}"
                 if fingerprint in known:
                     continue
                 known.add(fingerprint)
-                batch["points"].append(point)
+                batch["gps_real"].append(point)
             # O SQLite local conserva tudo. O limite evita consumir RAM sem fim se o n8n ficar offline.
-            batch["points"] = batch["points"][-5000:]
-            known_visits = {
+            batch["gps_real"] = batch["gps_real"][-5000:]
+            known_planned = {
                 f"{visit.get('activity_id')}|{visit.get('latitude')}|{visit.get('longitude')}"
-                for visit in batch["visits"] if isinstance(visit, dict)
+                for visit in batch["planned_route"] if isinstance(visit, dict)
             }
-            for visit in raw.get("visits") or []:
+            for visit in normalized["planned_route"]:
                 if not isinstance(visit, dict):
                     continue
                 fingerprint = f"{visit.get('activity_id')}|{visit.get('latitude')}|{visit.get('longitude')}"
-                if fingerprint in known_visits:
+                if fingerprint in known_planned:
                     continue
-                known_visits.add(fingerprint)
-                batch["visits"].append(visit)
-            batch["visits"] = batch["visits"][-1000:]
+                known_planned.add(fingerprint)
+                batch["planned_route"].append(visit)
+            batch["planned_route"] = batch["planned_route"][-1000:]
+            known_stops = {
+                f"{visit.get('activity_id')}|{visit.get('latitude')}|{visit.get('longitude')}"
+                for visit in batch["service_stops"] if isinstance(visit, dict)
+            }
+            for visit in normalized["service_stops"]:
+                if not isinstance(visit, dict):
+                    continue
+                fingerprint = f"{visit.get('activity_id')}|{visit.get('latitude')}|{visit.get('longitude')}"
+                if fingerprint in known_stops:
+                    continue
+                known_stops.add(fingerprint)
+                batch["service_stops"].append(visit)
+            batch["service_stops"] = batch["service_stops"][-1000:]
         return list(grouped.values())
 
     def status(self) -> dict[str, Any]:

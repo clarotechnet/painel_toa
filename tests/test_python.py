@@ -96,9 +96,16 @@ class LocalServerTests(unittest.TestCase):
         }]
         status, _, body = self.request(
             "/api/v1/ingest/technician-locations", method="POST", payload={
+                "schema": "dominium.toa.technician-location-batch.v2",
                 "source": "unit-test", "technician": {
                     "id": "101", "login": "Z641921", "name": "TECNICO TESTE",
-                }, "bucket": "FTZ-DMV_01", "points": points, "visits": visits,
+                }, "bucket": "FTZ-DMV_01", "gps_real": points,
+                "planned_route": [{
+                    "scheduled_at": visits[0]["scheduled_at"],
+                    "latitude": visits[0]["latitude"], "longitude": visits[0]["longitude"],
+                    "marker_label": "A", "activity_id": "196900001",
+                }],
+                "service_stops": visits,
             },
         )
         self.assertEqual(status, 200, body)
@@ -122,6 +129,7 @@ class LocalServerTests(unittest.TestCase):
         self.assertEqual(track["visit_count"], 1)
         self.assertEqual(track["visits"][0]["marker_label"], "A")
         self.assertEqual(track["visits"][0]["contract"], "4242424")
+        self.assertEqual(track["planned_route"][0]["activity_id"], "196900001")
         self.assertEqual(track["technician"]["name"], "TECNICO TESTE")
 
         status, _, body = self.request(
@@ -286,10 +294,12 @@ class LocalServerTests(unittest.TestCase):
         }]
         merged = CloudPublisher._merge_location_resources(previous, current)
         self.assertEqual(len(merged), 1)
-        self.assertTrue(merged[0]["replace_visits"])
+        self.assertTrue(merged[0]["replace_planned_route"])
+        self.assertTrue(merged[0]["replace_service_stops"])
         self.assertEqual(merged[0]["visit_snapshot_date"], "2026-08-21")
-        self.assertEqual([row["activity_id"] for row in merged[0]["visits"]], ["new"])
-        self.assertEqual(len(merged[0]["points"]), 2)
+        self.assertEqual([row["activity_id"] for row in merged[0]["service_stops"]], ["new"])
+        self.assertEqual([row["activity_id"] for row in merged[0]["planned_route"]], ["new"])
+        self.assertEqual(len(merged[0]["gps_real"]), 2)
 
 
 class DiscoveryConfigurationTests(unittest.TestCase):

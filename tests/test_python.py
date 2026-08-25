@@ -129,7 +129,7 @@ class LocalServerTests(unittest.TestCase):
         self.assertEqual(track["visit_count"], 1)
         self.assertEqual(track["visits"][0]["marker_label"], "A")
         self.assertEqual(track["visits"][0]["contract"], "4242424")
-        self.assertEqual(track["planned_route"][0]["activity_id"], "196900001")
+        self.assertEqual(track["planned_route"], [])
         self.assertEqual(track["technician"]["name"], "TECNICO TESTE")
 
         status, _, body = self.request(
@@ -298,7 +298,7 @@ class LocalServerTests(unittest.TestCase):
         self.assertTrue(merged[0]["replace_service_stops"])
         self.assertEqual(merged[0]["visit_snapshot_date"], "2026-08-21")
         self.assertEqual([row["activity_id"] for row in merged[0]["service_stops"]], ["new"])
-        self.assertEqual([row["activity_id"] for row in merged[0]["planned_route"]], ["new"])
+        self.assertEqual(merged[0]["planned_route"], [])
         self.assertEqual(len(merged[0]["gps_real"]), 2)
 
 

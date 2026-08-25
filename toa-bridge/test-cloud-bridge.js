@@ -12,7 +12,7 @@ const options = fs.readFileSync(path.join(root, 'options.js'), 'utf8');
 const locationHook = fs.readFileSync(path.join(root, 'location-network-hook.js'), 'utf8');
 
 assert.equal(manifest.name, 'TOA TechNet Bridge');
-assert.equal(manifest.version, '2.6.11');
+assert.equal(manifest.version, '2.6.12');
 assert.match(background, /MONITOR_API_PORT = 8765/);
 assert.match(locationHook, /toa_map_pid_mismatch_/);
 assert.match(content, /respostasDescartadasPorPidDivergente/);

@@ -37,6 +37,7 @@
     lastSyncAt: null,
     autoLookupBusy: false,
     bridgeAvailable: false,
+    extensionContextInvalidated: false,
     lastScreenSyncSig: '',
     lastScreenSyncAt: 0,
     cattaCache: new Map(),
@@ -91,7 +92,13 @@
           if (success) {
             resolve(result);
           } else {
-            reject(new Error(error || 'Bridge proxy error'));
+            const responseError = new Error(error || 'Bridge proxy error');
+            if (/extension context invalidated/i.test(responseError.message)) {
+              responseError.code = 'extension_context_invalidated';
+              state.extensionContextInvalidated = true;
+              state.bridgeAvailable = false;
+            }
+            reject(responseError);
           }
         }
       });
@@ -104,7 +111,9 @@
           resolve(true);
         })
         .catch((err) => {
-          console.warn('[TOA-MAIN] Bridge proxy indisponível:', err.message);
+          if (err?.code !== 'extension_context_invalidated') {
+            console.warn('[TOA-MAIN] Bridge proxy indisponível:', err.message);
+          }
           state.bridgeAvailable = false;
           resolve(false);
         });
@@ -114,6 +123,12 @@
   // Proxy para bridge via content-isolated.js
   function bridgeFetchProxy(path, options = {}) {
     return new Promise((resolve, reject) => {
+      if (state.extensionContextInvalidated) {
+        const error = new Error('Extension context invalidated');
+        error.code = 'extension_context_invalidated';
+        reject(error);
+        return;
+      }
       const id = ++requestId;
       pendingRequests.set(id, { resolve, reject });
       
@@ -386,7 +401,9 @@
         const inserted = data?.data?.inserted || data?.inserted || 0;
         console.log('[TOA-SYNC] ✅ bridge aceitou:', inserted, 'entrada(s)');
       } catch (err) {
-        console.warn('[TOA-SYNC] ⚠ bridge indisponível:', err.message);
+        if (err?.code !== 'extension_context_invalidated') {
+          console.warn('[TOA-SYNC] ⚠ bridge indisponível:', err.message);
+        }
       }
     }, 1500));
   }
@@ -1531,6 +1548,8 @@
     if (value === null || value === undefined || value === '') return '';
     if (typeof value === 'number' || /^\d{10,13}$/.test(String(value))) {
       const raw = Number(value);
+      // Campos compactos como `t: 4` representam tipo de marcador, nao epoch.
+      if (!Number.isFinite(raw) || raw < 1_000_000_000) return '';
       const date = new Date(raw < 1e12 ? raw * 1000 : raw);
       return Number.isNaN(date.getTime()) ? '' : locationIsoSaoPaulo(date);
     }
@@ -1718,6 +1737,67 @@
       ? String.fromCharCode(64 + position) : '';
   }
 
+  function compactRouteMarkerLabel(raw, fallback = '') {
+    const explicit = routeMarkerLabel(locationValue(raw, [
+      'marker_label', 'markerLabel', 'route_label', 'routeLabel', 'route_position',
+      'routePosition', 'sequence', 'route_sequence', 'position_in_route', 'position',
+    ]));
+    if (explicit) return explicit;
+    // Nos objetos compactos do Map.get o campo `i` e zero-based: 0=A, 6=G.
+    const compactIndex = Number(raw?.i);
+    if (Number.isInteger(compactIndex) && compactIndex >= 0 && compactIndex <= 25) {
+      return String.fromCharCode(65 + compactIndex);
+    }
+    return routeMarkerLabel(fallback);
+  }
+
+  function compactMapVisitRows(payload, snapshotDate) {
+    const rows = [];
+    const visited = new WeakSet();
+    const scan = (value, parentKey = '', depth = 0) => {
+      if (!value || typeof value !== 'object' || depth > 12 || visited.has(value)) return;
+      visited.add(value);
+      if (!Array.isArray(value)) {
+        const { latitude, longitude } = locationCoordinates(value);
+        const compactDescription = typeof value.L === 'string' ? value.L.trim() : '';
+        const explicitActivityId = String(locationValue(value, [
+          'activity_id', 'activityId', 'aid',
+        ]) ?? '').trim();
+        const keyedActivityId = /^\d{6,}$/.test(String(parentKey)) ? String(parentKey) : '';
+        // `L` distingue uma parada/atividade compacta dos milhares de pontos GPS.
+        if (compactDescription && operationalLocationCoordinate(latitude, longitude)) {
+          const activityId = explicitActivityId || keyedActivityId;
+          const markerLabel = compactRouteMarkerLabel(value) || '■';
+          const encodedMarkerLabel = Number(value.g) === 2 || markerLabel === '■'
+            ? `!:${markerLabel}` : markerLabel;
+          const known = state.byAid.get(Number(activityId)) || state.byAid.get(activityId) || {};
+          const scheduledAt = locationTimestamp(locationValue(value, [
+            'ETA', 'eta', 'scheduled_at', 'scheduledAt', 'start_at', 'startAt',
+          ]));
+          rows.push({
+            date: String(scheduledAt?.slice(0, 10) || snapshotDate),
+            scheduled_at: scheduledAt,
+            latitude,
+            longitude,
+            marker_label: encodedMarkerLabel,
+            activity_id: activityId || `map-special:${markerLabel}:${latitude.toFixed(6)}:${longitude.toFixed(6)}`,
+            os_number: firstText(known.os, known.num_os),
+            contract: firstText(known.contrato, known.contract),
+            service: activityId
+              ? firstText(known.tipoOS, known.tipoServico)
+              : 'Ponto operacional TOA',
+            status: firstText(known.status),
+            service_window: firstText(known.horario),
+          });
+        }
+      }
+      const entries = Array.isArray(value) ? value.entries() : Object.entries(value);
+      for (const [key, child] of entries) scan(child, String(key), depth + 1);
+    };
+    scan(payload);
+    return rows;
+  }
+
   function replaceMapVisitSnapshot(payload, inheritedProviderId = '') {
     if (!payload?.queue || Array.isArray(payload.queue) || typeof payload.queue !== 'object') return false;
     const provider = providerForLocation(payload, inheritedProviderId);
@@ -1743,12 +1823,13 @@
       || locationTimestamp(payload.queue_calendar_start)?.slice(0, 10)
       || todayIsoSaoPaulo(),
     );
-    const visits = datedRows.map((row, index) => ({
+    const queueVisits = datedRows.map((row, index) => ({
       date: snapshotDate,
       scheduled_at: row.scheduledAt,
       latitude: row.latitude,
       longitude: row.longitude,
-      marker_label: String.fromCharCode(65 + Math.min(index, 25)),
+      marker_label: compactRouteMarkerLabel(row.raw, index + 1)
+        || String.fromCharCode(65 + Math.min(index, 25)),
       activity_id: String(row.activityId),
       os_number: '',
       contract: '',
@@ -1756,6 +1837,28 @@
       status: firstText(row.raw.astatus, row.raw.status),
       service_window: '',
     }));
+    const compactVisits = compactMapVisitRows(payload, snapshotDate);
+    const mergedVisits = new Map();
+    for (const visit of [...queueVisits, ...compactVisits]) {
+      const key = visit.activity_id.startsWith('map-special:')
+        ? visit.activity_id
+        : visit.activity_id;
+      const previous = mergedVisits.get(key) || {};
+      mergedVisits.set(key, {
+        ...previous,
+        ...visit,
+        marker_label: visit.marker_label || previous.marker_label || '',
+        os_number: visit.os_number || previous.os_number || '',
+        contract: visit.contract || previous.contract || '',
+        service: visit.service || previous.service || '',
+        status: visit.status || previous.status || '',
+        service_window: visit.service_window || previous.service_window || '',
+      });
+    }
+    const visits = [...mergedVisits.values()].sort((left, right) => (
+      String(left.scheduled_at || '').localeCompare(String(right.scheduled_at || ''))
+      || String(left.marker_label || '').localeCompare(String(right.marker_label || ''))
+    ));
 
     const current = state.locationCapture.resources.get(technicianKey) || {
       technician: { id: provider.id, login: provider.login, name: provider.name },
@@ -1788,7 +1891,7 @@
     const technicianKey = provider.login || provider.id;
     if (!technicianKey) return false;
     const known = state.byAid.get(Number(activityId)) || state.byAid.get(activityId) || {};
-    const markerLabel = routeMarkerLabel(locationValue(raw, [
+    const markerLabel = compactRouteMarkerLabel(raw, locationValue(raw, [
       'marker_label', 'markerLabel', 'route_label', 'routeLabel', 'route_position',
       'routePosition', 'show_order', 'sequence', 'route_sequence', 'position_in_route', 'position',
     ]));
@@ -1969,13 +2072,10 @@
     const batches = Array.from(capture.resources.values()).map((resource) => {
       const gpsReal = resource.points.slice();
       const serviceStops = (resource.visits || []).slice();
-      const plannedRoute = serviceStops.map((visit) => ({
-        scheduled_at: visit.scheduled_at || '',
-        latitude: visit.latitude,
-        longitude: visit.longitude,
-        marker_label: visit.marker_label || '',
-        activity_id: visit.activity_id || '',
-      }));
+      // Paradas A/B/C... nao sao geometria de rota. So publique uma rota
+      // planejada quando o proprio TOA fornecer essa sequencia explicitamente.
+      const plannedRoute = Array.isArray(resource.planned_route)
+        ? resource.planned_route.slice() : [];
       return {
         technician: { ...resource.technician },
         bucket: resource.bucket,

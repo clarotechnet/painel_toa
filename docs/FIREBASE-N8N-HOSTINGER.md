@@ -169,8 +169,12 @@ O workflow GPS grava por data em
 Desde o lote v2, cada técnico possui três ramos independentes:
 
 - `gpsReal`: posições realmente observadas, usadas na quilometragem;
-- `plannedRoute`: sequência planejada das atividades A, B, C etc.;
+- `plannedRoute`: geometria planejada somente quando o TOA a fornecer explicitamente;
 - `serviceStops`: OS, contrato, serviço e status das paradas.
+
+As paradas A, B, C etc. nunca são ligadas entre si para simular uma rota. Sem
+uma geometria oficial, o painel mostra apenas o GPS real filtrado em segmentos,
+evitando retas causadas por pausa longa, baixa precisão ou salto impossível.
 
 O workflow continua aceitando o lote v1 durante a atualização, mas todo lote
 novo é gravado nos ramos v2. O painel lê primeiro os ramos v2 e mantém fallback

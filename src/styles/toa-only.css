@@ -170,6 +170,9 @@ html[data-theme="light"] .monitor-source-copy span { color: #17212b; }
 .technician-service-marker { width: 28px; height: 28px; display: grid; place-items: center; color: #07111d; background: #70bdff; border: 2px solid #0a4f91; border-radius: 50% 50% 50% 5px; box-shadow: 0 2px 8px rgba(0, 0, 0, .38); font-size: .76rem; font-weight: 900; transform: rotate(-45deg); }
 .technician-service-marker { line-height: 1; }
 .technician-service-marker > b { display: block; font-weight: 900; transform: rotate(45deg); }
+.technician-service-marker-shell.is-warning .technician-service-marker { color: #241500; background: #ffd13b; border-color: #a76500; }
+.technician-service-marker-shell.is-square .technician-service-marker { border-radius: 4px; transform: none; }
+.technician-service-marker-shell.is-square .technician-service-marker > b { transform: none; }
 .technician-service-popup { min-width: 190px; display: grid; gap: 7px; color: #111827; }
 .technician-service-popup > strong { display: flex; align-items: center; gap: 7px; font-size: .86rem; }
 .technician-service-popup > strong i { width: 22px; height: 22px; display: grid; place-items: center; color: #07111d; background: #70bdff; border: 1px solid #0a4f91; border-radius: 50%; font-style: normal; }

@@ -13,6 +13,7 @@ import {
 } from '../src/app.js';
 import { formatPtBrDate, formatPtBrDateTime, formatPtBrSchedule } from '../src/utils/text.js';
 import { applyTechnicianNames } from '../src/services/technicianService.js';
+import { splitGpsTrack } from '../src/services/technicianLocationService.js';
 import { normalizeOracleDetail } from '../scripts/toa-detail-reader.mjs';
 import {
   filterTechnicianLocationsByProfiles,
@@ -56,6 +57,15 @@ const locationRoster = mergeTechnicianLocationRoster([
 assert.equal(locationRoster.length, 2);
 assert.equal(locationRoster.find((item) => item.technician_login === 'ZF').profile, 'fortaleza');
 assert.equal(locationRoster.find((item) => item.technician_login === 'ZN').point_count, 0);
+const filteredGpsSegments = splitGpsTrack([
+  { observed_at: '2026-08-25T10:00:00-03:00', latitude: -5.8000, longitude: -35.2100, accuracy_m: 12 },
+  { observed_at: '2026-08-25T10:01:00-03:00', latitude: -5.7995, longitude: -35.2095, accuracy_m: 12 },
+  { observed_at: '2026-08-25T10:02:00-03:00', latitude: -23.5505, longitude: -46.6333, accuracy_m: 10 },
+  { observed_at: '2026-08-25T10:03:00-03:00', latitude: -5.7990, longitude: -35.2090, accuracy_m: 12 },
+  { observed_at: '2026-08-25T11:00:00-03:00', latitude: -5.7900, longitude: -35.2000, accuracy_m: 12 },
+]);
+assert.equal(filteredGpsSegments.length, 2, 'Pausa longa deve abrir outro segmento GPS');
+assert.equal(filteredGpsSegments.flat().length, 4, 'Ponto de drift deve ser descartado');
 const multiCitySnapshot = filterSnapshotByProfiles({
   orders: [
     { num_os: '1', city: 'FORTALEZA', bucket: 'FTZ-DMV', technician_login: 'ZF' },

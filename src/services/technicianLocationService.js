@@ -85,25 +85,69 @@ function collection(value) {
   return [];
 }
 
-function trackDistance(points) {
+function haversineMeters(left, right) {
   const radians = (value) => Number(value) * Math.PI / 180;
+  const lat1 = radians(left.latitude);
+  const lat2 = radians(right.latitude);
+  const deltaLat = lat2 - lat1;
+  const deltaLon = radians(right.longitude) - radians(left.longitude);
+  const value = Math.sin(deltaLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLon / 2) ** 2;
+  return 6371008.8 * 2 * Math.atan2(Math.sqrt(value), Math.sqrt(Math.max(0, 1 - value)));
+}
+
+export function splitGpsTrack(points = []) {
+  const ordered = [...points].filter((point) => {
+    const latitude = Number(point?.latitude);
+    const longitude = Number(point?.longitude);
+    const accuracy = Number(point?.accuracy_m || 0);
+    return Number.isFinite(latitude) && Number.isFinite(longitude)
+      && latitude >= -34 && latitude <= 6 && longitude >= -74 && longitude <= -28
+      && (!accuracy || accuracy <= 250);
+  }).sort((left, right) => String(left.observed_at || '').localeCompare(String(right.observed_at || '')));
+  const segments = [];
+  let current = [];
+  for (const point of ordered) {
+    if (!current.length) {
+      current = [point];
+      segments.push(current);
+      continue;
+    }
+    const previous = current.at(-1);
+    const elapsed = (new Date(point.observed_at) - new Date(previous.observed_at)) / 1000;
+    if (!Number.isFinite(elapsed) || elapsed <= 0) continue;
+    if (elapsed > 1800) {
+      current = [point];
+      segments.push(current);
+      continue;
+    }
+    const distance = haversineMeters(previous, point);
+    const speed = (distance / elapsed) * 3.6;
+    // Saltos impossiveis sao drift: descarte o ponto e nao crie uma reta ate ele.
+    if (!Number.isFinite(distance) || distance > 15000 || speed > 140) continue;
+    current.push(point);
+  }
+  return segments.filter((segment) => segment.length);
+}
+
+function trackDistance(points) {
   let meters = 0;
-  for (let index = 1; index < points.length; index += 1) {
-    const previous = points[index - 1];
-    const current = points[index];
-    const elapsed = (new Date(current.observed_at) - new Date(previous.observed_at)) / 1000;
-    const lat1 = radians(previous.latitude);
-    const lat2 = radians(current.latitude);
-    const deltaLat = lat2 - lat1;
-    const deltaLon = radians(current.longitude) - radians(previous.longitude);
-    const value = Math.sin(deltaLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLon / 2) ** 2;
-    const segment = 6371008.8 * 2 * Math.atan2(Math.sqrt(value), Math.sqrt(Math.max(0, 1 - value)));
-    const accuracy = Math.max(Number(previous.accuracy_m || 0), Number(current.accuracy_m || 0));
-    const speed = elapsed > 0 ? (segment / elapsed) * 3.6 : Infinity;
-    if (elapsed <= 0 || elapsed > 7200 || segment > 20000 || speed > 160 || accuracy > 1000) continue;
-    if (segment > Math.max(8, accuracy * 0.35)) meters += segment;
+  for (const segment of splitGpsTrack(points)) {
+    for (let index = 1; index < segment.length; index += 1) {
+      const previous = segment[index - 1];
+      const current = segment[index];
+      const distance = haversineMeters(previous, current);
+      const accuracy = Math.max(Number(previous.accuracy_m || 0), Number(current.accuracy_m || 0));
+      if (distance > Math.max(8, accuracy * 0.35)) meters += distance;
+    }
   }
   return Math.round(meters) / 1000;
+}
+
+function removeInferredPlannedRoute(plannedRoute, visits) {
+  if (!plannedRoute.length || !visits.length) return plannedRoute;
+  const signature = (point) => `${String(point.activity_id || '')}|${Number(point.latitude).toFixed(6)}|${Number(point.longitude).toFixed(6)}`;
+  const stops = new Set(visits.map(signature));
+  return plannedRoute.every((point) => stops.has(signature(point))) ? [] : plannedRoute;
 }
 
 function normalizeTechnician(value, fallbackKey = '') {
@@ -112,7 +156,7 @@ function normalizeTechnician(value, fallbackKey = '') {
     String(left.scheduled_at || '').localeCompare(String(right.scheduled_at || ''))
     || String(left.marker_label || '').localeCompare(String(right.marker_label || ''))
   ));
-  const plannedRoute = collection(value?.plannedRoute ?? value?.planned_route).sort((left, right) => (
+  const plannedRoute = removeInferredPlannedRoute(collection(value?.plannedRoute ?? value?.planned_route), visits).sort((left, right) => (
     String(left.scheduled_at || '').localeCompare(String(right.scheduled_at || ''))
     || String(left.marker_label || '').localeCompare(String(right.marker_label || ''))
   ));

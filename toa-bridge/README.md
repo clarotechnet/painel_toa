@@ -1,4 +1,12 @@
-# TOA TechNet Bridge 2.6.11
+# TOA TechNet Bridge 2.6.12
+
+## Marcadores compactos e GPS sem drift 2.6.12
+
+- interpreta `i` dos objetos compactos do mapa como posição zero-based (`6 = G`);
+- mescla os marcadores compactos com `queue[aid]` por atividade e coordenadas;
+- mantém pontos operacionais especiais como quadrados amarelos;
+- não transforma paradas de OS em uma rota planejada artificial;
+- interrompe novas tentativas quando o Chrome invalida o contexto da extensão.
 
 ## Lote de monitoramento técnico 2.6.11
 

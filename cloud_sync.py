@@ -119,12 +119,6 @@ class CloudPublisher:
     def _normalize_location_resource(raw: dict[str, Any]) -> dict[str, Any]:
         service_stops = raw.get("service_stops") if isinstance(raw.get("service_stops"), list) else raw.get("visits")
         planned_route = raw.get("planned_route") if isinstance(raw.get("planned_route"), list) else []
-        if not planned_route and isinstance(service_stops, list):
-            planned_route = [{
-                name: stop.get(name) for name in (
-                    "scheduled_at", "latitude", "longitude", "marker_label", "activity_id",
-                ) if stop.get(name) not in (None, "")
-            } for stop in service_stops if isinstance(stop, dict)]
         return {
             "technician": dict(raw.get("technician") or {}),
             "bucket": raw.get("bucket") or "",

@@ -2,6 +2,7 @@ import {
   loadTechnicianLocationSummary,
   loadTechnicianLocationTrack,
   signInTechnicianHistory,
+  splitGpsTrack,
 } from '../services/technicianLocationService.js';
 import { escapeHtml, formatPtBrDateTime, normalize } from '../utils/text.js';
 
@@ -119,22 +120,25 @@ async function drawTrack(points, visits = [], plannedRoute = []) {
     maxZoom: 19,
     attribution: '&copy; OpenStreetMap contributors',
   }).addTo(routeMap);
-  const routePoints = (points || [])
-    .map((point) => ({
+  const gpsSegments = splitGpsTrack(points || []);
+  const routePoints = gpsSegments.flat().map((point) => ({
       point,
       coordinate: [Number(point.latitude), Number(point.longitude)],
-    }))
-    .filter(({ coordinate: [latitude, longitude] }) => Number.isFinite(latitude) && Number.isFinite(longitude));
+    }));
   const coordinates = routePoints.map(({ coordinate }) => coordinate);
   const plannedCoordinates = (plannedRoute || [])
     .map((point) => [Number(point.latitude), Number(point.longitude)])
     .filter(([latitude, longitude]) => Number.isFinite(latitude) && Number.isFinite(longitude));
   const visitPoints = (visits || [])
-    .map((visit, index) => ({
-      visit,
-      label: String(visit.marker_label || String.fromCharCode(65 + Math.min(index, 25))).slice(0, 2),
-      coordinate: [Number(visit.latitude), Number(visit.longitude)],
-    }))
+    .map((visit, index) => {
+      const encodedLabel = String(visit.marker_label || String.fromCharCode(65 + Math.min(index, 25)));
+      return {
+        visit,
+        warning: encodedLabel.startsWith('!:'),
+        label: encodedLabel.replace(/^!:/, '').slice(0, 2),
+        coordinate: [Number(visit.latitude), Number(visit.longitude)],
+      };
+    })
     .filter(({ coordinate: [latitude, longitude] }) => Number.isFinite(latitude) && Number.isFinite(longitude));
   if (!routePoints.length && !visitPoints.length) {
     routeMap.setView([-5.5, -37.5], 6);
@@ -147,11 +151,11 @@ async function drawTrack(points, visits = [], plannedRoute = []) {
   if (plannedCoordinates.length > 1) {
     L.polyline(plannedCoordinates, { color: '#1746d1', weight: 5, opacity: 0.9 }).addTo(routeLayer);
   }
-  if (coordinates.length > 1) {
-    L.polyline(coordinates, {
-      color: '#36a9ff', weight: 3, opacity: 0.8, dashArray: '7 7',
+  gpsSegments.filter((segment) => segment.length > 1).forEach((segment) => {
+    L.polyline(segment.map((point) => [Number(point.latitude), Number(point.longitude)]), {
+      color: '#36a9ff', weight: 3, opacity: 0.86,
     }).addTo(routeLayer);
-  }
+  });
   routePoints.forEach(({ point, coordinate }, index) => {
     L.circleMarker(coordinate, {
       radius: index === 0 || index === coordinates.length - 1 ? 6 : 3,
@@ -161,10 +165,11 @@ async function drawTrack(points, visits = [], plannedRoute = []) {
     }).bindTooltip(`${index + 1}. ${clock(point.observed_at)}<br>${coordinate[0].toFixed(5)}, ${coordinate[1].toFixed(5)}`)
       .addTo(routeLayer);
   });
-  visitPoints.forEach(({ visit, label, coordinate }) => {
+  visitPoints.forEach(({ visit, warning, label, coordinate }) => {
+    const square = label === '■' || String(visit.activity_id || '').startsWith('map-special:');
     const marker = L.marker(coordinate, {
       icon: L.divIcon({
-        className: 'technician-service-marker-shell',
+        className: `technician-service-marker-shell${warning ? ' is-warning' : ''}${square ? ' is-square' : ''}`,
         html: `<span class="technician-service-marker"><b>${escapeHtml(label)}</b></span>`,
         iconSize: [28, 36],
         iconAnchor: [14, 34],

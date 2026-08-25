@@ -327,7 +327,8 @@ class TOADatalakeStore:
             # Isso impede que respostas atrasadas do Map.get contaminem outro
             # recurso. Em uma instalação vazia, o lote independente ainda pode
             # ser consultado até o primeiro retrato operacional chegar.
-            if activities and not activity:
+            special_map_marker = _text(row["activity_id"], 160).startswith("map-special:")
+            if activities and not activity and not special_map_marker:
                 continue
             if activity:
                 if _text(activity["scheduled_date"], 10) != selected_date:
@@ -511,7 +512,9 @@ class TOADatalakeStore:
                 elapsed = 0.0
             derived_speed = (segment / elapsed) * 3.6 if elapsed else float("inf")
             accuracy = max(float(previous["accuracy_m"] or 0), float(current["accuracy_m"] or 0))
-            if elapsed <= 0 or elapsed > 7200 or segment > 20000 or derived_speed > 160 or accuracy > 1000:
+            # Uma coleta interrompida inicia outro trecho; saltos grandes,
+            # velocidade impossivel e baixa precisao sao drift, nao quilometragem.
+            if elapsed <= 0 or elapsed > 1800 or segment > 15000 or derived_speed > 140 or accuracy > 250:
                 rejected_segments += 1
                 continue
             # Oscilacoes menores que a margem combinada de GPS nao contam como deslocamento.
@@ -624,13 +627,9 @@ class TOADatalakeStore:
             "service": row["service"] or (activity["description"] if activity else ""),
             "status": row["status"] or (activity["status"] if activity else ""),
         } for row, activity in visit_rows]
-        planned_route = [{
-            "scheduled_at": visit["scheduled_at"],
-            "latitude": visit["latitude"],
-            "longitude": visit["longitude"],
-            "marker_label": visit["marker_label"],
-            "activity_id": visit["activity_id"],
-        } for visit in visits]
+        # Paradas de OS sao pontos de atendimento, nao a geometria da rota.
+        # A rota planejada permanece vazia ate o TOA fornecer uma polyline real.
+        planned_route = []
         identity = self._canonical_location_identity(rows[-1], aliases) if rows else requested
         return {"ok": True, "schema": self.SCHEMA, "date": selected_date,
                 "technician": identity,

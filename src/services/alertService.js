@@ -139,77 +139,47 @@ export class AlertService {
     this.processVoice();
   }
 
-  preferredVoice() {
-    const voices = window.speechSynthesis?.getVoices?.() || [];
-    const pt = voices.filter((voice) => /^pt(?:-|_)/i.test(voice.lang || ''));
-    const score = (voice) => {
-      const name = normalize(voice.name);
-      return (name.includes('FRANCISCA') ? 500 : 0) + (name.includes('NATURAL') ? 180 : 0)
-        + (name.includes('MICROSOFT') ? 120 : 0) + (name.includes('GOOGLE') ? 90 : 0)
-        + (name.includes('ANTONIO') ? 70 : 0) + (/^pt-BR$/i.test(voice.lang || '') ? 40 : 0);
-    };
-    return pt.sort((a, b) => score(b) - score(a))[0] || null;
-  }
-
   isVoiceBusy() {
     return Boolean(this.voice && this.speaking);
   }
 
-  speakWithSpeechSynthesis(spoken, generation, finish) {
-    if (!('speechSynthesis' in window)) {
-      finish();
-      return;
-    }
-    try {
-      window.speechSynthesis?.cancel?.();
-    } catch (_) {}
-    const utterance = new SpeechSynthesisUtterance(spoken);
-    utterance.lang = 'pt-BR';
-    utterance.rate = 1.18;
-    utterance.pitch = 1.02;
-    utterance.volume = 1;
-    const voice = this.preferredVoice();
-    if (voice) utterance.voice = voice;
-    utterance.onend = finish;
-    utterance.onerror = finish;
-    window.speechSynthesis.speak(utterance);
-  }
-
   async playEdgeAudio(spoken, generation, finish) {
-    let fallback = true;
     try {
       try { window.speechSynthesis?.cancel?.(); } catch (_) {}
-      if (typeof Audio !== 'undefined') {
-        const voice = encodeURIComponent(this.edgeVoice || 'pt-BR-FranciscaNeural');
-        const rate = encodeURIComponent(this.edgeRate || '+10%');
-        const text = encodeURIComponent(spoken);
-        const audio = new Audio(`/api/v1/voice/speak?text=${text}&voice=${voice}&rate=${rate}`);
-        this.currentAudio = audio;
-        let ended = false;
-        const onDone = () => {
-          if (ended) return;
-          ended = true;
-          this.currentAudio = null;
-          finish();
-        };
-        audio.onended = onDone;
-        audio.onerror = () => {
-          if (ended) return;
-          ended = true;
-          this.currentAudio = null;
-          this.speakWithSpeechSynthesis(spoken, generation, finish);
-        };
-        const promise = audio.play();
-        if (promise !== undefined) {
-          await promise;
-        }
-        fallback = false;
+      if (typeof fetch === 'undefined' || typeof Audio === 'undefined') {
+        finish();
+        return;
       }
+      const response = await fetch('/api/v1/voice/speak', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: spoken,
+          voice: this.edgeVoice || 'pt-BR-FranciscaNeural',
+          rate: this.edgeRate || '+10%',
+        }),
+      });
+      if (!response.ok) {
+        finish();
+        return;
+      }
+      const blob = await response.blob();
+      if (generation !== this.voiceGeneration) return;
+
+      const audioUrl = URL.createObjectURL(blob);
+      const audio = new Audio();
+      audio.src = audioUrl;
+      this.currentAudio = audio;
+      const cleanup = () => {
+        try { URL.revokeObjectURL(audioUrl); } catch (_) {}
+        this.currentAudio = null;
+        finish();
+      };
+      audio.onended = cleanup;
+      audio.onerror = cleanup;
+      await audio.play();
     } catch (_) {
-      fallback = true;
-    }
-    if (fallback && generation === this.voiceGeneration) {
-      this.speakWithSpeechSynthesis(spoken, generation, finish);
+      finish();
     }
   }
 

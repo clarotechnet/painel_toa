@@ -69,7 +69,7 @@ service.syncTvFocus([focus]);
 await new Promise((resolve) => setTimeout(resolve, 20));
 
 assert.equal(playedAudios.length, 1, 'A mesma prioridade visivel nao pode ser repetida');
-assert.match(playedAudios[0], /faltam 20 minutos/);
+assert.match(decodeURIComponent(playedAudios[0]), /faltam 20 minutos/);
 
 service.syncTvFocus([{ ...focus, tec1_minutes: 9, tec1_deadline: new Date(Date.now() + 9 * 60000).toISOString() }]);
 await new Promise((resolve) => setTimeout(resolve, 20));
@@ -78,7 +78,7 @@ assert.equal(playedAudios.length, 2, 'A mudanca para a faixa de 15 minutos deve 
 const urgentDeadline = new Date(Date.now() - 45 * 60000).toISOString();
 service.syncTvFocus([{ ...focus, contract: '408676249', tec1_kind: 'late', tec1_deadline: urgentDeadline, deadline_basis: 'official_window' }]);
 await new Promise((resolve) => setTimeout(resolve, 20));
-assert.match(playedAudios.at(-1), /Baixe imediatamente o contrato/);
+assert.match(decodeURIComponent(playedAudios.at(-1)), /Baixe imediatamente o contrato/);
 
 const cancellationsBeforeFocusChange = cancelCount;
 service.speaking = true;

@@ -59,6 +59,22 @@ export class AlertService {
     return this.voice;
   }
 
+  speakDirect(text) {
+    if (!text || !this.voice) return;
+    const spoken = window.DominiumMonitor?.speechPronunciationText(text) || text;
+    this.cancelVoice();
+    this.speaking = true;
+    const generation = ++this.voiceGeneration;
+    const finish = () => {
+      if (generation !== this.voiceGeneration) return;
+      this.speaking = false;
+      this.currentVoiceKeys = [];
+      this.currentAudio = null;
+      window.setTimeout(() => this.processVoice(), 200);
+    };
+    this.playEdgeAudio(spoken, generation, finish);
+  }
+
   cancelVoice() {
     this.voiceGeneration += 1;
     this.queue = [];
@@ -160,6 +176,7 @@ export class AlertService {
         }),
       });
       if (!response.ok) {
+        console.error('[EdgeVoice] Erro HTTP:', response.status);
         finish();
         return;
       }
@@ -170,15 +187,28 @@ export class AlertService {
       const audio = new Audio();
       audio.src = audioUrl;
       this.currentAudio = audio;
+      let finished = false;
       const cleanup = () => {
-        try { URL.revokeObjectURL(audioUrl); } catch (_) {}
+        if (finished) return;
+        finished = true;
         this.currentAudio = null;
+        try { URL.revokeObjectURL(audioUrl); } catch (_) {}
         finish();
       };
       audio.onended = cleanup;
-      audio.onerror = cleanup;
-      await audio.play();
-    } catch (_) {
+      audio.onerror = (e) => {
+        console.error('[EdgeVoice] Erro de áudio:', e);
+        cleanup();
+      };
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        await playPromise.catch((err) => {
+          console.error('[EdgeVoice] Autoplay bloqueado pelo navegador:', err);
+          cleanup();
+        });
+      }
+    } catch (err) {
+      console.error('[EdgeVoice] Exceção:', err);
       finish();
     }
   }

@@ -83,7 +83,9 @@ export class AlertService {
       } catch (_) {}
       this.currentAudio = null;
     }
-    window.speechSynthesis?.cancel?.();
+    try {
+      window.speechSynthesis?.cancel?.();
+    } catch (_) {}
   }
 
   setTvMode(enabled) {
@@ -109,8 +111,7 @@ export class AlertService {
 
   syncTvFocus(items) {
     if (!this.tvMode || !this.voice) return;
-    // A tela pode receber uma nova ordenação enquanto a locução ainda está em
-    // andamento. Não interrompa a frase nem substitua a fila nesse intervalo.
+    // Se ja estiver falando, nao acumule nem sobreponha
     if (this.speaking) return;
     const now = new Date();
     const visible = (Array.isArray(items) ? items : [])
@@ -118,7 +119,8 @@ export class AlertService {
       .slice(0, 2)
       .map((item) => ({ ...item, voiceKey: this.tvVoiceKey(item, now) }));
     const pending = visible.filter((item) => !this.spoken.has(item.voiceKey));
-    this.queue = pending.length ? [{ tv: true, alerts: pending, keys: pending.map((item) => item.voiceKey) }] : [];
+    if (!pending.length) return;
+    this.queue = [{ tv: true, alerts: pending, keys: pending.map((item) => item.voiceKey) }];
     this.processVoice();
   }
 
@@ -150,44 +152,16 @@ export class AlertService {
     this.processVoice();
   }
 
-  preferredVoice() {
-    const voices = window.speechSynthesis?.getVoices?.() || [];
-    const pt = voices.filter((voice) => /^pt(?:-|_)/i.test(voice.lang || ''));
-    const score = (voice) => {
-      const name = normalize(voice.name);
-      // Francisca Natural é a voz pt-BR equivalente ao padrão recomendado
-      // pelo Edge TTS. Mantemos alternativas locais quando ela não existir.
-      return (name.includes('FRANCISCA') ? 500 : 0) + (name.includes('NATURAL') ? 180 : 0)
-        + (name.includes('MICROSOFT') ? 120 : 0) + (name.includes('GOOGLE') ? 90 : 0)
-        + (name.includes('ANTONIO') ? 70 : 0) + (/^pt-BR$/i.test(voice.lang || '') ? 40 : 0);
-    };
-    return pt.sort((a, b) => score(b) - score(a))[0] || null;
-  }
-
   isVoiceBusy() {
     return Boolean(this.voice && this.speaking);
   }
 
-  speakWithSpeechSynthesis(spoken, generation, finish) {
-    if (!('speechSynthesis' in window)) {
-      finish();
-      return;
-    }
-    const utterance = new SpeechSynthesisUtterance(spoken);
-    utterance.lang = 'pt-BR';
-    utterance.rate = 1.18;
-    utterance.pitch = 1.02;
-    utterance.volume = 1;
-    const voice = this.preferredVoice();
-    if (voice) utterance.voice = voice;
-    utterance.onend = finish;
-    utterance.onerror = finish;
-    window.speechSynthesis.speak(utterance);
-  }
-
   async playEdgeAudio(spoken, generation, finish) {
+    try {
+      window.speechSynthesis?.cancel?.();
+    } catch (_) {}
     if (typeof fetch === 'undefined' || typeof Audio === 'undefined') {
-      this.speakWithSpeechSynthesis(spoken, generation, finish);
+      finish();
       return;
     }
     try {
@@ -201,11 +175,8 @@ export class AlertService {
         }),
       });
       if (!response.ok) {
-        throw new Error(`Edge voice endpoint returned ${response.status}`);
-      }
-      const contentType = response.headers.get('content-type') || '';
-      if (!contentType.includes('audio')) {
-        throw new Error(`Unexpected content type: ${contentType}`);
+        finish();
+        return;
       }
       const blob = await response.blob();
       if (generation !== this.voiceGeneration) return;
@@ -220,27 +191,29 @@ export class AlertService {
       audio.onerror = () => {
         try { URL.revokeObjectURL(audioUrl); } catch (_) {}
         this.currentAudio = null;
-        this.speakWithSpeechSynthesis(spoken, generation, finish);
+        finish();
       };
       await audio.play();
     } catch (_) {
-      if (generation !== this.voiceGeneration) return;
-      this.speakWithSpeechSynthesis(spoken, generation, finish);
+      finish();
     }
   }
 
   processVoice() {
     if (!this.voice || this.speaking || !this.queue.length) return;
+    this.speaking = true;
     const alert = this.queue.shift();
     const keys = alert.tv ? alert.keys : [alert.key];
     const message = alert.tv
       ? window.DominiumMonitor?.buildTvVoiceMessage(alert.alerts, new Date())
       : alert.message || window.DominiumMonitor?.buildTec1VoiceMessage(alert) || 'Alerta de TEC1.';
-    if (!message) return;
+    if (!message) {
+      this.speaking = false;
+      return;
+    }
     const spoken = window.DominiumMonitor?.speechPronunciationText(message) || message;
     keys.forEach((key) => this.spoken.add(key));
     this.persist();
-    this.speaking = true;
     this.currentVoiceKeys = keys;
     const generation = ++this.voiceGeneration;
     const finish = () => {

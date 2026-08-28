@@ -563,8 +563,7 @@ function renderTv(store, alertService) {
     else tvRoot.requestFullscreen?.().catch(() => {});
   });
   tvRoot.querySelector('#tvVoice')?.addEventListener('click', () => {
-    const enabled = alertService.toggleVoice();
-    if (enabled) alertService.speakDirect('Voz do modo TV ativada.');
+    alertService.toggleVoice();
     renderTv(store, alertService);
   });
   window.lucide?.createIcons();
@@ -728,7 +727,6 @@ function bindMonitor(store, directory, alertService) {
   document.querySelector('#monitorVoice')?.addEventListener('click', () => {
     const enabled = alertService.toggleVoice();
     toast(enabled ? 'Voz TEC1 ativada.' : 'Voz TEC1 desativada.');
-    if (enabled) alertService.speakDirect('Voz do téqui um ativada.');
     renderMonitor(store, alertService);
   });
   document.querySelector('#monitorExport')?.addEventListener('click', () => exportCurrent(store));

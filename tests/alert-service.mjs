@@ -88,4 +88,62 @@ assert.equal(notifications.length, 1);
 assert.equal(notifications[0].title, 'TOA - BAIXA URGENTE');
 assert.match(notifications[0].options.body, /Contrato 408676249/);
 
-console.log('Voz do Modo TV: sincronizacao, deduplicacao e velocidade validadas.');
+// Teste da reproducao com Edge Neural TTS via Audio element
+let playedAudios = [];
+globalThis.Audio = class {
+  constructor(src) {
+    this.src = src;
+    this.paused = false;
+  }
+  async play() {
+    playedAudios.push(this.src);
+    queueMicrotask(() => this.onended?.());
+  }
+  pause() {
+    this.paused = true;
+  }
+};
+globalThis.URL = {
+  createObjectURL: (blob) => `blob://test-audio-${blob?.size || 1}`,
+  revokeObjectURL: () => {},
+};
+globalThis.fetch = async (url, options) => {
+  if (url === '/api/v1/voice/speak') {
+    const body = JSON.parse(options.body);
+    if (body.text.includes('FAIL_EDGE')) {
+      return { ok: false, status: 500 };
+    }
+    return {
+      ok: true,
+      headers: new Map([['content-type', 'audio/mpeg']]),
+      blob: async () => ({ size: 42 }),
+    };
+  }
+  return { ok: false, status: 404 };
+};
+
+const edgeService = new AlertService();
+edgeService.voice = true;
+edgeService.setEdgeVoice('pt-BR-AntonioNeural');
+assert.equal(edgeService.edgeVoice, 'pt-BR-AntonioNeural');
+assert.equal(storage.get('dominium-toa-edge-voice'), 'pt-BR-AntonioNeural');
+
+edgeService.setTvMode(true);
+edgeService.syncTvFocus([{ ...focus, os: '999111', tec1_deadline: new Date(Date.now() + 12 * 60000).toISOString() }]);
+await new Promise((resolve) => setTimeout(resolve, 20));
+assert.equal(playedAudios.length, 1, 'Audio element deve reproduzir o audio sintetizado via Edge TTS');
+
+// Teste de fallback quando o endpoint falha
+const fallbackMessages = [];
+const originalSpeak = globalThis.speechSynthesis.speak;
+globalThis.speechSynthesis.speak = (u) => {
+  fallbackMessages.push(u.text);
+  queueMicrotask(() => u.onend?.());
+};
+edgeService.syncTvFocus([{ ...focus, os: 'FAIL_EDGE_1', technician: 'FAIL_EDGE', tec1_deadline: new Date(Date.now() + 5 * 60000).toISOString() }]);
+await new Promise((resolve) => setTimeout(resolve, 20));
+assert.equal(fallbackMessages.length, 1, 'Deve realizar fallback para speechSynthesis caso Edge TTS falhe');
+globalThis.speechSynthesis.speak = originalSpeak;
+
+console.log('Voz do Modo TV: sincronizacao, deduplicacao, Edge Neural TTS e fallback validados.');
+

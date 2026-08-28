@@ -12,7 +12,7 @@ where node >nul 2>&1 || (
   exit /b 1
 )
 
-echo [1/2] Instalando dependencias do frontend...
+echo [1/3] Instalando dependencias do frontend...
 call npm install
 if errorlevel 1 (
   echo.
@@ -21,6 +21,11 @@ if errorlevel 1 (
   exit /b 1
 )
 
+where python >nul 2>&1 && (
+  echo [2/3] Validando voz neural (edge-tts)...
+  python -c "import edge_tts" >nul 2>&1 || call python -m pip install edge-tts
+)
+
 echo.
-echo [2/2] Abrindo servidor de desenvolvimento...
+echo [3/3] Abrindo servidor de desenvolvimento...
 call npm run dev

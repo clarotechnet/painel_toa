@@ -9,9 +9,25 @@ from collections.abc import Callable
 
 
 DEFAULT_EDGE_VOICE = "pt-BR-FranciscaNeural"
+VOICE_MAP: dict[str, str] = {
+    "pt-br-franciscaneural": "pt-BR-FranciscaNeural",
+    "pt-br-antonioneural": "pt-BR-AntonioNeural",
+    "pt-br-thalitamultilingualneural": "pt-BR-ThalitaMultilingualNeural",
+    "pt-br-thalitaneural": "pt-BR-ThalitaMultilingualNeural",
+    "francisca": "pt-BR-FranciscaNeural",
+    "antonio": "pt-BR-AntonioNeural",
+    "thalita": "pt-BR-ThalitaMultilingualNeural",
+    "nova": "pt-BR-FranciscaNeural",
+    "alloy": "pt-BR-FranciscaNeural",
+    "fable": "pt-BR-FranciscaNeural",
+    "onyx": "pt-BR-AntonioNeural",
+    "echo": "pt-BR-AntonioNeural",
+    "shimmer": "pt-BR-ThalitaMultilingualNeural",
+}
 ALLOWED_EDGE_VOICES = (
     "pt-BR-FranciscaNeural",
     "pt-BR-AntonioNeural",
+    "pt-BR-ThalitaMultilingualNeural",
 )
 MAX_SPEECH_CHARACTERS = 900
 
@@ -29,6 +45,48 @@ def _normalize_text(value: object) -> str:
             f"O texto da voz excede {MAX_SPEECH_CHARACTERS} caracteres"
         )
     return text
+
+
+def _normalize_voice(value: object) -> str:
+    raw = str(value or "").strip().lower()
+    if not raw:
+        return DEFAULT_EDGE_VOICE
+    resolved = VOICE_MAP.get(raw)
+    if resolved:
+        return resolved
+    for candidate in ALLOWED_EDGE_VOICES:
+        if candidate.lower() == raw:
+            return candidate
+    raise ValueError(f"Voz nao autorizada: {value}")
+
+
+def _normalize_rate(value: object) -> str:
+    if value is None:
+        return "+0%"
+    if isinstance(value, (int, float)):
+        # Converte velocidade multiplicadora (ex: 1.1 -> +10%)
+        speed = float(value)
+        speed = max(0.5, min(2.0, speed))
+        delta = round((speed - 1.0) * 100)
+        return f"{'+' if delta >= 0 else ''}{delta}%"
+    raw = str(value).strip()
+    if not raw:
+        return "+0%"
+    if raw.endswith("%"):
+        try:
+            num = int(raw.rstrip("%").lstrip("+"))
+            num = max(-50, min(100, num))
+            return f"{'+' if num >= 0 else ''}{num}%"
+        except ValueError:
+            pass
+    try:
+        speed = float(raw)
+        speed = max(0.5, min(2.0, speed))
+        delta = round((speed - 1.0) * 100)
+        return f"{'+' if delta >= 0 else ''}{delta}%"
+    except ValueError:
+        pass
+    return "+0%"
 
 
 def _render_edge_audio(text: str, voice: str, rate: str) -> bytes:
@@ -59,13 +117,13 @@ class EdgeVoiceService:
         self,
         *,
         renderer: Callable[[str, str, str], bytes] | None = None,
-        cache_size: int = 128,
+        cache_size: int = 256,
     ) -> None:
         self._renderer = renderer or _render_edge_audio
         self._cache_size = max(1, int(cache_size))
         self._cache: OrderedDict[str, bytes] = OrderedDict()
         self._lock = threading.RLock()
-        self._slots = threading.BoundedSemaphore(2)
+        self._slots = threading.BoundedSemaphore(3)
 
     @property
     def installed(self) -> bool:
@@ -77,6 +135,7 @@ class EdgeVoiceService:
             "provider": "Microsoft Edge Neural",
             "default_voice": DEFAULT_EDGE_VOICE,
             "voices": list(ALLOWED_EDGE_VOICES),
+            "voice_aliases": list(VOICE_MAP.keys()),
             "fallback": "Voz local do navegador",
         }
 
@@ -84,16 +143,12 @@ class EdgeVoiceService:
         self,
         value: object,
         *,
-        voice: str = DEFAULT_EDGE_VOICE,
-        rate: str = "-5%",
+        voice: object = DEFAULT_EDGE_VOICE,
+        rate: object = "+0%",
     ) -> bytes:
         text = _normalize_text(value)
-        selected_voice = str(voice or DEFAULT_EDGE_VOICE).strip()
-        if selected_voice not in ALLOWED_EDGE_VOICES:
-            raise ValueError("Voz nao autorizada")
-        selected_rate = str(rate or "-5%").strip()
-        if selected_rate not in {"-10%", "-5%", "+0%", "+5%"}:
-            raise ValueError("Velocidade de voz nao autorizada")
+        selected_voice = _normalize_voice(voice)
+        selected_rate = _normalize_rate(rate)
         key = hashlib.sha256(
             f"{selected_voice}\0{selected_rate}\0{text}".encode("utf-8")
         ).hexdigest()

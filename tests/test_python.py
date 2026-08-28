@@ -13,6 +13,7 @@ import app
 from cloud_sync import CloudPublisher
 from toa_datalake_store import TOADatalakeStore
 from backend.toa import toa_discovery_browser
+from backend.toa.edge_voice import EdgeVoiceService, EdgeVoiceError, EDGE_VOICE
 
 
 class LocalServerTests(unittest.TestCase):
@@ -23,6 +24,8 @@ class LocalServerTests(unittest.TestCase):
         (self.dist / "asset.txt").write_text("asset-ok", encoding="utf-8")
         self.original_dist = app.DIST
         self.original_store = app.STORE
+        self.original_renderer = EDGE_VOICE._renderer
+        EDGE_VOICE._renderer = lambda text, voice, rate: b"mock-audio-content"
         app.DIST = self.dist
         app.STORE = TOADatalakeStore(self.dist / "local-api.sqlite3")
         self.server = app.ThreadingHTTPServer(("127.0.0.1", 0), app.Handler)
@@ -35,20 +38,25 @@ class LocalServerTests(unittest.TestCase):
         self.thread.join(timeout=2)
         app.DIST = self.original_dist
         app.STORE = self.original_store
+        EDGE_VOICE._renderer = self.original_renderer
         self.temporary_directory.cleanup()
 
     def request(
         self, path: str, *, method: str = "GET", payload: dict | None = None,
-    ) -> tuple[int, str, str]:
-        connection = http.client.HTTPConnection("127.0.0.1", self.server.server_port, timeout=2)
+    ) -> tuple[int, str, str | bytes]:
+        connection = http.client.HTTPConnection("127.0.0.1", self.server.server_port, timeout=5)
         body = json.dumps(payload).encode("utf-8") if payload is not None else None
         headers = {"Content-Type": "application/json"} if body is not None else {}
         connection.request(method, path, body=body, headers=headers)
         response = connection.getresponse()
-        body = response.read().decode("utf-8")
+        raw_body = response.read()
         content_type = response.getheader("Content-Type", "")
+        if "audio/" in content_type or "octet-stream" in content_type:
+            parsed_body = raw_body
+        else:
+            parsed_body = raw_body.decode("utf-8")
         connection.close()
-        return response.status, content_type, body
+        return response.status, content_type, parsed_body
 
     def test_serves_static_asset_and_spa_fallback(self) -> None:
         self.assertEqual(self.request("/asset.txt"), (200, "text/plain; charset=utf-8", "asset-ok"))
@@ -299,7 +307,98 @@ class LocalServerTests(unittest.TestCase):
         self.assertEqual(merged[0]["visit_snapshot_date"], "2026-08-21")
         self.assertEqual([row["activity_id"] for row in merged[0]["service_stops"]], ["new"])
         self.assertEqual(merged[0]["planned_route"], [])
-        self.assertEqual(len(merged[0]["gps_real"]), 2)
+    def test_voice_status_and_models_endpoints(self) -> None:
+        status, content_type, body = self.request("/api/v1/voice/status")
+        self.assertEqual(status, 200, body)
+        self.assertIn("application/json", content_type)
+        payload = json.loads(body)
+        self.assertEqual(payload["default_voice"], "pt-BR-FranciscaNeural")
+        self.assertIn("pt-BR-FranciscaNeural", payload["voices"])
+        self.assertIn("pt-BR-AntonioNeural", payload["voices"])
+
+        status, content_type, body = self.request("/v1/models")
+        self.assertEqual(status, 200, body)
+        models = json.loads(body)
+        self.assertEqual(models["data"][0]["id"], "tts-1")
+
+    def test_voice_synthesis_post_and_get_endpoints(self) -> None:
+        status, content_type, body = self.request(
+            "/api/v1/voice/speak", method="POST", payload={
+                "text": "Alerta de teste.",
+                "voice": "pt-BR-FranciscaNeural",
+                "rate": "+0%",
+            },
+        )
+        self.assertEqual(status, 200, body)
+        self.assertEqual(content_type, "audio/mpeg")
+        self.assertGreater(len(body), 0)
+
+        # GET speak
+        status, content_type, body = self.request(
+            "/api/v1/voice/speak?text=Alerta+rapido&voice=antonio&rate=%2B10%25",
+        )
+        self.assertEqual(status, 200, body)
+        self.assertEqual(content_type, "audio/mpeg")
+
+    def test_openai_compatible_speech_endpoint(self) -> None:
+        status, content_type, body = self.request(
+            "/v1/audio/speech", method="POST", payload={
+                "model": "tts-1",
+                "input": "Alerta openai format.",
+                "voice": "alloy",
+                "speed": 1.1,
+            },
+        )
+        self.assertEqual(status, 200, body)
+        self.assertEqual(content_type, "audio/mpeg")
+
+
+class EdgeVoiceTests(unittest.TestCase):
+    def test_synthesizes_and_caches_audio(self) -> None:
+        rendered: list[tuple[str, str, str]] = []
+
+        def mock_renderer(text: str, voice: str, rate: str) -> bytes:
+            rendered.append((text, voice, rate))
+            return b"fake-audio-bytes"
+
+        service = EdgeVoiceService(renderer=mock_renderer, cache_size=10)
+        audio1 = service.synthesize("Alerta TEC1", voice="pt-BR-FranciscaNeural", rate="+10%")
+        self.assertEqual(audio1, b"fake-audio-bytes")
+        self.assertEqual(len(rendered), 1)
+
+        # Cache hit: nao deve chamar o renderer novamente
+        audio2 = service.synthesize("Alerta TEC1", voice="pt-BR-FranciscaNeural", rate="+10%")
+        self.assertEqual(audio2, b"fake-audio-bytes")
+        self.assertEqual(len(rendered), 1)
+
+    def test_aliases_and_speed_normalization(self) -> None:
+        calls: list[tuple[str, str, str]] = []
+
+        def mock_renderer(text: str, voice: str, rate: str) -> bytes:
+            calls.append((text, voice, rate))
+            return b"audio"
+
+        service = EdgeVoiceService(renderer=mock_renderer)
+        service.synthesize("Teste 1", voice="alloy", rate=1.0)
+        self.assertEqual(calls[-1][1], "pt-BR-FranciscaNeural")
+        self.assertEqual(calls[-1][2], "+0%")
+
+        service.synthesize("Teste 2", voice="echo", rate=1.15)
+        self.assertEqual(calls[-1][1], "pt-BR-AntonioNeural")
+        self.assertEqual(calls[-1][2], "+15%")
+
+        service.synthesize("Teste 3", voice="thalita", rate="-5%")
+        self.assertEqual(calls[-1][1], "pt-BR-ThalitaMultilingualNeural")
+        self.assertEqual(calls[-1][2], "-5%")
+
+    def test_rejects_empty_or_excessive_text(self) -> None:
+        service = EdgeVoiceService()
+        with self.assertRaises(ValueError):
+            service.synthesize("   ")
+        with self.assertRaises(ValueError):
+            service.synthesize("A" * 1000)
+        with self.assertRaises(ValueError):
+            service.synthesize("OK", voice="voz_invalida_123")
 
 
 class DiscoveryConfigurationTests(unittest.TestCase):

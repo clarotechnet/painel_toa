@@ -1,11 +1,15 @@
 import { normalize } from '../utils/text.js';
 
 const VOICE_KEYS = 'dominium-toa-tec1-voice-keys-v4';
+const EDGE_VOICE_KEY = 'dominium-toa-edge-voice';
+const EDGE_RATE_KEY = 'dominium-toa-edge-rate';
 
 export class AlertService {
   constructor() {
     this.notifications = localStorage.getItem('dominium-toa-notifications') === '1';
     this.voice = localStorage.getItem('dominium-toa-voice') === '1';
+    this.edgeVoice = localStorage.getItem(EDGE_VOICE_KEY) || 'pt-BR-FranciscaNeural';
+    this.edgeRate = localStorage.getItem(EDGE_RATE_KEY) || '+10%';
     this.spoken = this.loadKeys();
     this.notificationKeys = new Set();
     this.speaking = false;
@@ -13,6 +17,7 @@ export class AlertService {
     this.tvMode = false;
     this.currentVoiceKeys = [];
     this.voiceGeneration = 0;
+    this.currentAudio = null;
   }
 
   loadKeys() {
@@ -22,6 +27,12 @@ export class AlertService {
 
   persist() {
     localStorage.setItem(VOICE_KEYS, JSON.stringify([...this.spoken].slice(-600)));
+  }
+
+  setEdgeVoice(voiceName) {
+    if (!voiceName) return;
+    this.edgeVoice = String(voiceName).trim();
+    localStorage.setItem(EDGE_VOICE_KEY, this.edgeVoice);
   }
 
   async toggleNotifications() {
@@ -44,11 +55,34 @@ export class AlertService {
     return this.voice;
   }
 
+  speakDirect(text) {
+    if (!text || !this.voice) return;
+    const spoken = window.DominiumMonitor?.speechPronunciationText(text) || text;
+    this.cancelVoice();
+    this.speaking = true;
+    const generation = ++this.voiceGeneration;
+    const finish = () => {
+      if (generation !== this.voiceGeneration) return;
+      this.speaking = false;
+      this.currentVoiceKeys = [];
+      this.currentAudio = null;
+      window.setTimeout(() => this.processVoice(), 120);
+    };
+    this.playEdgeAudio(spoken, generation, finish);
+  }
+
   cancelVoice() {
     this.voiceGeneration += 1;
     this.queue = [];
     this.speaking = false;
     this.currentVoiceKeys = [];
+    if (this.currentAudio) {
+      try {
+        this.currentAudio.pause();
+        this.currentAudio.src = '';
+      } catch (_) {}
+      this.currentAudio = null;
+    }
     window.speechSynthesis?.cancel?.();
   }
 
@@ -134,15 +168,11 @@ export class AlertService {
     return Boolean(this.voice && this.speaking);
   }
 
-  processVoice() {
-    if (!this.voice || this.speaking || !this.queue.length || !('speechSynthesis' in window)) return;
-    const alert = this.queue.shift();
-    const keys = alert.tv ? alert.keys : [alert.key];
-    const message = alert.tv
-      ? window.DominiumMonitor?.buildTvVoiceMessage(alert.alerts, new Date())
-      : alert.message || window.DominiumMonitor?.buildTec1VoiceMessage(alert) || 'Alerta de TEC1.';
-    if (!message) return;
-    const spoken = window.DominiumMonitor?.speechPronunciationText(message) || message;
+  speakWithSpeechSynthesis(spoken, generation, finish) {
+    if (!('speechSynthesis' in window)) {
+      finish();
+      return;
+    }
     const utterance = new SpeechSynthesisUtterance(spoken);
     utterance.lang = 'pt-BR';
     utterance.rate = 1.18;
@@ -150,6 +180,64 @@ export class AlertService {
     utterance.volume = 1;
     const voice = this.preferredVoice();
     if (voice) utterance.voice = voice;
+    utterance.onend = finish;
+    utterance.onerror = finish;
+    window.speechSynthesis.speak(utterance);
+  }
+
+  async playEdgeAudio(spoken, generation, finish) {
+    if (typeof fetch === 'undefined' || typeof Audio === 'undefined') {
+      this.speakWithSpeechSynthesis(spoken, generation, finish);
+      return;
+    }
+    try {
+      const response = await fetch('/api/v1/voice/speak', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: spoken,
+          voice: this.edgeVoice || 'pt-BR-FranciscaNeural',
+          rate: this.edgeRate || '+10%',
+        }),
+      });
+      if (!response.ok) {
+        throw new Error(`Edge voice endpoint returned ${response.status}`);
+      }
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('audio')) {
+        throw new Error(`Unexpected content type: ${contentType}`);
+      }
+      const blob = await response.blob();
+      if (generation !== this.voiceGeneration) return;
+
+      const audioUrl = URL.createObjectURL(blob);
+      const audio = new Audio(audioUrl);
+      this.currentAudio = audio;
+      audio.onended = () => {
+        try { URL.revokeObjectURL(audioUrl); } catch (_) {}
+        finish();
+      };
+      audio.onerror = () => {
+        try { URL.revokeObjectURL(audioUrl); } catch (_) {}
+        this.currentAudio = null;
+        this.speakWithSpeechSynthesis(spoken, generation, finish);
+      };
+      await audio.play();
+    } catch (_) {
+      if (generation !== this.voiceGeneration) return;
+      this.speakWithSpeechSynthesis(spoken, generation, finish);
+    }
+  }
+
+  processVoice() {
+    if (!this.voice || this.speaking || !this.queue.length) return;
+    const alert = this.queue.shift();
+    const keys = alert.tv ? alert.keys : [alert.key];
+    const message = alert.tv
+      ? window.DominiumMonitor?.buildTvVoiceMessage(alert.alerts, new Date())
+      : alert.message || window.DominiumMonitor?.buildTec1VoiceMessage(alert) || 'Alerta de TEC1.';
+    if (!message) return;
+    const spoken = window.DominiumMonitor?.speechPronunciationText(message) || message;
     keys.forEach((key) => this.spoken.add(key));
     this.persist();
     this.speaking = true;
@@ -159,10 +247,10 @@ export class AlertService {
       if (generation !== this.voiceGeneration) return;
       this.speaking = false;
       this.currentVoiceKeys = [];
+      this.currentAudio = null;
       window.setTimeout(() => this.processVoice(), 120);
     };
-    utterance.onend = finish;
-    utterance.onerror = finish;
-    window.speechSynthesis.speak(utterance);
+
+    this.playEdgeAudio(spoken, generation, finish);
   }
 }

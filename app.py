@@ -14,6 +14,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+from backend.toa.edge_voice import EDGE_VOICE, EdgeVoiceError
 from cloud_sync import CloudPublisher
 from toa_datalake_store import TOADatalakeStore
 
@@ -56,6 +57,15 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(content)))
         self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.end_headers()
+        self.wfile.write(content)
+
+    def _audio(self, status: int, content: bytes, content_type: str = "audio/mpeg") -> None:
+        self.send_response(status)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(content)))
+        self.send_header("Cache-Control", "public, max-age=86400")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.end_headers()
         self.wfile.write(content)
@@ -115,6 +125,32 @@ class Handler(BaseHTTPRequestHandler):
             return
         if parsed.path == "/api/v1/monitor/summary":
             self._json(HTTPStatus.OK, STORE.monitor_summary(profile=profile, date=date))
+            return
+        if parsed.path == "/api/v1/voice/status":
+            self._json(HTTPStatus.OK, EDGE_VOICE.status())
+            return
+        if parsed.path == "/v1/models":
+            self._json(HTTPStatus.OK, {
+                "object": "list",
+                "data": [
+                    {"id": "tts-1", "object": "model", "owned_by": "openai-edge-tts"},
+                    {"id": "tts-1-hd", "object": "model", "owned_by": "openai-edge-tts"},
+                ],
+            })
+            return
+        if parsed.path == "/api/v1/voice/speak":
+            text = str(query.get("text", [""])[0])
+            voice = str(query.get("voice", [""])[0]) or None
+            rate = str(query.get("rate", [""])[0]) or str(query.get("speed", [""])[0]) or None
+            try:
+                audio = EDGE_VOICE.synthesize(text, voice=voice, rate=rate)
+                self._audio(HTTPStatus.OK, audio)
+            except ValueError as exc:
+                self._json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": str(exc)})
+            except EdgeVoiceError as exc:
+                self._json(HTTPStatus.SERVICE_UNAVAILABLE, {"ok": False, "error": str(exc)})
+            except Exception as exc:
+                self._json(HTTPStatus.INTERNAL_SERVER_ERROR, {"ok": False, "error": f"Erro de sintetizacao: {exc}"})
             return
         if parsed.path in {"/api/v1/monitor/feed", "/api/v1/feed"}:
             self._json(HTTPStatus.OK, STORE.feed(profile=profile, date=date))
@@ -204,6 +240,24 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         path = urlparse(self.path).path
+        if path in {"/api/v1/voice/speak", "/v1/audio/speech", "/api/v1/audio/speech"}:
+            if not self._ingest_authorized():
+                return
+            try:
+                body = self._body()
+                text = body.get("text") or body.get("input") or ""
+                voice = body.get("voice")
+                rate = body.get("rate") or body.get("speed")
+                audio = EDGE_VOICE.synthesize(text, voice=voice, rate=rate)
+                self._audio(HTTPStatus.OK, audio)
+            except ValueError as exc:
+                self._json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": str(exc), "error_detail": {"message": str(exc), "type": "invalid_request_error"}})
+            except EdgeVoiceError as exc:
+                self._json(HTTPStatus.SERVICE_UNAVAILABLE, {"ok": False, "error": str(exc), "error_detail": {"message": str(exc), "type": "service_unavailable"}})
+            except Exception as exc:
+                self._json(HTTPStatus.INTERNAL_SERVER_ERROR, {"ok": False, "error": f"Erro interno: {exc}", "error_detail": {"message": str(exc), "type": "server_error"}})
+            return
+
         aliases = {
             "/api/v1/ingest/snapshot": "/api/toa-datalake/ingest",
             "/api/v1/ingest/history": "/api/toa-datalake/ingest-history",

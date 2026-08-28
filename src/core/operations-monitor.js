@@ -380,7 +380,11 @@
       .replace(/\bMUDANCA\b/gi, "mudança")
       .replace(/\bINSTALACAO\b/gi, "instalação")
       .replace(/\bDESCONEXAO\b/gi, "desconexão")
-      .replace(/\bNAO\b/gi, "não");
+      .replace(/\bNAO\b/gi, "não")
+      .replace(/\bO\.?S\.?\b/gi, "O.S.")
+      .replace(/\bGPON\b/gi, "G-pon")
+      .replace(/\bHFC\b/gi, "H-F-C")
+      .replace(/\bTOA\b/gi, "Tôa");
   }
 
   function spokenDigits(value) {
@@ -420,13 +424,14 @@
         : diff < 0
           ? `atrasada ${absoluteMinutes} minuto${absoluteMinutes === 1 ? "" : "s"}`
           : `faltam ${absoluteMinutes} minuto${absoluteMinutes === 1 ? "" : "s"}`;
+      const contractNumber = row?.contract && row.contract !== "-" ? row.contract : row?.os;
       if (diff < 0 && absoluteMinutes >= 45 && row?.deadline_basis === "official_window") {
-        return `Prioridade ${index + 1}. Alerta urgente. Baixe imediatamente o contrato ${spokenDigits(row?.contract)}. `
-          + `Técnico ${row?.technician || "não informado"}. OS ${spokenDigits(row?.os)}. `
+        return `Prioridade ${index + 1}. Alerta urgente. Baixe imediatamente o contrato ${spokenDigits(contractNumber)}. `
+          + `Técnico ${row?.technician || "não informado"}. `
           + `Janela vencida há ${absoluteMinutes} minuto${absoluteMinutes === 1 ? "" : "s"}.`;
       }
       return `Prioridade ${index + 1}. Técnico ${row?.technician || "não informado"}. `
-        + `OS ${spokenDigits(row?.os)}. ${timing}.`;
+        + `Contrato ${spokenDigits(contractNumber)}. ${timing}.`;
     }).join(" ");
   }
 

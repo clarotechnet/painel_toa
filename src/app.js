@@ -562,7 +562,11 @@ function renderTv(store, alertService) {
     if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
     else tvRoot.requestFullscreen?.().catch(() => {});
   });
-  tvRoot.querySelector('#tvVoice')?.addEventListener('click', () => { alertService.toggleVoice(); renderTv(store, alertService); });
+  tvRoot.querySelector('#tvVoice')?.addEventListener('click', () => {
+    const enabled = alertService.toggleVoice();
+    if (enabled) alertService.speakDirect('Voz do modo TV ativada.');
+    renderTv(store, alertService);
+  });
   window.lucide?.createIcons();
 }
 
@@ -722,7 +726,10 @@ function bindMonitor(store, directory, alertService) {
     toast(enabled ? 'Notificações TEC1 ativadas.' : 'Notificações TEC1 desativadas.'); renderMonitor(store, alertService);
   });
   document.querySelector('#monitorVoice')?.addEventListener('click', () => {
-    const enabled = alertService.toggleVoice(); toast(enabled ? 'Voz TEC1 ativada.' : 'Voz TEC1 desativada.'); renderMonitor(store, alertService);
+    const enabled = alertService.toggleVoice();
+    toast(enabled ? 'Voz TEC1 ativada.' : 'Voz TEC1 desativada.');
+    if (enabled) alertService.speakDirect('Voz do téqui um ativada.');
+    renderMonitor(store, alertService);
   });
   document.querySelector('#monitorExport')?.addEventListener('click', () => exportCurrent(store));
   document.querySelector('#monitorRefresh')?.addEventListener('click', () => refreshDatalake(store, directory, alertService, { quiet: false }));

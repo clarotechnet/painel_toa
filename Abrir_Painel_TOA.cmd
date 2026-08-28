@@ -19,8 +19,9 @@ where python >nul 2>&1 || (
   exit /b 1
 )
 
-python -c "import edge_tts" >nul 2>&1 || (
-  echo [INFO] Instalando suporte a voz neural (edge-tts)...
+python -c "import edge_tts" >nul 2>&1
+if errorlevel 1 (
+  echo [INFO] Instalando suporte a voz neural edge-tts...
   python -m pip install edge-tts >nul 2>&1
 )
 

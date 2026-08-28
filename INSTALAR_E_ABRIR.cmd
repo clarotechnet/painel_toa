@@ -21,8 +21,9 @@ if errorlevel 1 (
   exit /b 1
 )
 
-where python >nul 2>&1 && (
-  echo [2/3] Validando voz neural (edge-tts)...
+where python >nul 2>&1
+if not errorlevel 1 (
+  echo [2/3] Validando voz neural edge-tts...
   python -c "import edge_tts" >nul 2>&1 || call python -m pip install edge-tts
 )
 

@@ -97,13 +97,14 @@
   }
 
   function isOracleUnscheduledValue(value) {
-    // O OFS usa o ano 3000 como data sentinela para atividades que ainda
-    // aparecem na grade/pesquisa, mas nao foram efetivamente agendadas.
-    return /^3000-01-01(?:[T\s]|$)/.test(text(value));
+    const v = normalized(text(value));
+    return /^3000-01-01(?:[T\s]|$)/.test(text(value))
+      || /NAO AGENDAD|NÃO AGENDAD|UNSCHEDULED|NON-SCHEDULED|SEM AGENDA/.test(v);
   }
 
   function statusKind(value) {
     const status = normalized(value);
+    if (/NAO AGENDAD|NÃO AGENDAD|UNSCHEDULED|NON-SCHEDULED/.test(status)) return "canceled";
     if (/SUSPENS/.test(status)) return "suspended";
     if (/CONCLUID|FINALIZ|BAIXAD|EXECUTAD|ENCERRAD|COMPLETE|NOTDONE|NOT DONE/.test(status)) return "completed";
     if (/CANCEL/.test(status)) return "canceled";
@@ -113,6 +114,7 @@
 
   function routeState(value) {
     const status = normalized(value);
+    if (/NAO AGENDAD|NÃO AGENDAD|UNSCHEDULED|NON-SCHEDULED/.test(status)) return "canceled";
     if (/SUSPENS/.test(status)) return "suspended";
     if (/CONCLUID|FINALIZ|BAIXAD|EXECUTAD|ENCERRAD|COMPLETE|NOTDONE|NOT DONE/.test(status)) return "completed";
     if (/CANCEL/.test(status)) return "canceled";
@@ -144,10 +146,17 @@
     const actualEndRaw = first(order, ["ended_at", "end_time", "termino", "end", "hora_fim"]);
     const actualStartRaw = first(order, ["started_at", "start_time", "inicio", "start", "hora_inicio"]);
     const scheduledFlag = normalized(first(order, ["is_scheduled", "scheduled"]));
+    const routePos = normalized(first(order, ["route_position", "position", "posicao"]));
+    const rawServiceWindow = first(order, ["service_window", "time_window", "janela"]);
+    const rawSchedule = first(order, ["schedule", "agenda"]);
     const isUnscheduled = isOracleUnscheduledValue(actualStartRaw)
       || isOracleUnscheduledValue(actualEndRaw)
       || isOracleUnscheduledValue(date)
-      || ["FALSE", "0", "NAO", "NO"].includes(scheduledFlag);
+      || isOracleUnscheduledValue(rawServiceWindow)
+      || isOracleUnscheduledValue(rawSchedule)
+      || isOracleUnscheduledValue(routePos)
+      || isOracleUnscheduledValue(first(order, ["status", "toa_status", "activity_status"]))
+      || ["FALSE", "0", "NAO", "NO", "NAO AGENDADO", "NAO AGENDADA", "UNSCHEDULED"].includes(scheduledFlag);
     const safeActualEndRaw = isUnscheduled ? "" : actualEndRaw;
     const safeActualStartRaw = isUnscheduled ? "" : actualStartRaw;
     const endRaw = safeActualEndRaw || window.end || first(order, ["sla_end"]);
@@ -159,7 +168,7 @@
     const activityIsClosed = /CONCLUID|FINALIZ|BAIXAD|ENCERRAD|CANCEL|COMPLETE|NOTDONE|NOT DONE/.test(
       normalized(activityStatus),
     );
-    const rawOrderStatus = activityIsClosed ? activityStatus : taskStatus || activityStatus;
+    const rawOrderStatus = isUnscheduled ? "CANCELADA / NAO AGENDADA" : (activityIsClosed ? activityStatus : taskStatus || activityStatus);
     const detailState = text(first(order, ["detail_state", "detail_status"])).toLowerCase();
     const statusNeedsValidation = Boolean(detailState && detailState !== "complete")
       && statusKind(rawOrderStatus) === "field";
@@ -169,7 +178,7 @@
     const orderStatus = statusNeedsValidation ? "VALIDANDO TOA" : rawOrderStatus;
     const isAuxiliary = Boolean(order && order.is_auxiliary);
     const auxiliaryType = text(order && order.auxiliary_type);
-    const visualState = isAuxiliary ? "auxiliary" : routeState(orderStatus);
+    const visualState = isAuxiliary ? "auxiliary" : (isUnscheduled ? "canceled" : routeState(orderStatus));
     const sourceFile = text(first(order, ["source_file", "source_filename"]));
     const bucket = text(first(order, ["bucket", "toa_bucket", "resource_parent"]))
       || bucketFromSource(sourceFile);
@@ -287,6 +296,7 @@
   }
 
   function tec1State(order, now) {
+    if (!order.isScheduled) return { key: "unknown", label: "Sem agenda", minutes: null };
     if (["completed", "canceled", "suspended"].includes(order.statusKind)) {
       return { key: "done", label: "Encerrada", minutes: null };
     }

@@ -78,7 +78,7 @@ def _terminal_status(value: Any) -> bool:
     status = _ascii(value).replace("_", " ")
     return any(term in status for term in (
         "complete", "concluid", "finaliz", "encerrad", "notdone",
-        "nao conclu", "cancel", "suspend",
+        "nao conclu", "cancel", "suspend", "nao agendad", "unscheduled", "non-scheduled",
     ))
 
 
@@ -87,8 +87,14 @@ def _suspended_status(value: Any) -> bool:
 
 
 def _oracle_unscheduled(*values: Any) -> bool:
-    """O OFS representa atividade nao agendada com timestamps no ano 3000."""
-    return any(re.match(r"^3000-01-01(?:[T\s]|$)", _text(value, 60)) for value in values)
+    """O OFS representa atividade nao agendada com timestamps no ano 3000 ou textos 'nao agendado'."""
+    for value in values:
+        t = _text(value, 120).lower()
+        if re.match(r"^3000-01-01(?:[T\s]|$)", t):
+            return True
+        if any(term in _ascii(t) for term in ("nao agendad", "unscheduled", "non-scheduled", "sem agenda")):
+            return True
+    return False
 
 
 def _window_end(scheduled_date: Any, service_window: Any) -> dt.datetime | None:

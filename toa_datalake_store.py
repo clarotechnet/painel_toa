@@ -833,7 +833,14 @@ class TOADatalakeStore:
                         OR LOWER(excluded.status) LIKE '%suspend%')
                       THEN 'complete'
                     WHEN activities.status<>excluded.status THEN 'pending'
+                    WHEN excluded.technician_id<>'' AND activities.technician_id<>excluded.technician_id THEN 'pending'
+                    WHEN excluded.start_min<>'' AND activities.start_min<>excluded.start_min THEN 'pending'
                     ELSE activities.detail_state END,
+                  detail_checked_at=CASE
+                    WHEN (excluded.technician_id<>'' AND activities.technician_id<>excluded.technician_id)
+                      OR (excluded.start_min<>'' AND activities.start_min<>excluded.start_min)
+                      OR (activities.status<>excluded.status) THEN ''
+                    ELSE activities.detail_checked_at END,
                   updated_at=excluded.updated_at""", (*row.values(), "complete" if details else "pending", stamp))
                 persisted = db.execute(
                     "SELECT status,technician_id,bucket,contract FROM activities WHERE activity_id=?",
@@ -1154,11 +1161,22 @@ class TOADatalakeStore:
                 continue
             if a["activity_id"] in inherited_successors and not linked[a["activity_id"]]:
                 continue
+            effective_window = effective["service_window"]
+            start_m = int(effective["start_min"]) if str(effective.get("start_min", "")).isdigit() else None
+            if start_m is not None and effective_window and "-" in effective_window:
+                parts = [p.strip() for p in effective_window.split("-")]
+                if len(parts) == 2 and ":" in parts[1]:
+                    try:
+                        wh, wm = map(int, parts[1].split(":")[:2])
+                        if start_m > (wh * 60 + wm) and not _terminal_status(effective["status"]):
+                            effective_window = ""
+                    except Exception:
+                        pass
             common = {"profile": effective["profile"], "date": effective["scheduled_date"], "scheduled_date": effective["scheduled_date"],
               "technician": effective["technician_name"] or effective["technician_login"] or effective["technician_id"],
               "technician_name": effective["technician_name"], "technician_login": effective["technician_login"],
               "activity_status": effective["status"], "city": effective["city"], "contract": effective["contract"],
-              "service_window": effective["service_window"], "time_window": effective["service_window"],
+              "service_window": effective_window, "time_window": effective_window,
               "detail_state": effective["detail_state"],
               "is_scheduled": not _oracle_unscheduled(
                   effective["scheduled_date"], effective["start_time"], effective["end_time"]),

@@ -173,6 +173,26 @@
     const sourceFile = text(first(order, ["source_file", "source_filename"]));
     const bucket = text(first(order, ["bucket", "toa_bucket", "resource_parent"]))
       || bucketFromSource(sourceFile);
+    const windowStartAt = isUnscheduled ? null : parseDate(window.start, date);
+    const windowEndAt = isUnscheduled ? null : parseDate(window.end, date);
+    const routeStartRaw = text(first(order, ["route_start", "planned_start", "route_schedule_start"]));
+    const routeEndRaw = text(first(order, ["route_end", "planned_end", "route_schedule_end"]));
+    const routeStartAt = parseDate(routeStartRaw, date);
+    const routeEndAt = parseDate(routeEndRaw, date);
+    const actualStartAt = parseDate(safeActualStartRaw, date);
+    const actualEndAt = parseDate(safeActualEndRaw, date);
+    const startAt = parseDate(startRaw, date);
+    const endAt = parseDate(endRaw, date);
+
+    // Uma atividade cuja rota foi agendada para a tarde (ex: 15:03) nao pode
+    // ter janela oficial que expirou de manha (ex: 12:00) devido a realocacao
+    // recente no TOA. Ate o novo detalhe confirmar, janelas contraditorias nao sao validadas.
+    const isPendingFamily = ["pending", "planned", "agendada", "field"].includes(statusKind(rawOrderStatus));
+    const windowExpiredBeforeRoute = Boolean(
+      windowEndAt && routeStartAt && routeStartAt.getTime() > windowEndAt.getTime() && isPendingFamily
+    );
+    const windowVerified = !isUnscheduled && !windowExpiredBeforeRoute && (!detailState || detailState === "complete");
+
     return {
       id: text(first(order, ["id_os", "id", "activity_id"])),
       os: text(first(order, ["num_os", "os_number", "numero", "os"])),
@@ -204,20 +224,20 @@
       date,
       windowStartRaw: text(window.start),
       windowEndRaw: text(window.end),
-      windowStartAt: isUnscheduled ? null : parseDate(window.start, date),
-      windowEndAt: isUnscheduled ? null : parseDate(window.end, date),
+      windowStartAt,
+      windowEndAt,
       actualStartRaw: text(safeActualStartRaw),
       actualEndRaw: text(safeActualEndRaw),
-      routeStartRaw: text(first(order, ["route_start", "planned_start", "route_schedule_start"])),
-      routeEndRaw: text(first(order, ["route_end", "planned_end", "route_schedule_end"])),
-      routeStartAt: parseDate(first(order, ["route_start", "planned_start", "route_schedule_start"]), date),
-      routeEndAt: parseDate(first(order, ["route_end", "planned_end", "route_schedule_end"]), date),
-      actualStartAt: parseDate(safeActualStartRaw, date),
-      actualEndAt: parseDate(safeActualEndRaw, date),
+      routeStartRaw,
+      routeEndRaw,
+      routeStartAt,
+      routeEndAt,
+      actualStartAt,
+      actualEndAt,
       startRaw: text(startRaw),
       endRaw: text(endRaw),
-      startAt: parseDate(startRaw, date),
-      endAt: parseDate(endRaw, date),
+      startAt,
+      endAt,
       duration: text(first(order, ["duration", "duracao"])),
       travelTime: text(first(order, ["travel_time", "tempo_deslocamento", "deslocamento"])),
       workArea: text(first(order, ["work_area", "area_trabalho", "area"])),
@@ -227,10 +247,7 @@
       detailState,
       statusValidating: statusNeedsValidation,
       isScheduled: !isUnscheduled,
-      // Fontes antigas/CSV nao possuem detail_state e continuam validas. No
-      // datalake ao vivo, apenas 'complete' confirma que a janela veio do
-      // detalhe oficial da atividade e nao de uma estimativa anterior.
-      windowVerified: !isUnscheduled && (!detailState || detailState === "complete"),
+      windowVerified,
       isAuxiliary,
       auxiliaryType,
       source: order,

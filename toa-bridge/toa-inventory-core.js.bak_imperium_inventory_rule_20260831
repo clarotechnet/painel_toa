@@ -61,12 +61,11 @@
   }
 
   function normalizePool(value) {
-    return text(value).toLowerCase();
-  }
-
-  function isMovementPool(value) {
-    const pool = normalizePool(value);
-    return pool === 'install' || pool === 'deinstall';
+    const pool = text(value).toLowerCase();
+    if (pool === 'install' || pool === 'deinstall' || pool === 'customer') {
+      return pool;
+    }
+    return pool;
   }
 
   function normalizeInventoryItem(item, fallbackId, expectedAid) {
@@ -204,22 +203,6 @@
     return output;
   }
 
-  function classifyMaterials(items) {
-    const output = {
-      installed_materials: [],
-      removed_materials: [],
-      customer_materials: [],
-      unknown_materials: [],
-    };
-    for (const item of items.filter((entry) => entry.kind === 'material')) {
-      if (item.pool === 'install') output.installed_materials.push(item);
-      else if (item.pool === 'deinstall') output.removed_materials.push(item);
-      else if (item.pool === 'customer') output.customer_materials.push(item);
-      else output.unknown_materials.push(item);
-    }
-    return output;
-  }
-
   function findActivity(delta, aid) {
     const wanted = text(aid);
     if (!wanted) return null;
@@ -256,14 +239,12 @@
     const foreignInventoryCount = allInventory.filter(
       ([, item]) => text(item?.inv_aid) && text(item?.inv_aid) !== aid
     ).length;
-    const unboundInventoryCount = allInventory.filter(
-      ([, item]) => !text(item?.inv_aid)
-    ).length;
     const inventory = allInventory
       .filter(([, item]) => text(item?.inv_aid) === aid)
       .map(([key, item]) => normalizeInventoryItem(item, key, aid));
-    if (foreignInventoryCount) validationWarnings.push(`foreign_inventory_ignored:${foreignInventoryCount}`);
-    if (unboundInventoryCount) validationWarnings.push(`resource_inventory_ignored:${unboundInventoryCount}`);
+    if (foreignInventoryCount) {
+      validationWarnings.push(`foreign_inventory_ignored:${foreignInventoryCount}`);
+    }
 
     const allForms = collectionEntries(delta.FormData);
     const foreignFormsCount = allForms.filter(
@@ -275,13 +256,8 @@
     if (foreignFormsCount) validationWarnings.push(`foreign_forms_ignored:${foreignFormsCount}`);
 
     for (const item of inventory) {
-      const prefix = isMovementPool(item.pool) ? '' : 'ignored_';
-      const target = isMovementPool(item.pool) ? validationErrors : validationWarnings;
-      target.push(...item.validation_errors.map((error) => `${prefix}${error}:${item.invid}`));
+      validationErrors.push(...item.validation_errors.map((error) => `${error}:${item.invid}`));
       validationWarnings.push(...item.validation_warnings.map((warning) => `${warning}:${item.invid}`));
-      if (!isMovementPool(item.pool)) {
-        validationWarnings.push(`inventory_pool_ignored:${item.pool || 'unknown'}:${item.invid}`);
-      }
     }
 
     const assignedProviderId = text(
@@ -315,11 +291,8 @@
     );
 
     const equipment = classifyEquipment(inventory);
-    const materialGroups = classifyMaterials(inventory);
-    const movementInventory = inventory.filter((item) => isMovementPool(item.pool));
-    const ignoredInventory = inventory.filter((item) => !isMovementPool(item.pool));
-    const materials = materialGroups.installed_materials;
-    const unknownInventory = movementInventory.filter((item) => item.kind === 'unknown');
+    const materials = inventory.filter((item) => item.kind === 'material');
+    const unknownInventory = inventory.filter((item) => item.kind === 'unknown');
 
     const normalized = {
       schema_version: 2,
@@ -339,17 +312,11 @@
       },
       tasks: activityTasks(activity),
       inventory,
-      movement_inventory: movementInventory,
-      ignored_inventory: ignoredInventory,
       installed_equipment: equipment.installed_equipment,
       removed_equipment: equipment.removed_equipment,
       customer_equipment: equipment.customer_equipment,
       unknown_equipment: equipment.unknown_equipment,
       materials,
-      installed_materials: materialGroups.installed_materials,
-      removed_materials: materialGroups.removed_materials,
-      customer_materials: materialGroups.customer_materials,
-      unknown_materials: materialGroups.unknown_materials,
       unknown_inventory: unknownInventory,
       forms,
       responsibility: {
@@ -373,7 +340,6 @@
     activityTasks,
     decimalString,
     inventoryQuantities,
-    isMovementPool,
     normalizeInventoryItem,
     normalizeActivityResponse,
   });

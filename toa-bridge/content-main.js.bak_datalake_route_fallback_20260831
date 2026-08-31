@@ -1581,42 +1581,6 @@
     }
   }
 
-  function normalizeDmvBucketName(value) {
-    const name = String(value || '').trim().toUpperCase();
-    return /^(?:NTL|PWM|FTZ|JCR|MRO)-DMV(?:_[A-Z0-9]+)*$/.test(name) ? name : '';
-  }
-
-  async function datalakeRouteHintsForContract(contract) {
-    const hints = new Map();
-    try {
-      const response = await bridgeFetch(`/monitor-api/api/v1/contracts/${encodeURIComponent(contract)}`);
-      const activities = response?.ok && Array.isArray(response?.data?.activities)
-        ? response.data.activities
-        : [];
-      for (const activity of activities) {
-        const bucket = normalizeDmvBucketName(activity?.bucket);
-        if (!bucket) continue;
-        const aid = String(activity?.activity_id || '').trim();
-        const pid = String(activity?.technician_id || '').trim();
-        const date = String(activity?.scheduled_date || '').trim();
-        if (aid) hints.set(`aid:${aid}`, bucket);
-        if (pid && date) hints.set(`pid-date:${pid}:${date}`, bucket);
-      }
-    } catch (error) {
-      if (error?.code === 'extension_context_invalidated') throw error;
-      console.warn('[TOA-DIRECT] fallback de rota do datalake indisponível:', error?.message || error);
-    }
-    return hints;
-  }
-
-  function routeHintForSearchRow(row, hints) {
-    if (!(hints instanceof Map)) return '';
-    const aid = String(row?.aid || '').trim();
-    const pid = String(row?.pid || '').trim();
-    const date = String(row?.date || '').trim();
-    return (aid && hints.get(`aid:${aid}`)) || (pid && date && hints.get(`pid-date:${pid}:${date}`)) || '';
-  }
-
   function locationNumber(value) {
     if (value === null || value === undefined || value === '') return null;
     const parsed = Number(value);
@@ -2499,10 +2463,9 @@
       const contractNorm = normalizeContractDirect(contract);
       console.log('[TOA-DIRECT] pesquisando contrato', contractNorm);
       const rawRows = await searchContractDirect(contractNorm);
-      const datalakeRouteHints = await datalakeRouteHintsForContract(contractNorm);
       let rowsWithRoute = rawRows.map((candidate) => ({
         ...candidate,
-        route_name: routeForSearchRow(candidate) || routeHintForSearchRow(candidate, datalakeRouteHints),
+        route_name: routeForSearchRow(candidate),
       }));
       let routeRows = rowsWithRoute.filter((candidate) => candidate.route_name);
       let treeInfo = window.TNTOAAutoExport?.treeStatus?.() || {};
@@ -2530,7 +2493,7 @@
         }
         rowsWithRoute = rawRows.map((candidate) => ({
           ...candidate,
-          route_name: routeForSearchRow(candidate) || routeHintForSearchRow(candidate, datalakeRouteHints),
+          route_name: routeForSearchRow(candidate),
         }));
         routeRows = rowsWithRoute.filter((candidate) => candidate.route_name);
         treeInfo = window.TNTOAAutoExport?.treeStatus?.() || {};
@@ -3655,9 +3618,7 @@
   window.__TN_TOA_DIRECT_STATUS__ = function () {
     return {
       instalado: true,
-      versao: 'toa-route-tree-direct-4',
-      recuperacaoContextoExtensao: true,
-      fallbackRotaDatalake: true,
+      versao: 'toa-route-tree-direct-3',
       capturaNormalizada: Boolean(window.TNToaInventoryCore),
       ultimoCodigoBaixa: Array.isArray(state.lastDirectResult?.closeCodes)
         ? state.lastDirectResult.closeCodes.join(', ')

@@ -95,35 +95,6 @@ function fixture() {
           invpool: 'install',
           invsn: 'FOREIGN123',
         },
-        6: {
-          invid: 6,
-          inv_aid: 194300555,
-          invpool: 'customer',
-          192: '22000001',
-          _identifier_structure: { 192: { text: '22000001_MATERIAL CLIENTE' } },
-        },
-        7: {
-          invid: 7,
-          inv_aid: 194300555,
-          invpool: 'deinstall',
-          192: '22000002',
-          quantity: '2',
-          _identifier_structure: { 192: { text: '22000002_MATERIAL RETIRADO' } },
-        },
-        8: {
-          invid: 8,
-          inv_aid: 194300555,
-          inv_pid: 328898,
-          invpool: 'resource',
-          invsn: 'RESOURCE-STOCK-1',
-          _identifier_structure: { invtype: { text: 'ESTOQUE TECNICO' } },
-        },
-        9: {
-          invid: 9,
-          inv_pid: 328898,
-          invpool: 'resource',
-          invsn: 'RESOURCE-STOCK-2',
-        },
       },
       FormData: {
         a: {
@@ -161,16 +132,10 @@ assert.deepEqual(
   capture.tasks.map((task) => [task.index, task.os_number, task.close_code]),
   [[1, '2646508672', '409'], [2, '2646508683', '409']]
 );
-assert.equal(capture.inventory.length, 7);
-assert.equal(capture.movement_inventory.length, 4);
-assert.equal(capture.ignored_inventory.length, 3);
+assert.equal(capture.inventory.length, 4);
 assert.equal(capture.installed_equipment[0].serial, '2CD8AE5D436F');
 assert.equal(capture.removed_equipment[0].serial, 'B4F26757B818');
 assert.equal(capture.customer_equipment[0].serial, '241786844144');
-assert.equal(capture.materials.length, 1, 'materials legacy alias must contain install only');
-assert.equal(capture.installed_materials[0].material_code, '22069613');
-assert.equal(capture.removed_materials[0].material_code, '22000002');
-assert.equal(capture.customer_materials[0].material_code, '22000001');
 assert.equal(capture.materials[0].material_code, '22069613');
 assert.equal(capture.materials[0].used_quantity, '100.5');
 assert.equal(capture.materials[0].available_stock, '14');
@@ -179,12 +144,7 @@ assert.equal(capture.materials[0].quantity, '100.5');
 assert.equal(capture.forms.length, 1);
 assert.equal(capture.responsibility.assigned_technician.external_id, 'Z637677');
 assert.match(capture.validation.warnings.join('|'), /foreign_inventory_ignored:1/);
-assert.match(capture.validation.warnings.join('|'), /resource_inventory_ignored:1/);
-assert.match(capture.validation.warnings.join('|'), /inventory_pool_ignored:customer:3/);
-assert.match(capture.validation.warnings.join('|'), /inventory_pool_ignored:resource:8/);
-assert.match(capture.validation.warnings.join('|'), /ignored_material_used_quantity_invalid:6/);
 assert.match(capture.validation.warnings.join('|'), /foreign_forms_ignored:1/);
-assert.equal(capture.validation.valid, true, 'ignored pools cannot invalidate closure payload');
 assert.equal(JSON.stringify(source), before, 'normalization must not mutate TOA data');
 
 assert.equal(core.decimalString('00100,500'), '100.5');
@@ -220,8 +180,3 @@ const zeroCapture = core.normalizeActivityResponse(zeroQuantity, '194300555', {
 assert.match(zeroCapture.validation.errors.join('|'), /material_used_quantity_invalid:4/);
 
 console.log('toa-inventory-core: all tests passed');
-
-assert.equal(core.isMovementPool('install'), true);
-assert.equal(core.isMovementPool('deinstall'), true);
-assert.equal(core.isMovementPool('customer'), false);
-assert.equal(core.isMovementPool('resource'), false);

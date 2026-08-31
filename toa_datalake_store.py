@@ -1058,7 +1058,8 @@ class TOADatalakeStore:
         categories = {"installed": raw.get("installed_equipment") or equipment.get("installed", []),
                       "removed": raw.get("removed_equipment") or equipment.get("removed", []),
                       "customer": raw.get("customer_equipment") or equipment.get("customer", []),
-                      "material": raw.get("materials") or raw.get("miscelaneas") or []}
+                      "material": raw.get("materials") or raw.get("miscelaneas") or [],
+                      "removed_material": raw.get("removed_materials") or raw.get("removedMaterials") or []}
         for category, values in categories.items():
             for index, item in enumerate(_items(values)):
                 serial = _text(_first(item, "serial", "numero_serial"), 240)

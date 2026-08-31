@@ -5,7 +5,7 @@ window.DOMINIUM_CONFIG = Object.freeze({
   apiBaseUrl: '',
   // "auto" usa Firebase quando os campos abaixo estiverem preenchidos e,
   // caso contrario, preserva a API local atual.
-  dataSource: 'firebase',
+  dataSource: 'api',
   // Painel publicado sem login. A regra do Realtime Database deve permitir
   // leitura publica e continuar bloqueando escritas feitas pelo navegador.
   firebasePublicRead: true,

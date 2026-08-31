@@ -12,7 +12,7 @@ CHROME_PATH = Path(r"C:\Program Files\Google\Chrome\Application\chrome.exe")
 # Perfil exclusivo do monitor da TV. Assim ele nao depende do navegador do
 # DOMINIUM principal e pode recuperar a propria sessao quando ela expirar.
 PROFILE_PATH = ROOT / "config" / "toa_chrome_profile"
-EXTENSION_PATH = PROJECT_ROOT / "toa-discovery"
+EXTENSION_PATH = PROJECT_ROOT / "toa-bridge"
 TOA_URL = "https://clarobrasil.etadirect.com/toa/"
 DEBUG_PORT = 9341
 
@@ -45,6 +45,8 @@ def launch() -> dict[str, object]:
             "--lang=pt-BR",
             "--no-first-run",
             "--no-default-browser-check",
+            f"--load-extension={EXTENSION_PATH.resolve()}",
+            f"--disable-extensions-except={EXTENSION_PATH.resolve()}",
             "--new-window",
             TOA_URL,
         ]

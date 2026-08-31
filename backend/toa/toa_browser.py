@@ -82,6 +82,8 @@ def create_driver(
             "--disable-renderer-backgrounding",
             "--disable-backgrounding-occluded-windows",
             "--disable-features=CalculateNativeWinOcclusion",
+            f"--load-extension={(ROOT.parent.parent / 'toa-bridge').resolve()}",
+            f"--disable-extensions-except={(ROOT.parent.parent / 'toa-bridge').resolve()}",
         ]
         if headless:
             arguments.extend((

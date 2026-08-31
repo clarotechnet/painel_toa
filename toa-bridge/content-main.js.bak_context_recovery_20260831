@@ -91,24 +91,6 @@
   // Contador de requests para correlacionar respostas
   let requestId = 0;
   const pendingRequests = new Map();
-  let extensionRecoveryScheduled = false;
-
-  function scheduleExtensionContextRecovery(reason = '') {
-    if (extensionRecoveryScheduled) return;
-    extensionRecoveryScheduled = true;
-    state.bridgeAvailable = false;
-    state.exportStatus = '♻️ Reiniciando integração da extensão...';
-    console.warn('[TOA-MAIN] contexto da extensão inválido; recarregando a página', reason || '');
-
-    const now = Date.now();
-    const lastReload = Number(sessionStorage.getItem('tn_extension_context_reload_at') || 0);
-    if (now - lastReload < 30000) {
-      console.warn('[TOA-MAIN] recuperação automática já tentada recentemente; evitando loop de reload');
-      return;
-    }
-    sessionStorage.setItem('tn_extension_context_reload_at', String(now));
-    setTimeout(() => location.reload(), 1200);
-  }
 
   // Inicializa comunicação com content-isolated
   function initBridgeProxy() {
@@ -130,7 +112,6 @@
               responseError.code = 'extension_context_invalidated';
               state.extensionContextInvalidated = true;
               state.bridgeAvailable = false;
-              scheduleExtensionContextRecovery(responseError.message);
             }
             reject(responseError);
           }
@@ -158,7 +139,6 @@
   function bridgeFetchProxy(path, options = {}) {
     return new Promise((resolve, reject) => {
       if (state.extensionContextInvalidated) {
-        scheduleExtensionContextRecovery('bridge request while context is invalid');
         const error = new Error('Extension context invalidated');
         error.code = 'extension_context_invalidated';
         reject(error);
@@ -1581,42 +1561,6 @@
     }
   }
 
-  function normalizeDmvBucketName(value) {
-    const name = String(value || '').trim().toUpperCase();
-    return /^(?:NTL|PWM|FTZ|JCR|MRO)-DMV(?:_[A-Z0-9]+)*$/.test(name) ? name : '';
-  }
-
-  async function datalakeRouteHintsForContract(contract) {
-    const hints = new Map();
-    try {
-      const response = await bridgeFetch(`/monitor-api/api/v1/contracts/${encodeURIComponent(contract)}`);
-      const activities = response?.ok && Array.isArray(response?.data?.activities)
-        ? response.data.activities
-        : [];
-      for (const activity of activities) {
-        const bucket = normalizeDmvBucketName(activity?.bucket);
-        if (!bucket) continue;
-        const aid = String(activity?.activity_id || '').trim();
-        const pid = String(activity?.technician_id || '').trim();
-        const date = String(activity?.scheduled_date || '').trim();
-        if (aid) hints.set(`aid:${aid}`, bucket);
-        if (pid && date) hints.set(`pid-date:${pid}:${date}`, bucket);
-      }
-    } catch (error) {
-      if (error?.code === 'extension_context_invalidated') throw error;
-      console.warn('[TOA-DIRECT] fallback de rota do datalake indisponível:', error?.message || error);
-    }
-    return hints;
-  }
-
-  function routeHintForSearchRow(row, hints) {
-    if (!(hints instanceof Map)) return '';
-    const aid = String(row?.aid || '').trim();
-    const pid = String(row?.pid || '').trim();
-    const date = String(row?.date || '').trim();
-    return (aid && hints.get(`aid:${aid}`)) || (pid && date && hints.get(`pid-date:${pid}:${date}`)) || '';
-  }
-
   function locationNumber(value) {
     if (value === null || value === undefined || value === '') return null;
     const parsed = Number(value);
@@ -2499,10 +2443,9 @@
       const contractNorm = normalizeContractDirect(contract);
       console.log('[TOA-DIRECT] pesquisando contrato', contractNorm);
       const rawRows = await searchContractDirect(contractNorm);
-      const datalakeRouteHints = await datalakeRouteHintsForContract(contractNorm);
       let rowsWithRoute = rawRows.map((candidate) => ({
         ...candidate,
-        route_name: routeForSearchRow(candidate) || routeHintForSearchRow(candidate, datalakeRouteHints),
+        route_name: routeForSearchRow(candidate),
       }));
       let routeRows = rowsWithRoute.filter((candidate) => candidate.route_name);
       let treeInfo = window.TNTOAAutoExport?.treeStatus?.() || {};
@@ -2530,7 +2473,7 @@
         }
         rowsWithRoute = rawRows.map((candidate) => ({
           ...candidate,
-          route_name: routeForSearchRow(candidate) || routeHintForSearchRow(candidate, datalakeRouteHints),
+          route_name: routeForSearchRow(candidate),
         }));
         routeRows = rowsWithRoute.filter((candidate) => candidate.route_name);
         treeInfo = window.TNTOAAutoExport?.treeStatus?.() || {};
@@ -3655,9 +3598,7 @@
   window.__TN_TOA_DIRECT_STATUS__ = function () {
     return {
       instalado: true,
-      versao: 'toa-route-tree-direct-4',
-      recuperacaoContextoExtensao: true,
-      fallbackRotaDatalake: true,
+      versao: 'toa-route-tree-direct-3',
       capturaNormalizada: Boolean(window.TNToaInventoryCore),
       ultimoCodigoBaixa: Array.isArray(state.lastDirectResult?.closeCodes)
         ? state.lastDirectResult.closeCodes.join(', ')

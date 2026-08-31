@@ -24,7 +24,7 @@ test("snapshot remove dados pessoais e preserva materiais/equipamentos", () => {
     observation: "Instalacao concluida",
     tasks: [{ os_number: "2650569933", close_code: "409", status: "E" }],
     installedEquipment: [{ invid: "1", kind: "equipment", pool: "install", serial: "abc123" }],
-    materials: [{ invid: "2", kind: "material", pool: "install", material_code: "22056332", used_quantity: "1" }],
+    materials: [{ invid: "2", kind: "material", material_code: "22056332", used_quantity: "1" }],
     captureValidation: { valid: true, warnings: ["aviso"] },
   }, "4252617");
 
@@ -49,8 +49,8 @@ test("produtiva com miscelaneas: preserva materiais e gera diagnostico correto",
   const result = sanitizeOperationalSnapshot({
     contract: "4252617",
     materials: [
-      { invid: "101", pool: "install", material_code: "MAT01", used_quantity: "2" },
-      { invid: "102", pool: "install", material_code: "MAT02", used_quantity: "5" },
+      { invid: "101", material_code: "MAT01", used_quantity: "2" },
+      { invid: "102", material_code: "MAT02", used_quantity: "5" },
     ],
     materials_applicable: true,
     materials_complete: true,
@@ -70,7 +70,7 @@ test("fallback produtivo: materials vazio e materialsRaw preenchido resulta em m
     contract: "4252617",
     materials: [],
     materialsRaw: [
-      { invid: "201", pool: "install", material_code: "RAW01", used_quantity: "1" },
+      { invid: "201", material_code: "RAW01", used_quantity: "1" },
     ],
     materials_applicable: true,
   }, "4252617");
@@ -115,30 +115,3 @@ test("sem inventario: diagnostica contagem zero de forma explicita", () => {
 });
 
 
-
-
-test("customer/recurso nunca entram no inventario operacional de baixa", () => {
-  const result = sanitizeOperationalSnapshot({
-    contract: "4252617",
-    installedEquipment: [{ invid: "1", pool: "install", serial: "INST1" }],
-    removedEquipment: [{ invid: "2", pool: "deinstall", serial: "REM1" }],
-    customerEquipment: [{ invid: "3", pool: "customer", serial: "CLI1" }],
-    unknownEquipment: [{ invid: "4", pool: "resource", serial: "REC1" }],
-    removedMaterials: [{ invid: "4B", pool: "deinstall", material_code: "MAT-OUT", used_quantity: "1" }],
-    materials: [
-      { invid: "5", pool: "install", material_code: "MAT-IN", used_quantity: "2" },
-      { invid: "6", pool: "customer", material_code: "MAT-CLI", used_quantity: "9" },
-      { invid: "7", pool: "resource", material_code: "MAT-REC", used_quantity: "8" },
-    ],
-  }, "4252617");
-
-  assert.deepEqual(result.operational_inventory.installed_equipment.map(x => x.serial), ["INST1"]);
-  assert.deepEqual(result.operational_inventory.removed_equipment.map(x => x.serial), ["REM1"]);
-  assert.deepEqual(result.operational_inventory.materials.map(x => x.material_code), ["MAT-IN"]);
-  assert.deepEqual(result.operational_inventory.removed_materials.map(x => x.material_code), ["MAT-OUT"]);
-  assert.deepEqual(result.ignored_inventory.customer_equipment.map(x => x.serial), ["CLI1"]);
-  assert.deepEqual(result.ignored_inventory.unknown_equipment.map(x => x.serial), ["REC1"]);
-  assert.equal(JSON.stringify(result.operational_inventory).includes("CLI1"), false);
-  assert.equal(JSON.stringify(result.operational_inventory).includes("REC1"), false);
-  assert.equal(JSON.stringify(result.operational_inventory).includes("MAT-CLI"), false);
-});

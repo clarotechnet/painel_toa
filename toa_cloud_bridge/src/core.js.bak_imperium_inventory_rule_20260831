@@ -72,26 +72,18 @@ function sanitizeValidation(value) {
 
 export function selectOperationalMaterials(source) {
   const src = source && typeof source === "object" ? source : {};
-  if (src.materials_applicable === false) return [];
-
-  const explicitInstalled = Array.isArray(src.installed_materials)
-    ? src.installed_materials
-    : (Array.isArray(src.installedMaterials) ? src.installedMaterials : []);
-  if (explicitInstalled.length > 0) {
-    return explicitInstalled.filter((item) => {
-      const pool = text(item?.pool, 30).toLowerCase();
-      return !pool || pool === "install";
-    });
+  if (src.materials_applicable === false) {
+    return [];
   }
-
-  const operational = Array.isArray(src.materials) ? src.materials : [];
-  const filteredOperational = operational.filter(
-    (item) => text(item?.pool, 30).toLowerCase() === "install",
-  );
-  if (filteredOperational.length > 0) return filteredOperational;
-
+  const ops = Array.isArray(src.materials) ? src.materials : [];
+  if (ops.length > 0) {
+    return ops;
+  }
   const raw = Array.isArray(src.materialsRaw) ? src.materialsRaw : [];
-  return raw.filter((item) => text(item?.pool, 30).toLowerCase() === "install");
+  if (raw.length > 0) {
+    return raw;
+  }
+  return [];
 }
 
 export function sanitizeOperationalSnapshot(value, expectedContract = "") {
@@ -120,9 +112,6 @@ export function sanitizeOperationalSnapshot(value, expectedContract = "") {
 
   const rawOpsMaterials = selectOperationalMaterials(source);
   const operationalMaterials = sanitizeInventoryList(rawOpsMaterials);
-  const removedMaterials = sanitizeInventoryList(
-    source.removed_materials ?? source.removedMaterials,
-  ).filter((item) => item.pool.toLowerCase() === "deinstall");
   const rawAudit = source.captured_materials_for_audit ?? source.capturedMaterialsForAudit;
   const capturedAuditMaterials = sanitizeInventoryList(Array.isArray(rawAudit) ? rawAudit : []);
 
@@ -131,14 +120,13 @@ export function sanitizeOperationalSnapshot(value, expectedContract = "") {
 
   const totalInventoryCount = Number(
     source.inventory_diagnostics?.inventory_count ?? (
-      installedEquip.length + removedEquip.length + customerEquip.length + unknownEquip.length + operationalMaterials.length + removedMaterials.length
+      installedEquip.length + removedEquip.length + customerEquip.length + unknownEquip.length + operationalMaterials.length
     )
   );
 
   const inventoryDiagnostics = {
     inventory_count: totalInventoryCount,
     materials_count: Number(source.inventory_diagnostics?.materials_count ?? operationalMaterials.length),
-    removed_materials_count: Number(source.inventory_diagnostics?.removed_materials_count ?? removedMaterials.length),
     captured_materials_count: Number(source.inventory_diagnostics?.captured_materials_count ?? capturedAuditMaterials.length),
     source: text(source.inventory_diagnostics?.source ?? source.source ?? "toa-extension-direct", 80),
   };
@@ -180,18 +168,7 @@ export function sanitizeOperationalSnapshot(value, expectedContract = "") {
       customer: customerEquip,
       unknown: unknownEquip,
     },
-    operational_inventory: {
-      installed_equipment: installedEquip,
-      removed_equipment: removedEquip,
-      materials: operationalMaterials,
-      removed_materials: removedMaterials,
-    },
-    ignored_inventory: {
-      customer_equipment: customerEquip,
-      unknown_equipment: unknownEquip,
-    },
     materials: operationalMaterials,
-    removed_materials: removedMaterials,
     captured_materials_for_audit: capturedAuditMaterials,
     materials_applicable: materialsApplicable,
     materials_complete: materialsComplete,

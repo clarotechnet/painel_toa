@@ -61,7 +61,6 @@ class NormalizedCapture:
     removed_equipment: list[dict[str, Any]]
     customer_equipment: list[dict[str, Any]]
     materials: list[dict[str, Any]]
-    removed_materials: list[dict[str, Any]]
     assigned_technician: dict[str, Any]
     route_provider: dict[str, Any]
     inventory_providers: list[dict[str, Any]]
@@ -353,46 +352,33 @@ def normalize_entry(entry: dict[str, Any]) -> NormalizedCapture:
     removed: list[dict[str, Any]] = []
     customer: list[dict[str, Any]] = []
     materials: list[dict[str, Any]] = []
-    removed_materials: list[dict[str, Any]] = []
     pools: list[str] = []
     for position, item in enumerate(raw_inventory):
-        pool = _text(item.get("pool")).casefold()
-        kind = _text(item.get("kind")).casefold()
-        movement_pool = pool in {"install", "deinstall"}
         item_aid = _text(item.get("activity_id"))
-        if pool and pool not in pools:
-            pools.append(pool)
-
         if not item_aid:
-            target = errors if movement_pool else warnings
-            prefix = "inventory" if movement_pool else "ignored_inventory"
-            target.append(f"{prefix}_activity_id_missing:{position}")
+            errors.append(f"inventory_activity_id_missing:{position}")
             continue
         if item_aid != activity_aid:
-            target = errors if movement_pool else warnings
-            prefix = "inventory" if movement_pool else "ignored_inventory"
-            target.append(f"{prefix}_activity_id_conflict:{position}")
+            errors.append(f"inventory_activity_id_conflict:{position}")
             continue
-
-        if not movement_pool:
-            if kind == "equipment" and pool == "customer":
-                customer.append(item)
-            warnings.append(f"inventory_pool_ignored:{position}:{pool or 'empty'}")
-            continue
-
+        pool = _text(item.get("pool")).casefold()
+        kind = _text(item.get("kind")).casefold()
+        if pool and pool not in pools:
+            pools.append(pool)
         inventory.append(item)
         if kind == "material":
-            if pool == "install":
-                materials.append(item)
-                if item.get("quantity") in (None, ""):
-                    warnings.append(f"material_quantity_missing:{position}")
-            else:
-                removed_materials.append(item)
+            materials.append(item)
+            if item.get("quantity") in (None, ""):
+                warnings.append(f"material_quantity_missing:{position}")
         elif kind == "equipment":
             if pool == "install":
                 installed.append(item)
             elif pool == "deinstall":
                 removed.append(item)
+            elif pool == "customer":
+                customer.append(item)
+            else:
+                warnings.append(f"equipment_pool_unmapped:{position}:{pool or 'empty'}")
         else:
             warnings.append(f"inventory_kind_unmapped:{position}:{kind or 'empty'}")
 
@@ -517,7 +503,6 @@ def normalize_entry(entry: dict[str, Any]) -> NormalizedCapture:
         removed_equipment=removed,
         customer_equipment=customer,
         materials=materials,
-        removed_materials=removed_materials,
         assigned_technician=assigned,
         route_provider=route_provider,
         inventory_providers=inventory_providers,
@@ -726,8 +711,7 @@ def print_dry_run_report(
             _print_inventory("Equipamentos instalados", order.installed_equipment)
             _print_inventory("Equipamentos retirados", order.removed_equipment)
             _print_inventory("Equipamentos customer", order.customer_equipment)
-            _print_inventory("Materiais/miscelaneas instalados", order.materials)
-            _print_inventory("Materiais/miscelaneas retirados", order.removed_materials)
+            _print_inventory("Materiais/miscelaneas", order.materials)
             print("  Responsabilidades:")
             print(
                 f"    - tecnico atribuido: {_provider_label(order.assigned_technician)}"

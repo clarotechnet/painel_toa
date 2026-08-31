@@ -91,24 +91,6 @@
   // Contador de requests para correlacionar respostas
   let requestId = 0;
   const pendingRequests = new Map();
-  let extensionRecoveryScheduled = false;
-
-  function scheduleExtensionContextRecovery(reason = '') {
-    if (extensionRecoveryScheduled) return;
-    extensionRecoveryScheduled = true;
-    state.bridgeAvailable = false;
-    state.exportStatus = '♻️ Reiniciando integração da extensão...';
-    console.warn('[TOA-MAIN] contexto da extensão inválido; recarregando a página', reason || '');
-
-    const now = Date.now();
-    const lastReload = Number(sessionStorage.getItem('tn_extension_context_reload_at') || 0);
-    if (now - lastReload < 30000) {
-      console.warn('[TOA-MAIN] recuperação automática já tentada recentemente; evitando loop de reload');
-      return;
-    }
-    sessionStorage.setItem('tn_extension_context_reload_at', String(now));
-    setTimeout(() => location.reload(), 1200);
-  }
 
   // Inicializa comunicação com content-isolated
   function initBridgeProxy() {
@@ -130,7 +112,6 @@
               responseError.code = 'extension_context_invalidated';
               state.extensionContextInvalidated = true;
               state.bridgeAvailable = false;
-              scheduleExtensionContextRecovery(responseError.message);
             }
             reject(responseError);
           }
@@ -158,7 +139,6 @@
   function bridgeFetchProxy(path, options = {}) {
     return new Promise((resolve, reject) => {
       if (state.extensionContextInvalidated) {
-        scheduleExtensionContextRecovery('bridge request while context is invalid');
         const error = new Error('Extension context invalidated');
         error.code = 'extension_context_invalidated';
         reject(error);
@@ -413,17 +393,12 @@
           tasks: Array.isArray(ctx.tasks) ? ctx.tasks : [],
           closeCodes: Array.isArray(ctx.closeCodes) ? ctx.closeCodes : [],
           inventory: Array.isArray(ctx.inventory) ? ctx.inventory : [],
-          movementInventory: Array.isArray(ctx.movementInventory) ? ctx.movementInventory : [],
-          ignoredInventory: Array.isArray(ctx.ignoredInventory) ? ctx.ignoredInventory : [],
           installedEquipment: Array.isArray(ctx.installedEquipment) ? ctx.installedEquipment : [],
           removedEquipment: Array.isArray(ctx.removedEquipment) ? ctx.removedEquipment : [],
           customerEquipment: Array.isArray(ctx.customerEquipment) ? ctx.customerEquipment : [],
           unknownEquipment: Array.isArray(ctx.unknownEquipment) ? ctx.unknownEquipment : [],
           materials: Array.isArray(ctx.materials) ? ctx.materials : [],
-          installedMaterials: Array.isArray(ctx.installedMaterials) ? ctx.installedMaterials : [],
-          removedMaterials: Array.isArray(ctx.removedMaterials) ? ctx.removedMaterials : [],
           materialsRaw: Array.isArray(ctx.materialsRaw) ? ctx.materialsRaw : [],
-          removedMaterialsRaw: Array.isArray(ctx.removedMaterialsRaw) ? ctx.removedMaterialsRaw : [],
           forms: Array.isArray(ctx.forms) ? ctx.forms : [],
           responsibility: ctx.responsibility || {},
           captureValidation: ctx.captureValidation || {},
@@ -1453,15 +1428,10 @@
 
   function applyNormalizedCapture(ctx, capture) {
     if (!ctx || !capture) return ctx;
-    const movementInventory = Array.isArray(capture.movement_inventory)
-      ? capture.movement_inventory
-      : (capture.inventory || []).filter(item => ['install', 'deinstall'].includes(item.pool));
-    const equipmentRaw = movementInventory
+    const equipmentRaw = (capture.inventory || [])
       .filter(item => item.kind === 'equipment')
       .map(legacyEquipmentFromCapture);
-    const materialsRaw = (capture.installed_materials || capture.materials || [])
-      .map(legacyMaterialFromCapture);
-    const removedMaterialsRaw = (capture.removed_materials || []).map(legacyMaterialFromCapture);
+    const materialsRaw = (capture.materials || []).map(legacyMaterialFromCapture);
     const captureErrors = Array.isArray(capture?.validation?.errors)
       ? capture.validation.errors
       : [];
@@ -1473,15 +1443,11 @@
       (capture.tasks || []).map(task => String(task.close_code || '')).filter(Boolean)
     ));
     ctx.inventory = capture.inventory || [];
-    ctx.movementInventory = movementInventory;
-    ctx.ignoredInventory = capture.ignored_inventory || [];
     ctx.installedEquipment = capture.installed_equipment || [];
     ctx.removedEquipment = capture.removed_equipment || [];
     ctx.customerEquipment = capture.customer_equipment || [];
     ctx.unknownEquipment = capture.unknown_equipment || [];
-    ctx.materials = capture.installed_materials || capture.materials || [];
-    ctx.installedMaterials = capture.installed_materials || capture.materials || [];
-    ctx.removedMaterials = capture.removed_materials || [];
+    ctx.materials = capture.materials || [];
     ctx.forms = capture.forms || [];
     ctx.responsibility = capture.responsibility || {};
     ctx.captureValidation = capture.validation || { valid: false, errors: [], warnings: [] };
@@ -1490,7 +1456,6 @@
     ctx.seriais = ctx.equipamentos.map(item => item.serial);
     ctx.equipamentosDesinstalados = equipmentRaw.filter(item => item.desinstalado);
     ctx.materialsRaw = materialsRaw;
-    ctx.removedMaterialsRaw = removedMaterialsRaw;
     ctx.inventoryUnclassified = [
       ...(capture.unknown_inventory || []),
       ...(capture.unknown_equipment || []),
@@ -1579,42 +1544,6 @@
     } catch {
       return '';
     }
-  }
-
-  function normalizeDmvBucketName(value) {
-    const name = String(value || '').trim().toUpperCase();
-    return /^(?:NTL|PWM|FTZ|JCR|MRO)-DMV(?:_[A-Z0-9]+)*$/.test(name) ? name : '';
-  }
-
-  async function datalakeRouteHintsForContract(contract) {
-    const hints = new Map();
-    try {
-      const response = await bridgeFetch(`/monitor-api/api/v1/contracts/${encodeURIComponent(contract)}`);
-      const activities = response?.ok && Array.isArray(response?.data?.activities)
-        ? response.data.activities
-        : [];
-      for (const activity of activities) {
-        const bucket = normalizeDmvBucketName(activity?.bucket);
-        if (!bucket) continue;
-        const aid = String(activity?.activity_id || '').trim();
-        const pid = String(activity?.technician_id || '').trim();
-        const date = String(activity?.scheduled_date || '').trim();
-        if (aid) hints.set(`aid:${aid}`, bucket);
-        if (pid && date) hints.set(`pid-date:${pid}:${date}`, bucket);
-      }
-    } catch (error) {
-      if (error?.code === 'extension_context_invalidated') throw error;
-      console.warn('[TOA-DIRECT] fallback de rota do datalake indisponível:', error?.message || error);
-    }
-    return hints;
-  }
-
-  function routeHintForSearchRow(row, hints) {
-    if (!(hints instanceof Map)) return '';
-    const aid = String(row?.aid || '').trim();
-    const pid = String(row?.pid || '').trim();
-    const date = String(row?.date || '').trim();
-    return (aid && hints.get(`aid:${aid}`)) || (pid && date && hints.get(`pid-date:${pid}:${date}`)) || '';
   }
 
   function locationNumber(value) {
@@ -2499,10 +2428,9 @@
       const contractNorm = normalizeContractDirect(contract);
       console.log('[TOA-DIRECT] pesquisando contrato', contractNorm);
       const rawRows = await searchContractDirect(contractNorm);
-      const datalakeRouteHints = await datalakeRouteHintsForContract(contractNorm);
       let rowsWithRoute = rawRows.map((candidate) => ({
         ...candidate,
-        route_name: routeForSearchRow(candidate) || routeHintForSearchRow(candidate, datalakeRouteHints),
+        route_name: routeForSearchRow(candidate),
       }));
       let routeRows = rowsWithRoute.filter((candidate) => candidate.route_name);
       let treeInfo = window.TNTOAAutoExport?.treeStatus?.() || {};
@@ -2530,7 +2458,7 @@
         }
         rowsWithRoute = rawRows.map((candidate) => ({
           ...candidate,
-          route_name: routeForSearchRow(candidate) || routeHintForSearchRow(candidate, datalakeRouteHints),
+          route_name: routeForSearchRow(candidate),
         }));
         routeRows = rowsWithRoute.filter((candidate) => candidate.route_name);
         treeInfo = window.TNTOAAutoExport?.treeStatus?.() || {};
@@ -3260,7 +3188,6 @@
         unknown: equipment(ctx?.unknownEquipment || capture?.unknown_equipment),
       },
       materials: equipment(ctx?.materials || capture?.materials),
-      removed_materials: equipment(ctx?.removedMaterials || capture?.removed_materials),
       validation: ctx?.captureValidation || capture?.validation || {},
       captured_at: new Date().toISOString(),
       source: 'toa-extension-direct',
@@ -3655,9 +3582,7 @@
   window.__TN_TOA_DIRECT_STATUS__ = function () {
     return {
       instalado: true,
-      versao: 'toa-route-tree-direct-4',
-      recuperacaoContextoExtensao: true,
-      fallbackRotaDatalake: true,
+      versao: 'toa-route-tree-direct-3',
       capturaNormalizada: Boolean(window.TNToaInventoryCore),
       ultimoCodigoBaixa: Array.isArray(state.lastDirectResult?.closeCodes)
         ? state.lastDirectResult.closeCodes.join(', ')

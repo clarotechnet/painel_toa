@@ -45,18 +45,6 @@
     errors: [],
   };
 
-  const historyProbe = {
-    template: null,
-    capturedAt: null,
-    source: '',
-    running: false,
-    lastRunAt: null,
-    lastStatus: null,
-    lastError: '',
-    lastActivityId: '',
-    lastRows: 0,
-  };
-
   window[BUFFER_KEY] = Array.isArray(window[BUFFER_KEY]) ? window[BUFFER_KEY] : [];
 
   function looksRelevant(url, text) {
@@ -120,39 +108,6 @@
     return null;
   }
 
-  function isHistoryUrl(rawUrl) {
-    try {
-      const url = new URL(String(rawUrl || ''), location.href);
-      return url.origin === location.origin
-        && String(url.searchParams.get('m') || '').toLowerCase() === 'activity'
-        && String(url.searchParams.get('a') || '').toLowerCase() === 'history';
-    } catch {
-      return false;
-    }
-  }
-
-  function isSyncWriteUrl(rawUrl) {
-    try {
-      const url = new URL(String(rawUrl || ''), location.href);
-      return url.origin === location.origin
-        && String(url.searchParams.get('m') || '').toLowerCase() === 'sync'
-        && String(url.searchParams.get('a') || '').toLowerCase() === 'write';
-    } catch {
-      return false;
-    }
-  }
-
-  function replayHeaders(headers = {}) {
-    const safe = {};
-    for (const [name, value] of Object.entries(headers || {})) {
-      const normalized = String(name || '').toLowerCase();
-      if (SAFE_REPLAY_HEADERS.has(normalized) && String(value || '')) safe[normalized] = String(value);
-    }
-    safe.accept = safe.accept || 'application/json, text/javascript, */*; q=0.01';
-    safe['content-type'] = 'application/x-www-form-urlencoded; charset=UTF-8';
-    return safe;
-  }
-
   function rememberMapTemplate(method, url, body, headers = {}) {
     if (String(method || 'GET').toUpperCase() !== 'POST' || !isMapGetUrl(url)) return;
     const params = bodyToSearchParams(body);
@@ -171,41 +126,6 @@
       headers: safeHeaders,
     };
     traceProbe.capturedAt = new Date().toISOString();
-  }
-
-  function rememberHistoryTemplate(method, url, body, headers = {}) {
-    if (String(method || 'GET').toUpperCase() !== 'POST') return;
-    const directHistory = isHistoryUrl(url);
-    const syncWrite = isSyncWriteUrl(url);
-    if (!directHistory && !syncWrite) return;
-    const params = bodyToSearchParams(body);
-    if (!params) return;
-
-    const out = new URLSearchParams();
-    if (directHistory) {
-      for (const [key, value] of params.entries()) out.append(key, value);
-    } else {
-      for (const key of [
-        '__protocol', 'dv', 'pid', 'u', 'f', 'pids', 'aids', 'restriction', 'qid',
-        'fakeIds', 'trust', 'fakeIdsClean', 'dq', 'date', 'includePartsCatalogMetadata',
-      ]) {
-        if (params.has(key)) out.set(key, params.get(key));
-      }
-    }
-    if (!out.get('__protocol') || !out.get('trust')) return;
-    out.set('f', 'json');
-    out.set('skip_delta', '0');
-    out.set('includePartsCatalogMetadata', '1');
-    out.set('limitActivitiesByPool[notscheduled]', '5');
-
-    historyProbe.template = {
-      method: 'POST',
-      url: new URL('/index.php?m=activity&a=history', location.origin).href,
-      body: out.toString(),
-      headers: replayHeaders(headers),
-    };
-    historyProbe.capturedAt = new Date().toISOString();
-    historyProbe.source = directHistory ? 'activity-history' : 'sync-write';
   }
 
   function timestampFromObject(value) {
@@ -517,78 +437,6 @@
     };
   };
 
-  function historyParamsForActivity(activity = {}) {
-    if (!historyProbe.template) throw new Error('tn_history_template_unavailable');
-    const aid = String(activity.activity_id || activity.activityId || activity.aid || '').replace(/\D/g, '');
-    if (!/^\d{5,18}$/.test(aid)) throw new Error('tn_history_invalid_activity');
-    const params = new URLSearchParams(historyProbe.template.body);
-    params.set('aid', aid);
-    params.set('aids', JSON.stringify([aid]));
-    params.set('skip_delta', '0');
-    const providerId = String(activity.provider_id || activity.providerId || activity.technician_id || '').trim();
-    if (/^\d+$/.test(providerId)) params.set('pid', providerId);
-    const date = String(activity.scheduled_date || activity.date || '').trim();
-    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      params.set('date', date);
-      params.set('dq', date);
-    }
-    return { aid, params };
-  }
-
-  async function fetchActivityHistory(activity = {}, options = {}) {
-    if (historyProbe.running) throw new Error('tn_history_probe_in_progress');
-    const { aid, params } = historyParamsForActivity(activity);
-    const timeoutMs = Math.max(5000, Math.min(Number(options.timeoutMs) || 15000, 45000));
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
-    historyProbe.running = true;
-    historyProbe.lastRunAt = new Date().toISOString();
-    historyProbe.lastActivityId = aid;
-    historyProbe.lastError = '';
-    try {
-      const response = await originalFetch(historyProbe.template.url, {
-        method: 'POST', credentials: 'include', headers: { ...historyProbe.template.headers },
-        body: params.toString(), signal: controller.signal,
-      });
-      historyProbe.lastStatus = response.status;
-      const text = await response.text();
-      if (response.status === 401 || response.status === 403
-          || /(?:login de usu[aá]rio|challenge_url|password)/i.test(text.slice(0, 5000))) {
-        throw new Error('toa_sem_sessao');
-      }
-      if (!response.ok) throw new Error(`tn_history_http_${response.status}`);
-      let payload;
-      try { payload = JSON.parse(text); } catch { throw new Error('tn_history_invalid_json'); }
-      const rows = Array.isArray(payload?.activityHistory?.rows) ? payload.activityHistory.rows : null;
-      if (!rows) throw new Error('tn_history_rows_missing');
-      historyProbe.lastRows = rows.length;
-      return { ok: true, status: response.status, activity_id: aid, rows,
-        source: historyProbe.source, fetched_at: historyProbe.lastRunAt };
-    } catch (error) {
-      historyProbe.lastError = error?.name === 'AbortError'
-        ? 'tn_history_timeout' : String(error?.message || error || 'tn_history_failed');
-      throw new Error(historyProbe.lastError);
-    } finally {
-      clearTimeout(timeout);
-      historyProbe.running = false;
-    }
-  }
-
-  window.__TN_TOA_FETCH_ACTIVITY_HISTORY__ = fetchActivityHistory;
-  window.__TN_TOA_HISTORY_STATUS__ = function () {
-    return {
-      templateAvailable: Boolean(historyProbe.template),
-      templateCapturedAt: historyProbe.capturedAt,
-      templateSource: historyProbe.source,
-      running: historyProbe.running,
-      lastRunAt: historyProbe.lastRunAt,
-      lastStatus: historyProbe.lastStatus,
-      lastError: historyProbe.lastError,
-      lastActivityId: historyProbe.lastActivityId,
-      lastRows: historyProbe.lastRows,
-    };
-  };
-
   window.fetch = async function () {
     const url = typeof arguments[0] === 'string' ? arguments[0] : String(arguments[0]?.url || '');
     const method = String(arguments[1]?.method || arguments[0]?.method || 'GET');
@@ -600,7 +448,6 @@
     const requestBody = arguments[1]?.body;
     const requestedProviderId = isMapGetUrl(url) ? providerIdFromBody(requestBody) : '';
     rememberMapTemplate(method, url, requestBody, headers);
-    rememberHistoryTemplate(method, url, requestBody, headers);
     const response = await originalFetch.apply(this, arguments);
     response.clone().text().then((text) => publish(url, text, {
       providerId: requestedProviderId,
@@ -629,12 +476,6 @@
       ? providerIdFromBody(body)
       : '';
     rememberMapTemplate(
-      this.__tn_location_method,
-      this.__tn_location_url,
-      body,
-      this.__tn_location_headers,
-    );
-    rememberHistoryTemplate(
       this.__tn_location_method,
       this.__tn_location_url,
       body,

@@ -403,27 +403,22 @@ function renderTechnicians(store, directory) {
   document.querySelector('#techEmpty').classList.toggle('hidden', rows.length > 0);
 }
 
-export function monitorTvCountdown(deadlineOrRow, now = new Date()) {
-  const row = deadlineOrRow && typeof deadlineOrRow === 'object' ? deadlineOrRow : null;
-  const deadline = row ? (row.tec1_countdown_deadline || row.tec1_deadline) : deadlineOrRow;
-  if (!deadline) return { text: '--:--:--', kind: 'unknown', urgent: false, lateMinutes: 0, phase: row?.tec1_phase || 'unknown' };
+export function monitorTvCountdown(deadline, now = new Date()) {
+  if (!deadline) return { text: '--:--:--', kind: 'unknown', urgent: false, lateMinutes: 0 };
   const target = new Date(deadline);
-  if (Number.isNaN(target.getTime())) return { text: '--:--:--', kind: 'unknown', urgent: false, lateMinutes: 0, phase: row?.tec1_phase || 'unknown' };
+  if (Number.isNaN(target.getTime())) return { text: '--:--:--', kind: 'unknown', urgent: false, lateMinutes: 0 };
   const diff = target.getTime() - now.getTime();
   const sign = diff < 0 ? '-' : '';
   const abs = Math.abs(diff);
   const hours = Math.floor(abs / 3600000);
   const minutes = Math.floor((abs % 3600000) / 60000);
   const seconds = Math.floor((abs % 60000) / 1000);
-  const phase = row?.tec1_phase || '';
-  const lateMinutes = phase === 'late' ? Math.max(1, Math.ceil(abs / 60000))
-    : !row && diff < 0 ? Math.floor(abs / 60000) : 0;
+  const lateMinutes = diff < 0 ? Math.floor(Math.abs(diff) / 60000) : 0;
   return {
     text: `${sign}${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`,
-    kind: row?.tec1_kind || (diff < 0 ? 'late' : diff <= 3600000 ? 'risk' : 'safe'),
-    urgent: row ? ['grace', 'late'].includes(phase) : lateMinutes >= 45,
+    kind: diff < 0 ? 'late' : diff <= 3600000 ? 'risk' : 'safe',
+    urgent: lateMinutes >= 45,
     lateMinutes,
-    phase,
   };
 }
 
@@ -474,267 +469,33 @@ export function groupTvFocusFacts(facts) {
   };
 }
 
-const TV_KPI_LABELS = Object.freeze({
-  total: 'TOTAL DE OS',
-  field: 'EM CAMPO',
-  completed: 'CONCLUÍDAS',
-  pending: 'PENDENTES',
-  risk: 'JANELA / TEC1 EM ATENÇÃO',
-  late: 'TEC1 ESTOURADO',
-  routes: 'ALERTAS DE ROTA',
-});
-
-export function tvKpiRows(model, key) {
-  const rows = model?.views?.monitor?.rows || [];
-  if (key === 'total') return rows;
-  if (key === 'field') return rows.filter((row) => row.status_kind === 'field');
-  if (key === 'completed') return rows.filter((row) => row.status_kind === 'completed');
-  if (key === 'pending') return rows.filter((row) => row.status_kind === 'pending');
-  if (key === 'risk') return rows.filter((row) => row.tec1_kind === 'risk');
-  if (key === 'late') return rows.filter((row) => row.tec1_kind === 'late');
-  if (key === 'routes') {
-    const alerted = new Set((model?.views?.routes?.console?.alerts || []).map((item) => String(item.os || '')));
-    return rows.filter((row) => alerted.has(String(row.os || '')));
-  }
-  return [];
-}
-
-let tvDrilldownState = null;
-
-function tvRowKey(row) {
-  return `${row?.activityId || row?.activity_id || ''}:${row?.os || ''}`;
-}
-
-function tvRowSearchText(row) {
-  return normalize([
-    row?.os, row?.contract, row?.service, row?.technician, row?.technician_login,
-    row?.bucket, row?.status, row?.city, row?.activityId, row?.close_code,
-  ].join(' '));
-}
-
-function tvDrilldownRows(model, state) {
-  const rows = model?.views?.monitor?.rows || [];
-  if (!state) return [];
-  if (state.type === 'kpi') return tvKpiRows(model, state.key);
-  if (state.type === 'technician') {
-    const login = normalize(state.login);
-    const name = normalize(state.name);
-    return rows.filter((row) => (login && normalize(row.technician_login) === login)
-      || (name && normalize(row.technician) === name));
-  }
-  return [];
-}
-
-function tvDrilldownTitle(state) {
-  if (state?.type === 'technician') return state.name || state.login || 'TÉCNICO';
-  return TV_KPI_LABELS[state?.key] || 'DETALHES DA OPERAÇÃO';
-}
-
-function tvDrilldownSubtitle(state, count) {
-  if (state?.type === 'technician') return `${count} OS vinculada${count === 1 ? '' : 's'} ao técnico na leitura atual`;
-  return `${count} OS na leitura atual · clique em uma linha para abrir os detalhes`;
-}
-
-function tvRenderListRow(row, index) {
-  const tec1 = row?.tec1 && row.tec1 !== '-' ? row.tec1 : row?.status || '-';
-  const statusClass = escapeHtml(row?.status_kind || 'pending');
-  return `<button type="button" class="monitor-tv-drill-row" data-tv-drill-row="${index}">
-    <span class="monitor-tv-drill-row-main"><strong>OS ${escapeHtml(row?.os || '-')}</strong><small>${escapeHtml(row?.service || 'Atividade')}</small></span>
-    <span><small>Contrato</small><strong>${escapeHtml(row?.contract || '-')}</strong></span>
-    <span><small>Técnico</small><strong>${escapeHtml(row?.technician || '-')}</strong></span>
-    <span><small>Bucket</small><strong>${escapeHtml(row?.bucket || '-')}</strong></span>
-    <span class="monitor-tv-drill-row-status ${statusClass}"><small>Status</small><strong>${escapeHtml(row?.status || '-')}</strong></span>
-    <span><small>TEC1</small><strong>${escapeHtml(tec1)}</strong></span>
-    <i data-lucide="chevron-right"></i>
-  </button>`;
-}
-
-function tvFormatClosedAt(value) {
-  if (!value) return '-';
-  return formatPtBrDateTime(String(value));
-}
-
-function tvRenderOrderDetail(row) {
-  const facts = [
-    ['OS', row?.os], ['Contrato', row?.contract], ['Atividade', row?.activity_id],
-    ['Serviço', row?.service], ['Status', row?.status], ['Técnico', row?.technician],
-    ['Login TOA', row?.technician_login], ['Bucket', row?.bucket], ['Cidade', row?.city],
-    ['Agenda', formatPtBrSchedule(row?.schedule)], ['Janela', `${row?.window_start || '-'} — ${row?.window_end || '-'}`],
-    ['Fase JANELA/TEC1', row?.tec1_phase], ['Fim da janela', tvFormatClosedAt(row?.window_deadline)],
-    ['Prazo final TEC1', tvFormatClosedAt(row?.tec1_deadline)], ['Código de baixa', row?.close_code],
-    ['Baixa operacional', tvFormatClosedAt(row?.operational_closed_at)],
-    ['Origem do encerramento', row?.operational_close_source], ['TEC1', row?.tec1],
-  ];
-  return `<div class="monitor-tv-order-detail-grid">${facts.map(([label, value]) => `<span><small>${label}</small><strong>${escapeHtml(value || '-')}</strong></span>`).join('')}</div>`;
-}
-
-function tvFindDetailRow(model, state) {
-  const rows = model?.views?.monitor?.rows || [];
-  return rows.find((row) => tvRowKey(row) === state?.rowKey)
-    || rows.find((row) => String(row?.os || '') === String(state?.os || ''))
-    || null;
-}
-
-function tvOpenRowInMonitor(store, row) {
-  const needle = String(row?.os || row?.contract || '').trim();
-  tvDrilldownState = null;
-  exitTv();
-  store.set({ module: 'monitor', view: 'monitor', search: needle, bucket: 'all', status: 'all' });
-  switchModule(store, 'monitor');
-  const input = document.querySelector('#monitorSearch');
-  if (input) input.value = needle;
-  const status = document.querySelector('#monitorStatus');
-  if (status) status.value = 'all';
-}
-
-function tvBindKeyboardAction(element, handler) {
-  if (!element) return;
-  element.addEventListener('click', handler);
-  element.addEventListener('keydown', (event) => {
-    if (event.key !== 'Enter' && event.key !== ' ') return;
-    event.preventDefault();
-    handler(event);
-  });
-}
-
-function renderTvDrilldown(tvRoot, store, alertService, model) {
-  tvRoot.querySelector('.monitor-tv-drilldown')?.remove();
-  if (!tvDrilldownState) return;
-  const overlay = document.createElement('section');
-  overlay.className = 'monitor-tv-drilldown';
-  overlay.setAttribute('role', 'dialog');
-  overlay.setAttribute('aria-modal', 'true');
-
-  if (tvDrilldownState.type === 'detail') {
-    const row = tvFindDetailRow(model, tvDrilldownState);
-    if (!row) { tvDrilldownState = null; return; }
-    overlay.setAttribute('aria-label', `Detalhes da OS ${row.os || ''}`);
-    overlay.innerHTML = `<div class="monitor-tv-drill-panel detail">
-      <header><div><span>DETALHE OPERACIONAL</span><h2>OS ${escapeHtml(row.os || '-')}</h2><small>${escapeHtml(row.service || 'Atividade')}</small></div><button type="button" data-tv-drill-close aria-label="Fechar"><i data-lucide="x"></i></button></header>
-      ${tvRenderOrderDetail(row)}
-      <footer><button type="button" class="secondary" data-tv-drill-back><i data-lucide="arrow-left"></i>Voltar</button><button type="button" class="secondary" data-tv-copy-os><i data-lucide="copy"></i>Copiar OS</button><button type="button" class="primary" data-tv-open-monitor><i data-lucide="external-link"></i>Abrir no monitor</button></footer>
-    </div>`;
-    tvRoot.append(overlay);
-    overlay.querySelector('[data-tv-drill-close]')?.addEventListener('click', () => { tvDrilldownState = null; overlay.remove(); });
-    overlay.querySelector('[data-tv-drill-back]')?.addEventListener('click', () => { tvDrilldownState = tvDrilldownState.returnState || null; renderTv(store, alertService); });
-    overlay.querySelector('[data-tv-copy-os]')?.addEventListener('click', async () => {
-      try { await navigator.clipboard.writeText(String(row.os || '')); toast(`OS ${row.os} copiada.`); } catch { toast('Não foi possível copiar a OS.', 'error'); }
-    });
-    overlay.querySelector('[data-tv-open-monitor]')?.addEventListener('click', () => tvOpenRowInMonitor(store, row));
-    overlay.addEventListener('click', (event) => { if (event.target === overlay) { tvDrilldownState = null; overlay.remove(); } });
-    window.lucide?.createIcons();
-    return;
-  }
-
-  const allRows = tvDrilldownRows(model, tvDrilldownState);
-  const term = normalize(tvDrilldownState.search || '');
-  const filtered = term ? allRows.filter((row) => tvRowSearchText(row).includes(term)) : allRows;
-  const visible = filtered.slice(0, 120);
-  const title = tvDrilldownTitle(tvDrilldownState);
-  const subtitle = tvDrilldownSubtitle(tvDrilldownState, filtered.length);
-  overlay.setAttribute('aria-label', title);
-  overlay.innerHTML = `<div class="monitor-tv-drill-panel">
-    <header><div><span>DRILL-DOWN</span><h2>${escapeHtml(title)}</h2><small>${escapeHtml(subtitle)}</small></div><button type="button" data-tv-drill-close aria-label="Fechar"><i data-lucide="x"></i></button></header>
-    <div class="monitor-tv-drill-toolbar"><label><i data-lucide="search"></i><input type="search" data-tv-drill-search value="${escapeHtml(tvDrilldownState.search || '')}" placeholder="Buscar OS, contrato, técnico, bucket..."></label><strong>${visible.length}${filtered.length > visible.length ? ` de ${filtered.length}` : ''}</strong></div>
-    <div class="monitor-tv-drill-list">${visible.length ? visible.map(tvRenderListRow).join('') : '<div class="monitor-tv-drill-empty">Nenhuma OS encontrada neste filtro.</div>'}</div>
-    <footer><span>Os dados continuam atualizando em segundo plano.</span><button type="button" class="secondary" data-tv-drill-close>Fechar</button></footer>
-  </div>`;
-  tvRoot.append(overlay);
-  overlay.querySelectorAll('[data-tv-drill-close]').forEach((button) => button.addEventListener('click', () => { tvDrilldownState = null; overlay.remove(); }));
-  const input = overlay.querySelector('[data-tv-drill-search]');
-  input?.addEventListener('input', (event) => {
-    tvDrilldownState = { ...tvDrilldownState, search: event.target.value };
-    renderTvDrilldown(tvRoot, store, alertService, buildModel(store.get()));
-    tvRoot.querySelector('[data-tv-drill-search]')?.focus();
-  });
-  overlay.querySelectorAll('[data-tv-drill-row]').forEach((button) => {
-    const index = Number(button.dataset.tvDrillRow || -1);
-    button.addEventListener('click', () => {
-      const row = visible[index];
-      if (!row) return;
-      const returnState = { ...tvDrilldownState };
-      tvDrilldownState = { type: 'detail', rowKey: tvRowKey(row), os: row.os, returnState };
-      renderTv(store, alertService);
-    });
-  });
-  overlay.addEventListener('click', (event) => { if (event.target === overlay) { tvDrilldownState = null; overlay.remove(); } });
-  window.lucide?.createIcons();
-}
-
 function renderTvTechnicianCards(items) {
-  return items.length ? items.map((item, index) => `<article class="monitor-tv-clickable" data-tv-technician-index="${index}" role="button" tabindex="0" aria-label="Abrir atividades de ${escapeHtml(item.technician)}"><span class="avatar">${escapeHtml(item.technician.split(/\s+/).slice(0, 2).map((part) => part[0] || '').join(''))}</span><div><strong>${escapeHtml(item.technician)}</strong><small>OS ${escapeHtml(item.os)} · ${escapeHtml(item.service)}</small><b>${escapeHtml(item.state_label)} · ${escapeHtml(item.bucket)}</b></div><span class="monitor-tv-card-open"><i data-lucide="chevron-right"></i></span></article>`).join('') : '<div class="monitor-tv-empty">Nenhum técnico iniciado na leitura atual.</div>';
-}
-
-function bindTvInteractions(tvRoot, store, alertService, model, focusPage, technicianPage) {
-  tvRoot.querySelectorAll('[data-tv-kpi]').forEach((card) => tvBindKeyboardAction(card, () => {
-    tvDrilldownState = { type: 'kpi', key: card.dataset.tvKpi, search: '' };
-    renderTv(store, alertService);
-  }));
-  tvRoot.querySelectorAll('[data-tv-focus-slot]').forEach((card) => tvBindKeyboardAction(card, () => {
-    const row = focusPage.items[Number(card.dataset.tvFocusSlot || 0)];
-    if (!row || !row.os || row.os === '-') return;
-    tvDrilldownState = { type: 'detail', rowKey: tvRowKey(row), os: row.os, returnState: null };
-    renderTv(store, alertService);
-  }));
-  tvRoot.querySelectorAll('[data-tv-technician-index]').forEach((card) => tvBindKeyboardAction(card, () => {
-    const item = technicianPage.items[Number(card.dataset.tvTechnicianIndex || 0)];
-    if (!item) return;
-    tvDrilldownState = { type: 'technician', login: item.technician_login || '', name: item.technician || '', search: '' };
-    renderTv(store, alertService);
-  }));
-  tvRoot.querySelector('[data-tv-route-alert]')?.addEventListener('click', () => {
-    tvDrilldownState = { type: 'kpi', key: 'routes', search: '' };
-    renderTv(store, alertService);
-  });
-  renderTvDrilldown(tvRoot, store, alertService, model);
+  return items.length ? items.map((item) => `<article><span class="avatar">${escapeHtml(item.technician.split(/\s+/).slice(0, 2).map((part) => part[0] || '').join(''))}</span><div><strong>${escapeHtml(item.technician)}</strong><small>OS ${escapeHtml(item.os)} · ${escapeHtml(item.service)}</small><b>${escapeHtml(item.state_label)} · ${escapeHtml(item.bucket)}</b></div></article>`).join('') : '<div class="monitor-tv-empty">Nenhum técnico iniciado na leitura atual.</div>';
 }
 
 function renderTvFocusFacts(facts) {
   return facts.map(([label, value]) => `<span><small>${label}</small><strong>${escapeHtml(value || '-')}</strong></span>`).join('');
 }
 
-function tvTec1PhasePresentation(focus, countdown) {
-  if (focus?.deadline_basis !== 'official_window') {
-    return { active: false, css: '', title: '', detail: '' };
-  }
-  const phase = focus?.tec1_phase || countdown?.phase || 'window';
-  const grace = focus?.tec1_grace_label || (Number(focus?.tec1_grace_minutes) > 60 ? '2H' : '1H');
-  if (phase === 'late') return {
-    active: true, css: 'tec1-late', title: 'TEC1 ESTOURADO',
-    detail: `Prazo final vencido · baixa imediata do contrato ${focus?.contract || '-'}`,
-  };
-  if (phase === 'grace') return {
-    active: true, css: 'window-breached', title: `JANELA FERIDA · PRAZO DE ${grace} INICIADO`,
-    detail: `${countdown.text} para o TEC1 · cobre a baixa com o técnico`,
-  };
-  if (phase === 'window' && focus?.tec1_kind === 'risk') return {
-    active: true, css: 'window-warning', title: `JANELA FECHA EM ${countdown.text}`,
-    detail: 'Aviso preventivo · fale com o técnico sobre possível TEC1',
-  };
-  return { active: false, css: 'window-safe', title: 'CONTAGEM ATÉ O FIM DA JANELA', detail: '' };
-}
-
 function renderTvFocusCard(focus, slot) {
-  const countdown = monitorTvCountdown(focus);
-  const phase = tvTec1PhasePresentation(focus, countdown);
-  const urgent = ['grace', 'late'].includes(focus?.tec1_phase) && focus.deadline_basis === 'official_window';
+  const countdown = monitorTvCountdown(focus.tec1_deadline);
+  const urgent = countdown.urgent && focus.deadline_basis === 'official_window';
   const primaryFacts = [
-    ['Contrato', focus.contract], ['Técnico', focus.technician],
-    ['Status', focus.status], ['Agenda', formatPtBrSchedule(focus.schedule)],
+    ['Contrato', focus.contract],
+    ['Técnico', focus.technician],
+    ['Status', focus.status],
+    ['Agenda', formatPtBrSchedule(focus.schedule)],
   ];
   const secondaryFacts = [
-    ['OS', focus.os], ['Cidade', focus.city], ['Bucket', focus.bucket],
+    ['OS', focus.os],
+    ['Login TOA', focus.technician_login],
+    ['Bucket', focus.bucket],
     ['Janela', `${focus.window_start || '-'} — ${focus.window_end || '-'}`],
   ];
-  const phaseIcon = focus?.tec1_phase === 'window' ? 'triangle-alert' : 'siren';
-  return `<section class="monitor-tv-focus-card monitor-tv-clickable ${countdown.kind} phase-${escapeHtml(focus?.tec1_phase || 'unknown')}${urgent ? ' urgent-close' : ''}" data-tv-focus-slot="${slot}" data-tv-phase="${escapeHtml(focus?.tec1_phase || 'unknown')}" role="button" tabindex="0" aria-label="Abrir detalhes da OS ${escapeHtml(focus.os || '-')}">
-    <div class="monitor-tv-focus-card-head"><span>PRIORIDADE ${slot + 1}</span><span class="monitor-tv-status ${escapeHtml(focus.tec1_kind || 'unknown')}">${escapeHtml(focus.tec1 || focus.status || 'Sem agenda')}</span></div>
-    <div class="monitor-tv-countdown-caption">${escapeHtml(focus?.tec1_phase === 'grace' ? 'TEMPO ATÉ ESTOURAR O TEC1' : focus?.tec1_phase === 'late' ? 'TEMPO APÓS ESTOURAR O TEC1' : 'TEMPO ATÉ FECHAR A JANELA')}</div>
-    <strong class="monitor-tv-tec1-value ${countdown.kind}" data-tv-countdown>${escapeHtml(countdown.text)}</strong>
-    <h1>${escapeHtml(focus.service || 'Atividade')}</h1>
-    <div class="monitor-tv-focus-details"><div class="monitor-tv-focus-grid monitor-tv-focus-primary">${renderTvFocusFacts(primaryFacts)}</div><div class="monitor-tv-focus-grid monitor-tv-focus-secondary">${renderTvFocusFacts(secondaryFacts)}</div></div>
-    <div class="monitor-tv-urgent ${phase.css}${phase.active ? ' active' : ''}" data-tv-urgent><span class="monitor-tv-siren"><i data-lucide="${phaseIcon}"></i></span><div><strong>${escapeHtml(phase.title)}</strong><small>${escapeHtml(phase.detail)}</small></div></div>
-  </section>`;
+  const urgentText = countdown.lateMinutes >= 60
+    ? `BAIXA IMEDIATA · janela vencida há ${countdown.lateMinutes} min`
+    : `BAIXA URGENTE · ${60 - countdown.lateMinutes} min para completar 1 hora`;
+  return `<section class="monitor-tv-focus-card ${countdown.kind}${urgent ? ' urgent-close' : ''}" data-tv-focus-slot="${slot}"><div class="monitor-tv-focus-card-head"><span>PRIORIDADE ${slot + 1}</span><span class="monitor-tv-status ${escapeHtml(focus.tec1_kind || 'unknown')}">${escapeHtml(focus.tec1 || focus.status || 'Sem agenda')}</span></div><strong class="monitor-tv-tec1-value ${countdown.kind}" data-tv-countdown>${escapeHtml(countdown.text)}</strong><h1>${escapeHtml(focus.service || 'Atividade')}</h1><div class="monitor-tv-focus-details"><div class="monitor-tv-focus-grid monitor-tv-focus-primary">${renderTvFocusFacts(primaryFacts)}</div><div class="monitor-tv-focus-grid monitor-tv-focus-secondary">${renderTvFocusFacts(secondaryFacts)}</div></div><div class="monitor-tv-urgent${urgent ? ' active' : ''}" data-tv-urgent><span class="monitor-tv-siren"><i data-lucide="siren"></i></span><div><strong>${escapeHtml(urgentText)}</strong><small>Baixar urgente o contrato ${escapeHtml(focus.contract || '-')}</small></div></div></section>`;
 }
 
 function renderTvFocusEmpty() {
@@ -751,22 +512,22 @@ function renderTv(store, alertService) {
   const model = buildModel(state);
   const tv = window.DominiumMonitor.buildTvDashboard(model);
   const routeEstimate = tv.focusBasis === 'route_estimate';
-  const focusTitle = routeEstimate ? 'PRIORIDADES DA ROTA' : 'JANELA / TEC1 PRIORITÁRIOS';
+  const focusTitle = routeEstimate ? 'PRIORIDADES DA ROTA' : 'TEC1 PRIORITÁRIOS';
   const focusSubtitle = routeEstimate
     ? 'Estimativa pelo fim da agenda · janela oficial pendente'
-    : '1º aviso: fim da janela · 2º aviso: prazo TEC1 após janela ferida';
+    : 'Duas OS por aviso · rotação automática';
   const focusBasisText = routeEstimate
     ? 'Estimativa operacional pelo fim da agenda do TOA; não representa TEC1 oficial.'
-    : 'Primeiro cronômetro termina no fim da janela; sem baixa, inicia o prazo adicional do TEC1.';
+    : 'Contagem operacional pelo fim da janela oficial do TOA.';
   // Never revive a completed activity merely to fill the TV focus card.
   const rows = tv.tec1Rows;
   const focusPage = pageTvFocusRows(rows, tvSlideIndex);
   const focus = focusPage.items[0] || { os: '-', contract: '-', service: 'Nenhuma atividade carregada', technician: 'SEM INFORMAÇÃO', bucket: '-', status: '-', schedule: '-', window_start: '-', window_end: '-', tec1_deadline: '' };
-  const countdown = monitorTvCountdown(focus);
+  const countdown = monitorTvCountdown(focus.tec1_deadline);
   const routeAlert = tv.routeAlerts[0];
   const technicianPage = pageTvTechnicians(tv.activeTechnicians, tvTechnicianPageIndex);
   const tvSourceLabel = state.snapshot.live ? 'TOA AO VIVO · ALL_BUCKETS' : state.snapshot.source === 'toa_datalake' ? 'BASE LOCAL TOA' : 'RETRATO CSV DO TOA';
-  tvRoot.innerHTML = `<header class="monitor-tv-header"><div class="monitor-tv-brand"><span class="monitor-tv-logo"><img class="brand-asset brand-primary-logo" src="/assets/brands/logo-novo-compact.svg" alt=""></span><img class="monitor-tv-partner brand-asset" src="/assets/brands/claro-orb.png" alt="Claro"><div><strong>TECHNET · DOMINIUM TOA</strong><small>Centro de Controle Operacional</small></div></div><div class="monitor-tv-context"><span>TOA / TEC1</span><strong class="live"><i></i>RETRATO CSV DO TOA</strong><b class="api">TOA LOCAL</b></div><div class="monitor-tv-time"><strong id="tvClock">${new Date().toLocaleTimeString('pt-BR')}</strong><span>${new Date().toLocaleDateString('pt-BR')}</span></div><div class="monitor-tv-header-actions"><button type="button" id="tvVoice" class="${alertService.voice ? 'active' : ''}"><i data-lucide="${alertService.voice ? 'volume-2' : 'volume-x'}"></i><span>${alertService.voice ? 'Voz ativa' : 'Ativar voz'}</span></button><button type="button" id="tvFullscreen"><i data-lucide="maximize"></i></button><button type="button" id="tvExit"><i data-lucide="x"></i></button></div></header><section class="monitor-tv-kpis">${[['total', 'Total de OS', tv.kpis.total || 0, 'neutral'], ['field', 'Em campo', tv.kpis.field || 0, 'green'], ['completed', 'Concluídas', tv.kpis.completed || 0, 'blue'], ['pending', 'Pendentes', tv.kpis.pending || 0, 'yellow'], ['risk', 'Janela/TEC1 atenção', tv.kpis.tec1Risk || 0, 'red'], ['late', 'TEC1 estourado', tv.kpis.tec1Late || 0, 'red'], ['routes', 'Alertas de rota', tv.kpis.routeAlerts || 0, 'orange']].map(([key, label, value, kind]) => `<article class="${kind} monitor-tv-clickable" data-tv-kpi="${key}" role="button" tabindex="0" aria-label="Abrir ${label}: ${value}"><span>${label}</span><strong>${value}</strong><small class="monitor-tv-click-hint">ver detalhes</small></article>`).join('')}</section><main class="monitor-tv-main"><article class="monitor-tv-focus ${countdown.kind}"><div class="monitor-tv-focus-head"><div><span class="monitor-tv-focus-kicker"><i></i>TEC1 PRIORITÁRIO</span><small>Leitura atual</small></div><span class="monitor-tv-status ${escapeHtml(focus.tec1_kind || 'unknown')}">${escapeHtml(focus.tec1 || focus.status || 'Sem agenda')}</span></div><strong class="monitor-tv-tec1-value ${countdown.kind}" id="tvCountdown">${escapeHtml(countdown.text)}</strong><h1>${escapeHtml(focus.service || 'Atividade')}</h1><div class="monitor-tv-focus-grid">${[['OS', focus.os], ['Contrato', focus.contract], ['Técnico', focus.technician], ['Login TOA', focus.technician_login], ['Bucket', focus.bucket], ['Status', focus.status], ['Agenda', formatPtBrSchedule(focus.schedule)], ['Janela', `${focus.window_start || '-'} — ${focus.window_end || '-'}`]].map(([label, value]) => `<span><small>${label}</small><strong>${escapeHtml(value || '-')}</strong></span>`).join('')}</div><footer><span><i data-lucide="info"></i>Contagem operacional pelo fim da agenda do TOA.</span><b>Monitoramento em modo somente leitura.</b></footer></article><aside class="monitor-tv-now"><header><span>OPERAÇÃO AGORA</span><strong>${tv.activeTechnicians.length} técnico${tv.activeTechnicians.length === 1 ? '' : 's'} em execução/rota</strong></header><div class="monitor-tv-technicians">${renderTvTechnicianCards(technicianPage.items)}</div></aside></main><footer class="monitor-tv-footer"><span class="monitor-tv-live"><i></i>Atualização visual automática</span><div class="monitor-tv-ticker${routeAlert ? ' monitor-tv-clickable' : ''}" ${routeAlert ? 'data-tv-route-alert="true" role="button" tabindex="0" aria-label="Abrir alertas de rota"' : ''}><span>${routeAlert ? `ALERTA: OS ${escapeHtml(routeAlert.os)} · ${escapeHtml(routeAlert.technician)} · ${escapeHtml(routeAlert.detail)}` : 'Nenhuma janela crítica identificada na leitura atual'}</span></div><strong>Atualizado ${localClock(new Date())}</strong></footer>`;
+  tvRoot.innerHTML = `<header class="monitor-tv-header"><div class="monitor-tv-brand"><span class="monitor-tv-logo"><img class="brand-asset brand-primary-logo" src="/assets/brands/logo-novo-compact.svg" alt=""></span><img class="monitor-tv-partner brand-asset" src="/assets/brands/claro-orb.png" alt="Claro"><div><strong>TECHNET · DOMINIUM TOA</strong><small>Centro de Controle Operacional</small></div></div><div class="monitor-tv-context"><span>TOA / TEC1</span><strong class="live"><i></i>RETRATO CSV DO TOA</strong><b class="api">TOA LOCAL</b></div><div class="monitor-tv-time"><strong id="tvClock">${new Date().toLocaleTimeString('pt-BR')}</strong><span>${new Date().toLocaleDateString('pt-BR')}</span></div><div class="monitor-tv-header-actions"><button type="button" id="tvVoice" class="${alertService.voice ? 'active' : ''}"><i data-lucide="${alertService.voice ? 'volume-2' : 'volume-x'}"></i><span>${alertService.voice ? 'Voz ativa' : 'Ativar voz'}</span></button><button type="button" id="tvFullscreen"><i data-lucide="maximize"></i></button><button type="button" id="tvExit"><i data-lucide="x"></i></button></div></header><section class="monitor-tv-kpis">${[['Total de OS', tv.kpis.total || 0, 'neutral'], ['Em campo', tv.kpis.field || 0, 'green'], ['Concluídas', tv.kpis.completed || 0, 'blue'], ['Pendentes', tv.kpis.pending || 0, 'yellow'], ['TEC1 em atenção', tv.kpis.tec1Risk || 0, 'red'], ['TEC1 estourado', tv.kpis.tec1Late || 0, 'red'], ['Alertas de rota', tv.kpis.routeAlerts || 0, 'orange']].map(([label, value, kind]) => `<article class="${kind}"><span>${label}</span><strong>${value}</strong></article>`).join('')}</section><main class="monitor-tv-main"><article class="monitor-tv-focus ${countdown.kind}"><div class="monitor-tv-focus-head"><div><span class="monitor-tv-focus-kicker"><i></i>TEC1 PRIORITÁRIO</span><small>Leitura atual</small></div><span class="monitor-tv-status ${escapeHtml(focus.tec1_kind || 'unknown')}">${escapeHtml(focus.tec1 || focus.status || 'Sem agenda')}</span></div><strong class="monitor-tv-tec1-value ${countdown.kind}" id="tvCountdown">${escapeHtml(countdown.text)}</strong><h1>${escapeHtml(focus.service || 'Atividade')}</h1><div class="monitor-tv-focus-grid">${[['OS', focus.os], ['Contrato', focus.contract], ['Técnico', focus.technician], ['Login TOA', focus.technician_login], ['Bucket', focus.bucket], ['Status', focus.status], ['Agenda', formatPtBrSchedule(focus.schedule)], ['Janela', `${focus.window_start || '-'} — ${focus.window_end || '-'}`]].map(([label, value]) => `<span><small>${label}</small><strong>${escapeHtml(value || '-')}</strong></span>`).join('')}</div><footer><span><i data-lucide="info"></i>Contagem operacional pelo fim da agenda do TOA.</span><b>Monitoramento em modo somente leitura.</b></footer></article><aside class="monitor-tv-now"><header><span>OPERAÇÃO AGORA</span><strong>${tv.activeTechnicians.length} técnico${tv.activeTechnicians.length === 1 ? '' : 's'} em execução/rota</strong></header><div class="monitor-tv-technicians">${tv.activeTechnicians.length ? tv.activeTechnicians.slice(0, 4).map((item) => `<article><span class="avatar">${escapeHtml(item.technician.split(/\s+/).slice(0, 2).map((part) => part[0] || '').join(''))}</span><div><strong>${escapeHtml(item.technician)}</strong><small>OS ${escapeHtml(item.os)} · ${escapeHtml(item.service)}</small><b>${escapeHtml(item.state_label)} · ${escapeHtml(item.bucket)}</b></div></article>`).join('') : '<div class="monitor-tv-empty">Nenhum técnico iniciado na leitura atual.</div>'}</div></aside></main><footer class="monitor-tv-footer"><span class="monitor-tv-live"><i></i>Atualização visual automática</span><div class="monitor-tv-ticker"><span>${routeAlert ? `ALERTA: OS ${escapeHtml(routeAlert.os)} · ${escapeHtml(routeAlert.technician)} · ${escapeHtml(routeAlert.detail)}` : 'Nenhuma janela crítica identificada na leitura atual'}</span></div><strong>Atualizado ${localClock(new Date())}</strong></footer>`;
   const sourceBadge = tvRoot.querySelector('.monitor-tv-context .live');
   if (sourceBadge) sourceBadge.innerHTML = `<i></i>${escapeHtml(tvSourceLabel)}`;
   const focusBoard = tvRoot.querySelector('.monitor-tv-focus');
@@ -785,7 +546,6 @@ function renderTv(store, alertService) {
       ? ` · exibindo ${technicianPage.start}–${technicianPage.end}` : '';
     technicianSummary.textContent = `${technicianPage.total} técnico${technicianPage.total === 1 ? '' : 's'} em execução/rota${pageLabel}`;
   }
-  bindTvInteractions(tvRoot, store, alertService, model, focusPage, technicianPage);
   alertService.syncTvFocus(focusPage.items);
   const fullscreenButton = tvRoot.querySelector('#tvFullscreen');
   const themeButton = document.createElement('button');
@@ -818,30 +578,26 @@ function updateTvLive(store, alertService) {
   const now = new Date();
   const clockRoot = document.querySelector('#tvClock');
   const updatedRoot = document.querySelector('.monitor-tv-footer > strong');
-  let phaseChanged = false;
   document.querySelectorAll('[data-tv-focus-slot]').forEach((card) => {
     const slot = Number(card.dataset.tvFocusSlot || 0);
     const focusItem = focusPage.items[slot];
-    if (!focusItem) return;
-    if (card.dataset.tvPhase !== String(focusItem.tec1_phase || 'unknown')) { phaseChanged = true; return; }
-    const countdown = monitorTvCountdown(focusItem, now);
-    const presentation = tvTec1PhasePresentation(focusItem, countdown);
-    const urgent = ['grace', 'late'].includes(focusItem?.tec1_phase) && focusItem?.deadline_basis === 'official_window';
+    const countdown = monitorTvCountdown(focusItem?.tec1_deadline, now);
+    const urgent = countdown.urgent && focusItem?.deadline_basis === 'official_window';
     const countdownRoot = card.querySelector('[data-tv-countdown]');
-    card.className = `monitor-tv-focus-card monitor-tv-clickable ${countdown.kind} phase-${focusItem.tec1_phase || 'unknown'}${urgent ? ' urgent-close' : ''}`;
-    if (countdownRoot) { countdownRoot.textContent = countdown.text; countdownRoot.className = `monitor-tv-tec1-value ${countdown.kind}`; }
-    const statusRoot = card.querySelector('.monitor-tv-status');
-    if (statusRoot) { statusRoot.textContent = focusItem.tec1 || focusItem.status || 'Sem agenda'; statusRoot.className = `monitor-tv-status ${focusItem.tec1_kind || 'unknown'}`; }
+    card.className = `monitor-tv-focus-card ${countdown.kind}${urgent ? ' urgent-close' : ''}`;
+    if (countdownRoot) {
+      countdownRoot.textContent = countdown.text;
+      countdownRoot.className = `monitor-tv-tec1-value ${countdown.kind}`;
+    }
     const urgentRoot = card.querySelector('[data-tv-urgent]');
     if (urgentRoot) {
-      urgentRoot.className = `monitor-tv-urgent ${presentation.css}${presentation.active ? ' active' : ''}`;
-      const title = urgentRoot.querySelector('strong');
-      const detail = urgentRoot.querySelector('small');
-      if (title) title.textContent = presentation.title;
-      if (detail) detail.textContent = presentation.detail;
+      urgentRoot.classList.toggle('active', urgent);
+      const urgentTitle = urgentRoot.querySelector('strong');
+      if (urgentTitle) urgentTitle.textContent = countdown.lateMinutes >= 60
+        ? `BAIXA IMEDIATA · janela vencida há ${countdown.lateMinutes} min`
+        : `BAIXA URGENTE · ${60 - countdown.lateMinutes} min para completar 1 hora`;
     }
   });
-  if (phaseChanged) { renderTv(store, alertService); return; }
   if (clockRoot) clockRoot.textContent = now.toLocaleTimeString('pt-BR');
   if (updatedRoot) updatedRoot.textContent = `Atualizado ${localClock(now)}`;
 }
@@ -853,10 +609,6 @@ function scheduleTvSlide(store, alertService, delay = TV_SLIDE_MIN_DURATION_MS) 
   clearTimeout(tvSlideTimer);
   tvSlideTimer = setTimeout(() => {
     if (!document.body.classList.contains('monitor-tv-open')) return;
-    if (tvDrilldownState) {
-      scheduleTvSlide(store, alertService, TV_VOICE_RECHECK_MS);
-      return;
-    }
     if (alertService.isVoiceBusy()) {
       scheduleTvSlide(store, alertService, TV_VOICE_RECHECK_MS);
       return;
@@ -895,7 +647,6 @@ function exitTv() {
   clearTimeout(tvSlideTimer); tvSlideTimer = null;
   tvSlideIndex = 0;
   tvTechnicianPageIndex = 0;
-  tvDrilldownState = null;
   document.body.classList.remove('monitor-tv-open');
   globalAlertService?.setTvMode(false);
   const root = document.querySelector('#monitorTv');

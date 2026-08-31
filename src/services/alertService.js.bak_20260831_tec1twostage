@@ -101,13 +101,16 @@ export class AlertService {
 
   tvVoiceKey(item, value = new Date()) {
     const now = value instanceof Date ? value : new Date(value || Date.now());
-    const target = new Date(item?.tec1_countdown_deadline || item?.tec1_deadline || '');
-    const diff = target.getTime() - now.getTime();
+    const deadline = new Date(item?.tec1_deadline || '');
+    const diff = deadline.getTime() - now.getTime();
     const minutes = Number.isFinite(diff) ? Math.ceil(diff / 60000) : Number(item?.tec1_minutes);
-    const phase = item?.tec1_phase || (minutes < 0 ? 'late' : 'window');
-    let voicePhase = phase;
-    if (phase === 'window') voicePhase = minutes <= 15 ? 'window-15' : minutes <= 30 ? 'window-30' : 'window-60';
-    return `tv:${item?.os || '-'}:${item?.window_deadline || '-'}:${item?.tec1_deadline || '-'}:${voicePhase}`;
+    const lateMinutes = minutes < 0 ? Math.abs(minutes) : 0;
+    const officialWindow = item?.deadline_basis === 'official_window';
+    const phase = officialWindow && lateMinutes >= 60 ? 'urgent-60'
+      : officialWindow && lateMinutes >= 45 ? 'urgent-45'
+        : minutes < 0 ? 'late'
+          : minutes <= 15 ? 'risk-15' : minutes <= 30 ? 'risk-30' : 'risk-60';
+    return `tv:${item?.os || '-'}:${item?.tec1_deadline || '-'}:${phase}`;
   }
 
   syncTvFocus(items) {
@@ -134,13 +137,13 @@ export class AlertService {
       if (this.notifications && typeof Notification !== 'undefined' && Notification.permission === 'granted' && !this.notificationKeys.has(alert.key)) {
         this.notificationKeys.add(alert.key);
         const urgent = alert.kind === 'urgent-late';
-        const breached = alert.kind === 'window-breached';
-        const title = urgent ? 'TOA - TEC1 ESTOURADO' : breached ? 'TOA - JANELA FERIDA' : 'TOA - JANELA EM ATENÇÃO';
-        new Notification(title, {
-          body: `${alert.technician || 'Técnico'} | Contrato ${alert.contract || '-'} | ${alert.label || ''}`,
+        new Notification(urgent ? 'TOA - BAIXA URGENTE' : 'TOA - TEC1 em risco', {
+          body: urgent
+            ? `Contrato ${alert.contract || '-'} | ${alert.technician || 'Técnico'} | ${alert.label || ''}`
+            : `${alert.technician || 'Técnico'} | Contrato ${alert.contract || '-'} | ${alert.label || ''}`,
           tag: `toa-tec1-${alert.key}`,
           icon: '/assets/brands/logo-novo.png',
-          requireInteraction: urgent || breached,
+          requireInteraction: urgent,
         });
       }
       if (!this.tvMode && this.voice && !this.spoken.has(alert.key) && this.queue.length < 4) {

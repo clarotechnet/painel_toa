@@ -12,7 +12,7 @@ const options = fs.readFileSync(path.join(root, 'options.js'), 'utf8');
 const locationHook = fs.readFileSync(path.join(root, 'location-network-hook.js'), 'utf8');
 
 assert.equal(manifest.name, 'TOA TechNet Bridge');
-assert.equal(manifest.version, '2.6.13');
+assert.equal(manifest.version, '2.6.12');
 assert.match(background, /MONITOR_API_PORT = 8765/);
 assert.match(locationHook, /toa_map_pid_mismatch_/);
 assert.match(content, /respostasDescartadasPorPidDivergente/);
@@ -37,10 +37,6 @@ assert.match(content, /ultimoDiagnosticoSeguro/);
 assert.match(content, /__TN_TOA_LOCATION_SYNC_ALL__/);
 assert.match(content, /__TN_TOA_LOCATION_SYNC_MAP_ALL__/);
 assert.match(content, /syncMapPositionHistory/);
-assert.match(content, /syncActivityHistoriesSilent/);
-assert.match(content, /\/api\/v1\/ingest\/history/);
-assert.match(locationHook, /__TN_TOA_FETCH_ACTIVITY_HISTORY__/);
-assert.match(locationHook, /m=activity.*a=history/);
 assert.match(content, /const SILENT_UI_MODE = true/);
 assert.match(content, /document\.getElementById\('tn-panel'\)\?\.remove\(\)/);
 

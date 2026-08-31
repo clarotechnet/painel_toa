@@ -53,13 +53,14 @@ service.setEdgeVoice('pt-BR-FranciscaNeural');
 assert.equal(service.edgeVoice, 'pt-BR-FranciscaNeural');
 service.voice = true;
 service.setTvMode(true);
-const windowDeadline = new Date(Date.now() + 20 * 60000).toISOString();
-const finalDeadline = new Date(Date.now() + 79 * 60000).toISOString();
+const deadline = new Date(Date.now() + 20 * 60000).toISOString();
 const focus = {
-  os: '2650766808', contract: '408676249', technician: 'GABRIEL DE MORAIS BRITO',
-  tec1_kind: 'risk', tec1_phase: 'window', tec1_minutes: 20, deadline_basis: 'official_window',
-  window_deadline: windowDeadline, tec1_countdown_deadline: windowDeadline, tec1_deadline: finalDeadline,
-  tec1_grace_minutes: 59, tec1_grace_label: '1H',
+  os: '2650766808',
+  contract: '408676249',
+  technician: 'GABRIEL DE MORAIS BRITO',
+  tec1_kind: 'risk',
+  tec1_minutes: 55,
+  tec1_deadline: deadline,
 };
 
 service.syncTvFocus([focus]);
@@ -68,19 +69,14 @@ service.syncTvFocus([focus]);
 await new Promise((resolve) => setTimeout(resolve, 20));
 
 assert.equal(playedAudios.length, 1, 'A mesma prioridade visivel nao pode ser repetida');
-assert.match(decodeURIComponent(playedAudios[0]), /faltam 20 minutos/i);
+assert.match(decodeURIComponent(playedAudios[0]), /faltam 20 minutos/);
 
-const window9 = new Date(Date.now() + 9 * 60000).toISOString();
-service.syncTvFocus([{ ...focus, tec1_minutes: 9, window_deadline: window9, tec1_countdown_deadline: window9,
-  tec1_deadline: new Date(Date.now() + 68 * 60000).toISOString() }]);
+service.syncTvFocus([{ ...focus, tec1_minutes: 9, tec1_deadline: new Date(Date.now() + 9 * 60000).toISOString() }]);
 await new Promise((resolve) => setTimeout(resolve, 20));
 assert.equal(playedAudios.length, 2, 'A mudanca para a faixa de 15 minutos deve ser anunciada');
 
 const urgentDeadline = new Date(Date.now() - 45 * 60000).toISOString();
-const urgentWindow = new Date(Date.now() - 104 * 60000).toISOString();
-service.syncTvFocus([{ ...focus, contract: '408676249', tec1_kind: 'late', tec1_phase: 'late',
-  window_deadline: urgentWindow, tec1_countdown_deadline: urgentDeadline,
-  tec1_deadline: urgentDeadline, deadline_basis: 'official_window' }]);
+service.syncTvFocus([{ ...focus, contract: '408676249', tec1_kind: 'late', tec1_deadline: urgentDeadline, deadline_basis: 'official_window' }]);
 await new Promise((resolve) => setTimeout(resolve, 20));
 assert.match(decodeURIComponent(playedAudios.at(-1)), /Baixe imediatamente o contrato/);
 
@@ -101,12 +97,11 @@ notificationService.notify({
   views: { monitor: { rows: [{
     os: '2650000045', contract: '408676249', technician: 'EDSON CASEMIRO',
     technician_login: 'Z641921', bucket: 'JCR-DMV', status: 'INICIADA', status_kind: 'field',
-    tec1_kind: 'late', tec1_phase: 'late', window_deadline: urgentWindow,
-    tec1_deadline: urgentDeadline, window_start: '08:00', window_end: '11:00',
+    tec1_kind: 'late', tec1_deadline: urgentDeadline, window_start: '08:00', window_end: '11:00',
   }] } },
 });
 assert.equal(notifications.length, 1);
-assert.equal(notifications[0].title, 'TOA - TEC1 ESTOURADO');
+assert.equal(notifications[0].title, 'TOA - BAIXA URGENTE');
 assert.match(notifications[0].options.body, /Contrato 408676249/);
 
 console.log('Voz do Modo TV: sincronizacao, deduplicacao e Edge Neural TTS validados.');

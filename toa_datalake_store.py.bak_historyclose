@@ -73,25 +73,6 @@ def _status_group(value: Any) -> str:
     return "pending"
 
 
-def _executed_os_status(value: Any) -> bool:
-    status = _ascii(value).replace("_", " ")
-    if any(term in status for term in ("nao executad", "not done", "notdone", "cancel")):
-        return False
-    return any(term in status for term in ("executad", "executed"))
-
-
-def _history_local_iso(value: Any) -> str:
-    raw = _text(value, 40)
-    for fmt in ("%d/%m/%y %H:%M", "%d/%m/%Y %H:%M"):
-        try:
-            parsed = dt.datetime.strptime(raw, fmt)
-            parsed = parsed.replace(tzinfo=dt.datetime.now().astimezone().tzinfo)
-            return parsed.isoformat(timespec="minutes")
-        except ValueError:
-            pass
-    return ""
-
-
 def _terminal_status(value: Any) -> bool:
     """Estados finais confirmados pelo detalhe oficial da atividade."""
     status = _ascii(value).replace("_", " ")
@@ -130,24 +111,6 @@ def _window_end(scheduled_date: Any, service_window: Any) -> dt.datetime | None:
         )
     except (TypeError, ValueError):
         return None
-
-
-def _operational_close_from_outcomes(outcomes: list[dict[str, Any]], expected_tasks: int = 0) -> dict[str, Any]:
-    relevant = [item for item in outcomes if _text(item.get("os_status")) or _text(item.get("close_code"))]
-    required = max(1, int(expected_tasks or 0))
-    if len(relevant) < required:
-        return {}
-    if any(not _executed_os_status(item.get("os_status")) or not _digits(item.get("close_code")) for item in relevant):
-        return {}
-    closed_at_values = [_history_local_iso(item.get("tabulated_at")) for item in relevant]
-    closed_at_values = [value for value in closed_at_values if value]
-    return {
-        "closed": True,
-        "closed_at": max(closed_at_values) if closed_at_values else "",
-        "codes": sorted({_digits(item.get("close_code")) for item in relevant if _digits(item.get("close_code"))}),
-        "tasks": len(relevant),
-        "source": "history_os_executed",
-    }
 
 
 class TOADatalakeStore:
@@ -1089,7 +1052,7 @@ class TOADatalakeStore:
         with self.lock, self._connect() as db:
             rows = [dict(row) for row in db.execute("""SELECT a.activity_id,a.contract,a.bucket,a.scheduled_date,
               a.technician_id,a.technician_login,a.status,a.start_min,a.duration_min,a.service_window,
-              GROUP_CONCAT(o.os_number) os_numbers, GROUP_CONCAT(DISTINCT o.status) order_statuses, GROUP_CONCAT(DISTINCT o.close_code) close_codes FROM activities a LEFT JOIN orders o ON o.activity_id=a.activity_id
+              GROUP_CONCAT(o.os_number) os_numbers FROM activities a LEFT JOIN orders o ON o.activity_id=a.activity_id
               WHERE a.detail_state='pending'
                  OR (LOWER(a.status) IN ('started','iniciado','enroute','em rota')
                    AND (a.detail_checked_at='' OR julianday(a.detail_checked_at) <= julianday('now','-45 seconds')))
@@ -1160,18 +1123,10 @@ class TOADatalakeStore:
                 where = f" WHERE {live_clause}" + (f" AND {' AND '.join(clauses)}" if clauses else "")
             activities = [dict(row) for row in db.execute(f"SELECT * FROM activities{where} ORDER BY scheduled_date,start_min", values)]
             linked = {row["activity_id"]: [] for row in activities}
-            history_by_activity = {row["activity_id"]: [] for row in activities}
             if linked:
                 marks = ",".join("?" for _ in linked)
                 for row in db.execute(f"SELECT * FROM orders WHERE activity_id IN ({marks})", list(linked)):
                     linked[row["activity_id"]].append(dict(row))
-                for row in db.execute(
-                    f"SELECT * FROM activity_history WHERE activity_id IN ({marks}) ORDER BY action_timestamp,action_time",
-                    list(linked),
-                ):
-                    item = dict(row)
-                    item["changes"] = json.loads(item.pop("changes_json") or "[]")
-                    history_by_activity[item["activity_id"]].append(item)
         # Uma realocacao cria outra atividade para o mesmo contrato enquanto a
         # tentativa anterior permanece na fotografia como suspended. Algumas
         # vezes as OS ainda ficam ligadas somente a tentativa antiga. Criamos
@@ -1223,11 +1178,6 @@ class TOADatalakeStore:
                             effective_window = ""
                     except Exception:
                         pass
-            history_rows = history_by_activity.get(effective["activity_id"], []) or history_by_activity.get(a["activity_id"], [])
-            history_summary = self._history_summary(history_rows) if history_rows else {"os_outcomes": []}
-            operational_close = _operational_close_from_outcomes(
-                history_summary.get("os_outcomes", []), len(linked.get(a["activity_id"], [])) or 1,
-            )
             common = {"profile": effective["profile"], "date": effective["scheduled_date"], "scheduled_date": effective["scheduled_date"],
               "technician": effective["technician_name"] or effective["technician_login"] or effective["technician_id"],
               "technician_name": effective["technician_name"], "technician_login": effective["technician_login"],
@@ -1241,10 +1191,6 @@ class TOADatalakeStore:
               "route_start": _clock_from_minutes(effective["start_min"]),
               "route_end": _clock_after_minutes(effective["start_min"], effective["duration_min"]),
               "travel_time": effective["travel_min"], "route_position": effective["route_position"],
-              "operational_closed": bool(operational_close.get("closed")),
-              "operational_closed_at": operational_close.get("closed_at", ""),
-              "operational_close_source": operational_close.get("source", ""),
-              "operational_close_codes": operational_close.get("codes", []),
               "source_file": "DATALAKE TOA"}
             if successor:
                 common["reallocated_from_activity_id"] = a["activity_id"]

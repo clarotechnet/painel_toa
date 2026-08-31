@@ -10,7 +10,6 @@ import {
   orderProfile,
   pageTvFocusRows,
   pageTvTechnicians,
-  tvKpiRows,
 } from '../src/app.js';
 import { formatPtBrDate, formatPtBrDateTime, formatPtBrSchedule } from '../src/utils/text.js';
 import { applyTechnicianNames } from '../src/services/technicianService.js';
@@ -134,39 +133,6 @@ assert.equal(startedRouteTv.tec1Rows[0].status, 'INICIADA');
 assert.equal(startedRouteTv.tec1Rows[0].deadline_basis, 'route_estimate');
 assert.equal(startedRouteTv.kpis.tec1Risk, 0, 'Estimativa de rota nao pode inflar TEC1 oficial');
 
-
-const historyClosedModel = globalThis.DominiumMonitor.buildMonitorModel([{
-  scheduled_date: '2026-08-29', activity_id: '198238468', contract: '410634715',
-  activity_status: 'started', status: 'E', toa_status: 'E', detail_state: 'complete',
-  operational_closed: true, operational_closed_at: '2026-08-29T13:28:00-03:00',
-  operational_close_source: 'history_os_executed', service_window: '08:00 - 12:00',
-  technician: 'AMOS VINICIUS SANTOS DA SILVA', technician_login: 'Z641916',
-}], { now: new Date('2026-08-29T13:30:00-03:00') });
-const historyClosedRow = historyClosedModel.views.monitor.rows[0];
-assert.equal(historyClosedRow.status_kind, 'completed');
-assert.equal(historyClosedRow.operational_closed, true);
-assert.equal(historyClosedModel.kpis.completed, 1);
-assert.equal(historyClosedModel.kpis.pending, 0);
-assert.equal(globalThis.DominiumMonitor.buildTvDashboard(historyClosedModel).tec1Rows.length, 0);
-
-const serviceTec1Model = globalThis.DominiumMonitor.buildMonitorModel([{
-  scheduled_date: '2026-08-29', activity_id: '198238469', contract: '410634716',
-  activity_status: 'started', status: 'started', detail_state: 'complete',
-  service_window: '08:00 - 12:00', technician: 'TECNICO SERVICO',
-}], { now: new Date('2026-08-29T12:30:00-03:00') });
-const serviceTec1Row = serviceTec1Model.views.monitor.rows[0];
-assert.equal(serviceTec1Row.tec1_category, 'service');
-assert.equal(serviceTec1Row.tec1_grace_minutes, 59);
-assert.equal(serviceTec1Row.tec1_grace_label, '1H');
-assert.equal(serviceTec1Row.tec1_phase, 'grace');
-assert.equal(serviceTec1Row.tec1_minutes, 29);
-assert.equal(serviceTec1Row.tec1_window_minutes, -30);
-assert.equal(serviceTec1Row.tec1_kind, 'risk');
-assert.match(serviceTec1Row.window_deadline, /15:00:00/);
-assert.match(serviceTec1Row.tec1_countdown_deadline, /15:59:00/);
-assert.match(serviceTec1Row.tec1_deadline, /15:59:00/);
-assert.match(serviceTec1Row.tec1, /Janela ferida/);
-
 const opaqueTaskStatusModel = globalThis.DominiumMonitor.buildMonitorModel([{
   scheduled_date: '2026-08-29', activity_id: '198238468', contract: '410634715',
   activity_status: 'started', status: 'E', toa_status: 'E',
@@ -204,42 +170,15 @@ const confirmedWindowModel = globalThis.DominiumMonitor.buildMonitorModel([{
 }], { now: new Date('2026-08-13T17:23:00-03:00') });
 const confirmedWindowRow = confirmedWindowModel.views.monitor.rows[0];
 assert.equal(confirmedWindowRow.tec1_kind, 'risk');
-assert.equal(confirmedWindowRow.tec1_phase, 'window');
 assert.equal(confirmedWindowRow.tec1_minutes, 37);
-assert.equal(confirmedWindowRow.tec1_window_minutes, 37);
 assert.equal(confirmedWindowRow.deadline_basis, 'official_window');
-assert.match(confirmedWindowRow.tec1_countdown_deadline, /21:00:00/);
 const currentTvVoice = globalThis.DominiumMonitor.buildTvVoiceMessage([{
-  os: '2650766808', technician: 'GABRIEL DE MORAIS BRITO', tec1_kind: 'risk', tec1_phase: 'window',
-  deadline_basis: 'official_window', window_deadline: '2026-08-13T18:00:00-03:00',
-  tec1_countdown_deadline: '2026-08-13T18:00:00-03:00', tec1_deadline: '2026-08-13T18:59:00-03:00',
+  os: '2650766808', technician: 'GABRIEL DE MORAIS BRITO', tec1_kind: 'risk',
+  tec1_minutes: 60, tec1_deadline: '2026-08-13T18:00:00-03:00',
 }], new Date('2026-08-13T17:50:00-03:00'));
 assert.match(currentTvVoice, /GABRIEL DE MORAIS BRITO/);
-assert.match(currentTvVoice, /faltam 10 minutos/i);
-assert.match(currentTvVoice, /fechar a janela/i,
-  'Primeiro aviso deve contar para o fim da janela, nao para o prazo adicional');
-
-assert.equal(globalThis.DominiumMonitor.cityFromBucket('FTZ-DMV'), 'FORTALEZA');
-assert.equal(globalThis.DominiumMonitor.cityFromBucket('NTL-DMV'), 'NATAL');
-assert.equal(globalThis.DominiumMonitor.cityFromBucket('PWM-DMV_ADM'), 'PARNAMIRIM');
-assert.equal(globalThis.DominiumMonitor.cityFromBucket('JCR-DMV'), 'RECIFE');
-assert.equal(globalThis.DominiumMonitor.cityFromBucket('MRO-DMV'), 'MOSSORO');
-
-const windowCountdownModel = globalThis.DominiumMonitor.buildMonitorModel([{
-  scheduled_date: '2026-08-31', num_os: '2659990001', contract: '499900001',
-  service: 'VISITA TECNICA', activity_status: 'started', status: 'started', detail_state: 'complete',
-  technician: 'TECNICO FORTALEZA', bucket: 'FTZ-DMV', service_window: '08:00 - 11:00',
-}], { now: new Date('2026-08-31T10:30:00-03:00') });
-const windowCountdownRow = windowCountdownModel.views.monitor.rows[0];
-assert.equal(windowCountdownRow.city, 'FORTALEZA');
-assert.equal(windowCountdownRow.tec1_phase, 'window');
-assert.equal(windowCountdownRow.tec1_kind, 'risk');
-assert.equal(windowCountdownRow.tec1_minutes, 30);
-assert.match(windowCountdownRow.tec1, /30 min para fechar janela/);
-assert.match(windowCountdownRow.window_deadline, /14:00:00/);
-assert.match(windowCountdownRow.tec1_deadline, /14:59:00/);
-assert.equal(monitorTvCountdown(windowCountdownRow, new Date('2026-08-31T10:30:00-03:00')).text, '00:30:00');
-assert.equal(globalThis.DominiumMonitor.buildTvDashboard(windowCountdownModel).kpis.tec1Risk, 1);
+assert.match(currentTvVoice, /faltam 10 minutos/,
+  'Voz da TV deve recalcular o prazo atual em vez de falar o valor antigo da fila');
 
 const urgentModel = globalThis.DominiumMonitor.buildMonitorModel([{
   scheduled_date: '2026-08-19', num_os: '2650000045', contract: '408676249',
@@ -249,32 +188,28 @@ const urgentModel = globalThis.DominiumMonitor.buildMonitorModel([{
 }], { now: new Date('2026-08-19T11:45:00-03:00') });
 const urgentRow = urgentModel.views.monitor.rows[0];
 assert.equal(urgentRow.date, '2026-08-19');
-assert.equal(urgentRow.city, 'RECIFE');
-assert.equal(urgentRow.tec1_phase, 'grace');
-assert.equal(urgentRow.tec1_minutes, 14);
 assert.equal(globalThis.DominiumMonitor.buildUrgentCloseAlerts(
-  urgentModel.views.monitor.rows, new Date('2026-08-19T10:59:59-03:00'),
-).length, 0, 'Antes do fim da janela ainda nao existe janela ferida');
-const breached = globalThis.DominiumMonitor.buildUrgentCloseAlerts(
-  urgentModel.views.monitor.rows, new Date('2026-08-19T11:00:00-03:00'),
+  urgentModel.views.monitor.rows,
+  new Date('2026-08-19T11:44:59-03:00'),
+).length, 0, 'A urgência não pode começar antes de 45 minutos de atraso');
+const urgent45 = globalThis.DominiumMonitor.buildUrgentCloseAlerts(
+  urgentModel.views.monitor.rows,
+  new Date('2026-08-19T11:45:00-03:00'),
 )[0];
-assert.equal(breached.phase, 'window-breached');
-assert.equal(breached.kind, 'window-breached');
-assert.match(breached.label, /Janela ferida/);
-assert.equal(breached.technician_login, 'Z641921');
-const lateTec1 = globalThis.DominiumMonitor.buildUrgentCloseAlerts(
-  urgentModel.views.monitor.rows, new Date('2026-08-19T11:59:01-03:00'),
-)[0];
-assert.equal(lateTec1.phase, 'tec1-late');
-assert.equal(lateTec1.kind, 'urgent-late');
+assert.equal(urgent45.phase, 'urgent-45');
+assert.equal(urgent45.technician_login, 'Z641921');
+assert.equal(globalThis.DominiumMonitor.buildUrgentCloseAlerts(
+  urgentModel.views.monitor.rows,
+  new Date('2026-08-19T12:00:00-03:00'),
+)[0].phase, 'urgent-60');
 const urgentTvVoice = globalThis.DominiumMonitor.buildTvVoiceMessage(
-  [urgentRow], new Date('2026-08-19T11:45:00-03:00'),
+  [urgentRow],
+  new Date('2026-08-19T11:45:00-03:00'),
 );
-assert.match(urgentTvVoice, /Janela ferida/i);
-assert.match(urgentTvVoice, /14 minutos/);
-assert.equal(monitorTvCountdown(urgentRow, new Date('2026-08-19T11:50:00-03:00')).urgent, true);
-assert.match(monitorTvCountdown(urgentRow, new Date('2026-08-19T11:50:00-03:00')).text, /00:09:00/);
-
+assert.match(urgentTvVoice, /Baixe imediatamente o contrato/);
+assert.match(urgentTvVoice, /4 0 8 6 7 6 2 4 9/);
+assert.equal(monitorTvCountdown(urgentRow.tec1_deadline, new Date('2026-08-19T11:44:59-03:00')).urgent, false);
+assert.equal(monitorTvCountdown(urgentRow.tec1_deadline, new Date('2026-08-19T11:45:00-03:00')).urgent, true);
 const consoleUrgent = urgentModel.views.routes.console.alerts[0];
 assert.equal(consoleUrgent.date, '2026-08-19');
 assert.equal(consoleUrgent.technician_login, 'Z641921');
@@ -334,11 +269,10 @@ const openWindowModel = globalThis.DominiumMonitor.buildMonitorModel([{
 const openWindowRow = openWindowModel.views.monitor.rows[0];
 assert.equal(openWindowRow.status_kind, 'field');
 assert.equal(openWindowRow.tec1_kind, 'safe');
-assert.equal(openWindowRow.tec1_phase, 'window');
-assert.equal(openWindowRow.tec1_minutes, 83);
+assert.equal(openWindowRow.tec1_minutes, 82);
 assert.equal(
   new Date(openWindowRow.tec1_deadline).getTime(),
-  new Date('2026-08-12T17:59:00-03:00').getTime(),
+  new Date('2026-08-12T17:00:00-03:00').getTime(),
 );
 
 const manyTechniciansModel = globalThis.DominiumMonitor.buildMonitorModel(
@@ -381,15 +315,6 @@ const groupedFacts = groupTvFocusFacts([
   'OS', 'Contrato', 'Técnico', 'Login TOA', 'Bucket', 'Status', 'Agenda', 'Janela',
 ]);
 assert.deepEqual(groupedFacts.primary, ['Contrato', 'Técnico', 'Status', 'Agenda']);
-
-const clickableTvModel = { views: { monitor: { rows: [
-  { os: '1', status_kind: 'field', tec1_kind: 'risk' },
-  { os: '2', status_kind: 'completed', tec1_kind: 'done' },
-] }, routes: { console: { alerts: [{ os: '1' }] } } } };
-assert.equal(tvKpiRows(clickableTvModel, 'total').length, 2);
-assert.deepEqual(tvKpiRows(clickableTvModel, 'field').map((row) => row.os), ['1']);
-assert.deepEqual(tvKpiRows(clickableTvModel, 'risk').map((row) => row.os), ['1']);
-assert.deepEqual(tvKpiRows(clickableTvModel, 'routes').map((row) => row.os), ['1']);
 
 const detail = normalizeOracleDetail({ delta: {
   Activity: { 196873590: {

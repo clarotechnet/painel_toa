@@ -531,34 +531,5 @@ class DatalakeLiveMergeTests(unittest.TestCase):
             self.assertNotIn("NAO DEVE SER SALVO", json.dumps(record, ensure_ascii=False))
 
 
-    def test_history_executed_tasks_close_activity_operationally(self) -> None:
-        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as directory:
-            store = TOADatalakeStore(Path(directory) / "history-close.sqlite3")
-            store.ingest({"source": "toa-live-all-buckets", "activities": [{
-                "activity_id": "198238468", "contract": "410634715", "description": "INST GPON - INST CABO",
-                "status": "started", "scheduled_date": "2026-08-29", "service_window": "08:00 - 12:00",
-                "technician_login": "Z641916", "orders": [
-                    {"os_number": "2606486257", "task_index": "1", "status": "E", "close_code": "409"},
-                    {"os_number": "2606486279", "task_index": "2", "status": "E", "close_code": "409"},
-                ],
-            }]})
-            store.ingest_history({"activity_id": "198238468", "contract": "410634715", "rows": [{
-                "action_time": "29/08/26 13:28", "action_timestamp": "2026-08-29 16:28:00",
-                "user": {"name": "AMOS VINICIUS SANTOS DA SILVA (Z641916)"},
-                "action": [{"translation": "atualizado"}], "changes": [
-                    {"translation": "Cód de Baixa 1", "value": "409 - SERVICO CONCLUIDO"},
-                    {"translation": "Cód de Baixa 2", "value": "409 - Servico Concluido"},
-                    {"translation": "Status da O.S 1", "value": "Executada"},
-                    {"translation": "Status da O.S 2", "value": "Executada"},
-                ],
-            }]})
-            rows = store.feed()["orders"]
-            self.assertEqual(len(rows), 2)
-            self.assertTrue(all(row["activity_status"] == "started" for row in rows))
-            self.assertTrue(all(row["operational_closed"] for row in rows))
-            self.assertTrue(all(row["operational_closed_at"].startswith("2026-08-29T13:28") for row in rows))
-            self.assertTrue(all(row["operational_close_source"] == "history_os_executed" for row in rows))
-
-
 if __name__ == "__main__":
     unittest.main()

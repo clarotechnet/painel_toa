@@ -43,21 +43,6 @@
     cattaCache: new Map(),
     providersByPid: new Map(),
     providersByExternalId: new Map(),
-    historyCapture: {
-      running: false,
-      templateAvailable: false,
-      lastRunAt: null,
-      lastSuccessAt: null,
-      lastError: '',
-      checked: new Map(),
-      fingerprints: new Map(),
-      lastSent: new Map(),
-      closed: new Set(),
-      totalChecked: 0,
-      totalSent: 0,
-      totalFailed: 0,
-      lastBatch: [],
-    },
     locationCapture: {
       resources: new Map(),
       seen: new Set(),
@@ -2268,159 +2253,6 @@
     }
   }
 
-  function historyFingerprint(rows) {
-    const raw = JSON.stringify(Array.isArray(rows) ? rows : []);
-    let hash = 2166136261;
-    for (let index = 0; index < raw.length; index += 1) {
-      hash ^= raw.charCodeAt(index);
-      hash = Math.imul(hash, 16777619);
-    }
-    return `${raw.length}:${(hash >>> 0).toString(16)}`;
-  }
-
-  function openHistoryStatus(value) {
-    const status = normalizeText(value);
-    return status === 'started' || status === 'iniciado'
-      || status === 'enroute' || status === 'em rota';
-  }
-
-  function historyCloseSignal(item) {
-    const codes = String(item?.close_codes || '').replace(/\s+/g, '');
-    const statuses = normalizeText(item?.order_statuses || '');
-    return Boolean(codes && /\d/.test(codes))
-      || statuses.split(',').some((value) => value.trim() === 'e' || value.trim() === 'executada');
-  }
-
-  function historyOperationallyClosed(rows, expectedTasks = 1) {
-    const outcomes = new Map();
-    let inferredTasks = 0;
-    for (const event of Array.isArray(rows) ? rows : []) {
-      for (const change of Array.isArray(event?.changes) ? event.changes : []) {
-        const label = normalizeText(change?.translation || change?.label || change?.name || '');
-        const value = String(change?.value ?? '').trim();
-        const task = label.match(/(?:numero da o\.s|cod(?:igo)? de baixa|status da o\.s)\s*(\d+)/);
-        if (task) inferredTasks = Math.max(inferredTasks, Number(task[1]) || 0);
-        const close = label.match(/cod(?:igo)? de baixa\s*(\d+)/);
-        const status = label.match(/status da o\.s\s*(\d+)/);
-        if (close) outcomes.set(close[1], { ...(outcomes.get(close[1]) || {}), code: (value.match(/\d+/) || [''])[0] });
-        if (status) outcomes.set(status[1], { ...(outcomes.get(status[1]) || {}), status: normalizeText(value) });
-      }
-    }
-    const complete = [...outcomes.values()].filter((item) => item.code && (item.status === 'executada' || item.status === 'e'));
-    return complete.length >= Math.max(1, Number(expectedTasks) || 1, inferredTasks);
-  }
-
-  async function syncActivityHistoriesSilent() {
-    const capture = state.historyCapture;
-    if (capture.running) return;
-    const fetchHistory = window.__TN_TOA_FETCH_ACTIVITY_HISTORY__;
-    const probeStatus = window.__TN_TOA_HISTORY_STATUS__?.() || {};
-    capture.templateAvailable = Boolean(probeStatus.templateAvailable);
-    if (typeof fetchHistory !== 'function' || !capture.templateAvailable) {
-      capture.lastError = 'Aguardando contexto de sessao do TOA para consultar Historico.';
-      return;
-    }
-    capture.running = true;
-    capture.lastRunAt = new Date().toISOString();
-    capture.lastBatch = [];
-    try {
-      const response = await bridgeFetch('/monitor-api/api/toa-datalake/detail-queue?limit=1000');
-      if (!response?.ok) throw new Error(`Fila local respondeu ${response?.status || 'erro'}`);
-      const today = todayIsoSaoPaulo();
-      const now = Date.now();
-      const items = Array.isArray(response.data?.items) ? response.data.items : [];
-      const eligible = items
-        .filter((item) => String(item?.scheduled_date || '') === today)
-        .filter((item) => openHistoryStatus(item?.status))
-        .filter((item) => !capture.closed.has(String(item.activity_id || '')))
-        .filter((item) => {
-          const last = Number(capture.checked.get(String(item.activity_id)) || 0);
-          const interval = historyCloseSignal(item) ? 15000 : 180000;
-          return now - last >= interval;
-        });
-      const oldestFirst = (left, right) => (
-        Number(capture.checked.get(String(left.activity_id)) || 0)
-        - Number(capture.checked.get(String(right.activity_id)) || 0)
-      );
-      const signaled = eligible.filter(historyCloseSignal).sort(oldestFirst).slice(0, 4);
-      const selected = new Set(signaled.map((item) => String(item.activity_id)));
-      const candidates = signaled.concat(
-        eligible.filter((item) => !selected.has(String(item.activity_id)))
-          .sort(oldestFirst).slice(0, Math.max(0, 8 - signaled.length)),
-      );
-
-      for (const item of candidates) {
-        const activityId = String(item.activity_id || '').replace(/\D/g, '');
-        if (!activityId) continue;
-        capture.checked.set(activityId, Date.now());
-        try {
-          const result = await fetchHistory({
-            activity_id: activityId,
-            provider_id: item.technician_id,
-            scheduled_date: item.scheduled_date,
-          }, { timeoutMs: 15000 });
-          const rows = Array.isArray(result?.rows) ? result.rows : [];
-          const taskCount = Math.max(1, String(item.os_numbers || '').split(',').map((value) => value.trim()).filter(Boolean).length);
-          const closedNow = historyOperationallyClosed(rows, taskCount);
-          if (closedNow) capture.closed.add(activityId);
-          const fingerprint = historyFingerprint(rows);
-          const previous = capture.fingerprints.get(activityId);
-          const lastSent = Number(capture.lastSent.get(activityId) || 0);
-          const shouldSend = fingerprint !== previous || Date.now() - lastSent >= 5 * 60 * 1000;
-          capture.totalChecked += 1;
-          capture.lastBatch.push({ activity_id: activityId, rows: rows.length, changed: shouldSend, closed: closedNow });
-          if (shouldSend) {
-            const ingest = await bridgeFetch('/monitor-api/api/v1/ingest/history', {
-              method: 'POST',
-              body: JSON.stringify({
-                activity_id: activityId,
-                contract: String(item.contract || ''),
-                rows,
-                observed_at: new Date().toISOString(),
-                source: 'toa-extension-history-replay',
-              }),
-            });
-            if (!ingest?.ok) throw new Error(`Ingestao de Historico respondeu ${ingest?.status || 'erro'}`);
-            capture.fingerprints.set(activityId, fingerprint);
-            capture.lastSent.set(activityId, Date.now());
-            capture.totalSent += 1;
-          }
-          capture.lastSuccessAt = new Date().toISOString();
-          capture.lastError = '';
-        } catch (error) {
-          const message = String(error?.message || error || 'Falha consultando Historico');
-          capture.totalFailed += 1;
-          capture.lastError = message === 'toa_sem_sessao'
-            ? 'Sessao do TOA expirada; entre novamente para retomar o Historico.' : message;
-          capture.lastBatch.push({ activity_id: activityId, error: capture.lastError });
-          if (message === 'toa_sem_sessao') break;
-        }
-        await sleep(750);
-      }
-    } catch (error) {
-      capture.lastError = String(error?.message || error || 'Falha na fila de Historico');
-    } finally {
-      capture.running = false;
-    }
-  }
-
-  window.__TN_TOA_HISTORY_SYNC_STATUS__ = function () {
-    const capture = state.historyCapture;
-    return {
-      running: capture.running,
-      templateAvailable: capture.templateAvailable,
-      lastRunAt: capture.lastRunAt,
-      lastSuccessAt: capture.lastSuccessAt,
-      lastError: capture.lastError,
-      totalChecked: capture.totalChecked,
-      totalSent: capture.totalSent,
-      totalFailed: capture.totalFailed,
-      closedCached: capture.closed.size,
-      lastBatch: capture.lastBatch.slice(),
-      probe: window.__TN_TOA_HISTORY_STATUS__?.() || {},
-    };
-  };
-
   async function lookupContractDirect(contract, options = {}) {
     if (state.directLookupBusy) throw makeToaError('toa_consulta_em_andamento');
     state.directLookupBusy = true;
@@ -3817,8 +3649,6 @@
     console.log('[AUTO-LOOKUP] polling iniciado (3000ms)');
     
     setInterval(syncCurrentScreenWithBot, 2500);
-    setTimeout(syncActivityHistoriesSilent, 6000);
-    setInterval(syncActivityHistoriesSilent, 10000);
     setInterval(flushLocationPoints, 30000);
     setInterval(closeLocationDayIfNeeded, 5 * 60 * 1000);
     closeLocationDayIfNeeded();

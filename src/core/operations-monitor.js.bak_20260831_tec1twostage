@@ -43,20 +43,6 @@
     return match ? match[1].toUpperCase() : "";
   }
 
-  const BUCKET_CITY_PREFIXES = Object.freeze({
-    FTZ: "FORTALEZA",
-    NTL: "NATAL",
-    PWM: "PARNAMIRIM",
-    JCR: "RECIFE",
-    MRO: "MOSSORO",
-  });
-
-  function cityFromBucket(value) {
-    const bucket = normalized(value);
-    const prefix = Object.keys(BUCKET_CITY_PREFIXES).find((key) => bucket.startsWith(key));
-    return prefix ? BUCKET_CITY_PREFIXES[prefix] : "";
-  }
-
   const OPERATION_TIMEZONE_OFFSET = "-03:00";
 
   function operationDate(year, month, day, hour = 0, minute = 0, second = 0) {
@@ -241,7 +227,7 @@
       team: text(first(order, ["team", "equipe"])) || bucket,
       bucket,
       sourceFile,
-      city: text(first(order, ["city", "cidade"])) || cityFromBucket(bucket) || "NAO INFORMADA",
+      city: text(first(order, ["city", "cidade"])) || "NAO INFORMADA",
       customerName: text(first(order, ["customer_name", "client_name", "nome_cliente"])),
       district: text(first(order, ["district", "bairro"])),
       node: text(first(order, ["node", "node_name"])),
@@ -331,53 +317,24 @@
     return tec1Category(order) === "adhesion" ? 119 : 59;
   }
 
-  function tec1WindowDeadline(order) {
-    if (!order.isScheduled || !order.windowVerified || !order.windowEndAt) return null;
-    return new Date(order.windowEndAt.getTime());
-  }
-
   function tec1Deadline(order) {
-    const windowDeadline = tec1WindowDeadline(order);
-    if (!windowDeadline) return null;
-    const deadline = new Date(windowDeadline.getTime());
+    if (!order.isScheduled || !order.windowVerified || !order.windowEndAt) return null;
+    const deadline = new Date(order.windowEndAt.getTime());
     deadline.setMinutes(deadline.getMinutes() + tec1GraceMinutes(order));
     return deadline;
   }
 
-  function tec1GraceLabel(order) {
-    return tec1Category(order) === "adhesion" ? "2H" : "1H";
-  }
-
   function tec1State(order, now) {
-    const empty = { key: "unknown", label: "Sem agenda", minutes: null, phase: "unknown",
-      windowMinutes: null, graceMinutes: null, countdownDeadline: null };
-    if (!order.isScheduled) return empty;
+    if (!order.isScheduled) return { key: "unknown", label: "Sem agenda", minutes: null };
     if (["completed", "canceled", "suspended"].includes(order.statusKind)) {
-      return { ...empty, key: "done", label: "Encerrada", phase: "done" };
+      return { key: "done", label: "Encerrada", minutes: null };
     }
-    const windowDeadline = tec1WindowDeadline(order);
     const deadline = tec1Deadline(order);
-    if (!windowDeadline || !deadline) return empty;
-    const signedMinutes = (target) => {
-      const diff = target.getTime() - now.getTime();
-      return diff >= 0 ? Math.ceil(diff / 60000) : -Math.ceil(Math.abs(diff) / 60000);
-    };
-    const windowDiff = windowDeadline.getTime() - now.getTime();
-    const deadlineDiff = deadline.getTime() - now.getTime();
-    const windowMinutes = signedMinutes(windowDeadline);
-    const graceMinutes = signedMinutes(deadline);
-    if (deadlineDiff < 0) {
-      return { key: "late", label: `TEC1 estourado há ${Math.abs(graceMinutes)} min`, minutes: graceMinutes,
-        phase: "late", windowMinutes, graceMinutes, countdownDeadline: deadline };
-    }
-    if (windowDiff <= 0) {
-      return { key: "risk", label: `Janela ferida · prazo de ${tec1GraceLabel(order)} iniciado`, minutes: graceMinutes,
-        phase: "grace", windowMinutes, graceMinutes, countdownDeadline: deadline };
-    }
-    return { key: windowMinutes <= 60 ? "risk" : "safe",
-      label: windowMinutes <= 60 ? `${windowMinutes} min para fechar janela` : "Janela no prazo",
-      minutes: windowMinutes, phase: "window", windowMinutes, graceMinutes,
-      countdownDeadline: windowDeadline };
+    if (!deadline) return { key: "unknown", label: "Sem agenda", minutes: null };
+    const minutes = Math.round((deadline.getTime() - now.getTime()) / 60000);
+    if (minutes < 0) return { key: "late", label: `Estourada ${Math.abs(minutes)} min`, minutes };
+    if (minutes <= 60) return { key: "risk", label: `${minutes} min restantes`, minutes };
+    return { key: "safe", label: "No prazo", minutes };
   }
 
   function buildTec1ContractAlerts(rows) {
@@ -388,24 +345,42 @@
       if (!groups.has(contract)) groups.set(contract, []);
       groups.get(contract).push(row);
     });
+
     return [...groups.entries()].map(([contract, tasks]) => {
       const ordered = tasks.filter((row) => {
         const minutes = Number(row?.tec1_minutes);
-        return text(row?.tec1_phase) === "window" && Number.isFinite(minutes) && minutes > 0 && minutes <= 30
+        return Number.isFinite(minutes) && minutes > 0 && minutes <= 30
           && !["completed", "canceled", "suspended"].includes(text(row?.status_kind).toLowerCase());
-      }).sort((a, b) => Number(a.tec1_minutes) - Number(b.tec1_minutes));
+      }).sort((a, b) => (
+        Number(a.tec1_minutes) - Number(b.tec1_minutes)
+        || String(a.tec1_deadline || "").localeCompare(String(b.tec1_deadline || ""))
+      ));
       if (!ordered.length) return null;
       const focus = ordered[0];
       const minutes = Number(focus.tec1_minutes);
       const threshold = minutes <= 15 ? 15 : 30;
-      const technicians = [...new Set(tasks.map((row) => text(row.technician)).filter((value) => value && value !== "-"))];
-      const activeTasks = tasks.filter((row) => !["completed", "canceled", "suspended"].includes(text(row?.status_kind).toLowerCase()));
+      const technicians = [...new Set(tasks
+        .filter((row) => !["completed", "canceled", "suspended"].includes(text(row?.status_kind).toLowerCase()))
+        .map((row) => text(row.technician))
+        .filter((value) => value && value !== "-"))];
+      const activeTasks = tasks.filter(
+        (row) => !["completed", "canceled", "suspended"].includes(text(row?.status_kind).toLowerCase()),
+      );
       const taskIds = new Set(activeTasks.map((row) => text(row.os)).filter(Boolean));
-      const deadline = text(focus.window_deadline || focus.tec1_countdown_deadline);
-      return { key: `window:${contract}:${deadline}:${threshold}`, kind: "window-risk", contract, threshold, minutes,
-        deadline, label: `Janela fecha em ${minutes} min`, technician: technicians.join(" e ") || "Nao informado",
-        technicians, task_count: taskIds.size || activeTasks.length,
-        window_start: text(focus.window_start) || "-", window_end: text(focus.window_end) || "-" };
+      const deadline = text(focus.tec1_deadline);
+      return {
+        key: `${contract}:${deadline || text(focus.window_end)}:${threshold}`,
+        kind: "risk",
+        contract,
+        threshold,
+        minutes,
+        deadline,
+        technician: technicians.join(" e ") || "Nao informado",
+        technicians,
+        task_count: taskIds.size || activeTasks.length,
+        window_start: text(focus.window_start) || "-",
+        window_end: text(focus.window_end) || "-",
+      };
     }).filter(Boolean).sort((a, b) => a.minutes - b.minutes || a.contract.localeCompare(b.contract));
   }
 
@@ -414,44 +389,43 @@
     const groups = new Map();
     (Array.isArray(rows) ? rows : []).forEach((row) => {
       const contract = text(row?.contract);
-      const windowDeadline = new Date(row?.window_deadline || "");
       const deadline = new Date(row?.tec1_deadline || "");
-      if (!contract || contract === "-" || Number.isNaN(windowDeadline.getTime()) || Number.isNaN(deadline.getTime())) return;
+      if (!contract || contract === "-" || Number.isNaN(deadline.getTime())) return;
       if (["completed", "canceled", "suspended"].includes(text(row?.status_kind).toLowerCase())) return;
-      if (now.getTime() < windowDeadline.getTime()) return;
-      const inGrace = now.getTime() <= deadline.getTime();
-      const elapsedWindowMinutes = Math.max(0, Math.floor((now.getTime() - windowDeadline.getTime()) / 60000));
-      const remainingMinutes = inGrace ? Math.max(0, Math.ceil((deadline.getTime() - now.getTime()) / 60000)) : 0;
-      const lateMinutes = inGrace ? 0 : Math.max(1, Math.ceil((now.getTime() - deadline.getTime()) / 60000));
-      const score = inGrace ? 1 : 2;
+      const lateMinutes = Math.floor((now.getTime() - deadline.getTime()) / 60000);
+      if (lateMinutes < 45) return;
       const current = groups.get(contract);
-      if (!current || score > current.score || lateMinutes > current.lateMinutes) {
-        groups.set(contract, { row, score, inGrace, elapsedWindowMinutes, remainingMinutes, lateMinutes });
-      }
+      if (!current || lateMinutes > current.lateMinutes) groups.set(contract, { row, lateMinutes });
     });
     return [...groups.entries()].map(([contract, entry]) => {
-      const { row, inGrace, elapsedWindowMinutes, remainingMinutes, lateMinutes } = entry;
-      const graceLabel = text(row.tec1_grace_label) || (Number(row.tec1_grace_minutes) > 60 ? "2H" : "1H");
-      const phase = inGrace ? "window-breached" : "tec1-late";
-      const kind = inGrace ? "window-breached" : "urgent-late";
-      const label = inGrace ? `Janela ferida · prazo de ${graceLabel} iniciado · ${remainingMinutes} min restantes`
-        : `TEC1 estourado há ${lateMinutes} min`;
+      const { row, lateMinutes } = entry;
+      const phase = lateMinutes >= 60 ? "urgent-60" : "urgent-45";
       return {
-        key: `${phase}:${contract}:${text(row.window_deadline)}:${text(row.tec1_deadline)}`, kind, phase, contract,
-        os: text(row.os) || "-", date: text(row.date) || "-", technician: text(row.technician) || "Nao informado",
-        technician_login: text(row.technician_login) || "-", bucket: text(row.bucket) || "-", status: text(row.status) || "-",
-        window_start: text(row.window_start) || "-", window_end: text(row.window_end) || "-",
-        actual_start: text(row.actual_start) || "-", actual_end: text(row.actual_end) || "-",
-        deadline: text(row.tec1_deadline), elapsed_window_minutes: elapsedWindowMinutes,
-        remaining_minutes: remainingMinutes, late_minutes: lateMinutes, label,
-        message: speechPronunciationText(inGrace
-          ? `Atenção. Janela ferida no contrato ${spokenDigits(contract)}. Prazo de ${graceLabel} iniciado. `
-            + `Técnico ${text(row.technician) || "nao informado"}. Restam ${remainingMinutes} minutos para o téqui um.`
-          : `Alerta urgente. Téqui um estourado no contrato ${spokenDigits(contract)}. `
-            + `Técnico ${text(row.technician) || "nao informado"}. Atraso de ${lateMinutes} minutos.`),
+        key: `urgent:${contract}:${text(row.tec1_deadline)}:${phase}`,
+        kind: "urgent-late",
+        phase,
+        contract,
+        os: text(row.os) || "-",
+        date: text(row.date) || "-",
+        technician: text(row.technician) || "Nao informado",
+        technician_login: text(row.technician_login) || "-",
+        bucket: text(row.bucket) || "-",
+        status: text(row.status) || "-",
+        window_start: text(row.window_start) || "-",
+        window_end: text(row.window_end) || "-",
+        actual_start: text(row.actual_start) || "-",
+        actual_end: text(row.actual_end) || "-",
+        deadline: text(row.tec1_deadline),
+        late_minutes: lateMinutes,
+        label: lateMinutes >= 60
+          ? `TEC1 vencido ha ${lateMinutes} min`
+          : `TEC1 vencido ha ${lateMinutes} min`,
+        message: speechPronunciationText(
+          `Alerta urgente. Baixe imediatamente o contrato ${spokenDigits(contract)}. `
+          + `Tecnico ${text(row.technician) || "nao informado"}. Prazo TEC1 vencido ha ${lateMinutes} minutos.`,
+        ),
       };
-    }).sort((a, b) => (a.kind === "urgent-late" ? -1 : 1) - (b.kind === "urgent-late" ? -1 : 1)
-      || b.late_minutes - a.late_minutes || a.remaining_minutes - b.remaining_minutes);
+    }).sort((a, b) => b.late_minutes - a.late_minutes || a.contract.localeCompare(b.contract));
   }
 
   function speechPronunciationText(value) {
@@ -489,47 +463,36 @@
       ? ` Janela das ${spokenClock(alert.window_start)} às ${spokenClock(alert.window_end)}.`
       : " Janela não informada.";
     return speechPronunciationText(
-      `Atenção. Faltam ${alert?.threshold} minutos para fechar a janela do contrato ${spokenDigits(alert?.contract)}. `
-      + `Avise o técnico ${alert?.technician || "não informado"} sobre possível téqui um.${windowDetail}${taskDetail}`,
+      `Atenção. Faltam ${alert?.threshold} minutos para o téqui um do contrato ${spokenDigits(alert?.contract)}. `
+      + `Técnico ${alert?.technician || "não informado"}.${windowDetail}${taskDetail}`,
     );
   }
 
   function buildTvVoiceMessage(rows, value = new Date()) {
     const now = value instanceof Date ? value : new Date(value || Date.now());
     return (Array.isArray(rows) ? rows : []).slice(0, 2).map((row, index) => {
-      const contractNumber = row?.contract && row.contract !== "-" ? row.contract : row?.os;
-      const technician = row?.technician || "não informado";
-      const windowDeadline = new Date(row?.window_deadline || "");
-      const finalDeadline = new Date(row?.tec1_deadline || "");
-      if (row?.deadline_basis === "official_window" && !Number.isNaN(windowDeadline.getTime()) && !Number.isNaN(finalDeadline.getTime())) {
-        const windowDiff = windowDeadline.getTime() - now.getTime();
-        const finalDiff = finalDeadline.getTime() - now.getTime();
-        if (windowDiff > 0) {
-          const minutes = Math.max(1, Math.ceil(windowDiff / 60000));
-          return `Prioridade ${index + 1}. Faltam ${minutes} minuto${minutes === 1 ? "" : "s"} para fechar a janela. `
-            + `Técnico ${technician}. Contrato ${spokenDigits(contractNumber)}. Avise o técnico sobre possível TEC1.`;
-        }
-        if (finalDiff >= 0) {
-          const minutes = Math.max(0, Math.ceil(finalDiff / 60000));
-          const graceLabel = text(row?.tec1_grace_label) || (Number(row?.tec1_grace_minutes) > 60 ? "2 horas" : "1 hora");
-          return `Prioridade ${index + 1}. Janela ferida. Prazo de ${graceLabel} iniciado. `
-            + `Faltam ${minutes} minuto${minutes === 1 ? "" : "s"} para o TEC1. Técnico ${technician}. Contrato ${spokenDigits(contractNumber)}.`;
-        }
-        const lateMinutes = Math.max(1, Math.ceil(Math.abs(finalDiff) / 60000));
-        return `Prioridade ${index + 1}. TEC1 estourado há ${lateMinutes} minuto${lateMinutes === 1 ? "" : "s"}. `
-          + `Baixe imediatamente o contrato ${spokenDigits(contractNumber)}. Técnico ${technician}.`;
-      }
-      const deadline = new Date(row?.tec1_countdown_deadline || row?.tec1_deadline || "");
+      const deadline = new Date(row?.tec1_deadline || "");
       const diff = deadline.getTime() - now.getTime();
-      const minutes = Number.isFinite(diff) ? Math.max(1, Math.ceil(Math.abs(diff) / 60000)) : null;
-      return `Prioridade ${index + 1}. Técnico ${technician}. Contrato ${spokenDigits(contractNumber)}. `
-        + `${minutes === null ? "tempo não informado" : diff < 0 ? `atrasada ${minutes} minutos` : `faltam ${minutes} minutos`}.`;
+      const absoluteMinutes = Number.isFinite(diff)
+        ? Math.max(1, diff < 0 ? Math.floor(Math.abs(diff) / 60000) : Math.ceil(diff / 60000)) : null;
+      const timing = absoluteMinutes === null
+        ? "tempo não informado"
+        : diff < 0
+          ? `atrasada ${absoluteMinutes} minuto${absoluteMinutes === 1 ? "" : "s"}`
+          : `faltam ${absoluteMinutes} minuto${absoluteMinutes === 1 ? "" : "s"}`;
+      const contractNumber = row?.contract && row.contract !== "-" ? row.contract : row?.os;
+      if (diff < 0 && absoluteMinutes >= 45 && row?.deadline_basis === "official_window") {
+        return `Prioridade ${index + 1}. Alerta urgente. Baixe imediatamente o contrato ${spokenDigits(contractNumber)}. `
+          + `Técnico ${row?.technician || "não informado"}. `
+          + `Prazo TEC1 vencido há ${absoluteMinutes} minuto${absoluteMinutes === 1 ? "" : "s"}.`;
+      }
+      return `Prioridade ${index + 1}. Técnico ${row?.technician || "não informado"}. `
+        + `Contrato ${spokenDigits(contractNumber)}. ${timing}.`;
     }).join(" ");
   }
 
   function orderRow(order, now) {
     const tec1 = tec1State(order, now);
-    const windowDeadline = tec1WindowDeadline(order);
     const deadline = tec1Deadline(order);
     return {
       os: order.os || "-",
@@ -555,16 +518,10 @@
           : "Sem agenda",
       tec1: tec1.label,
       tec1_kind: tec1.key,
-      tec1_phase: tec1.phase,
       tec1_minutes: tec1.minutes,
-      tec1_window_minutes: tec1.windowMinutes,
-      tec1_grace_remaining_minutes: tec1.graceMinutes,
-      window_deadline: windowDeadline ? windowDeadline.toISOString() : "",
-      tec1_countdown_deadline: tec1.countdownDeadline ? tec1.countdownDeadline.toISOString() : "",
       tec1_deadline: deadline ? deadline.toISOString() : "",
       tec1_category: tec1Category(order),
       tec1_grace_minutes: tec1GraceMinutes(order),
-      tec1_grace_label: tec1GraceLabel(order),
       operational_closed: order.operationalClosed,
       operational_closed_at: order.operationalClosedAtRaw || "",
       operational_close_source: order.operationalCloseSource || "",
@@ -967,10 +924,8 @@
       (row) => !["completed", "canceled", "suspended"].includes(row.status_kind),
     );
     const tec1Rank = { late: 0, risk: 1, safe: 2, unknown: 3, done: 4 };
-    const phaseRank = { late: 0, grace: 1, window: 2, unknown: 3, done: 4 };
     const tec1Rows = activeRows.filter((row) => Boolean(row.tec1_deadline)).sort((a, b) => (
       (tec1Rank[a.tec1_kind] ?? 9) - (tec1Rank[b.tec1_kind] ?? 9)
-      || (phaseRank[a.tec1_phase] ?? 9) - (phaseRank[b.tec1_phase] ?? 9)
       || (a.tec1_minutes ?? Number.MAX_SAFE_INTEGER) - (b.tec1_minutes ?? Number.MAX_SAFE_INTEGER)
       || String(a.os).localeCompare(String(b.os))
     ));
@@ -988,10 +943,8 @@
         return {
           ...row,
           tec1_deadline: row.route_deadline,
-          tec1_countdown_deadline: row.route_deadline,
           tec1_minutes: minutes,
           tec1_kind: kind,
-          tec1_phase: "route",
           tec1: minutes < 0
             ? `Agenda estourada ${Math.abs(minutes)} min`
             : `${minutes} min na agenda`,
@@ -1055,7 +1008,6 @@
     buildTvVoiceMessage,
     buildTvDashboard,
     bucketFromSource,
-    cityFromBucket,
     normalizeOrder,
     routeState,
     speechPronunciationText,

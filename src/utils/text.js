@@ -58,6 +58,19 @@ export function formatPtBrDateTime(value) {
 export function formatPtBrSchedule(value) {
   const raw = text(value);
   if (!raw || raw === '-') return '-';
+  const cleanInterval = raw.match(/^\s*(\d{1,2}(?::\d{2})?)\s*[-—–]\s*(\d{1,2}(?::\d{2})?)\s*$/);
+  if (cleanInterval) {
+    const s = cleanInterval[1].includes(':') ? cleanInterval[1].padStart(5, '0') : `${cleanInterval[1].padStart(2, '0')}:00`;
+    const e = cleanInterval[2].includes(':') ? cleanInterval[2].padStart(5, '0') : `${cleanInterval[2].padStart(2, '0')}:00`;
+    return `${s} - ${e}`;
+  }
+  const clocks = raw.match(/\b\d{1,2}:\d{2}\b/g);
+  if (clocks && clocks.length >= 2) {
+    return `${clocks[0]} - ${clocks[1]}`;
+  }
+  if (clocks && clocks.length === 1 && (/[-—–]\s*0\b|\b0\s*[-—–]/.test(raw) || !raw.includes('-'))) {
+    return clocks[0];
+  }
   return raw
     .replace(/(\d{4})-(\d{2})-(\d{2})/g, '$3-$2-$1')
     .replace(/(\d{2})\/(\d{2})\/(\d{2})(?!\d)/g, '$1-$2-20$3')

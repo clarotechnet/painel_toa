@@ -548,6 +548,10 @@
       route_state_label: order.routeStateLabel,
       schedule: !order.isScheduled
         ? "Nao agendada"
+        : (order.windowStartRaw && order.windowEndRaw)
+        ? `${order.windowStartRaw} - ${order.windowEndRaw}`
+        : (order.windowStartRaw || order.windowEndRaw)
+        ? (order.windowStartRaw || order.windowEndRaw)
         : order.startRaw || order.endRaw
         ? `${order.startRaw || "-"} - ${order.endRaw || "-"}`
         : order.routeStartRaw || order.routeEndRaw

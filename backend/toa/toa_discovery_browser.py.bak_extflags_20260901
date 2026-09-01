@@ -45,6 +45,8 @@ def launch() -> dict[str, object]:
             "--lang=pt-BR",
             "--no-first-run",
             "--no-default-browser-check",
+            f"--load-extension={EXTENSION_PATH.resolve()}",
+            f"--disable-extensions-except={EXTENSION_PATH.resolve()}",
             "--new-window",
             TOA_URL,
         ]

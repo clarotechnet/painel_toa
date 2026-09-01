@@ -82,7 +82,7 @@ assert.deepEqual(multiCitySnapshot.orders.map((item) => item.num_os), ['1', '2']
 assert.deepEqual(multiCitySnapshot.timelineActivities.map((item) => item.technician_login), ['ZR']);
 assert.equal(formatPtBrDate('2026-08-19'), '19-08-2026');
 assert.equal(formatPtBrDateTime('2026-08-19T10:10:00'), '19-08-2026 10:10');
-assert.equal(formatPtBrSchedule('2026-08-19 10:10:00 - 2026-08-19 12:00:00'), '19-08-2026 10:10:00 - 19-08-2026 12:00:00');
+assert.equal(formatPtBrSchedule('2026-08-19 10:10:00 - 2026-08-19 12:00:00'), '10:10 - 12:00');
 
 const completedModel = globalThis.DominiumMonitor.buildMonitorModel([{
   date: '12/08/26',

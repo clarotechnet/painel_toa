@@ -1040,7 +1040,7 @@
         tec1Risk: urgentTec1.filter((row) => row.tec1_kind === "risk").length,
         tec1Late: urgentTec1.filter((row) => row.tec1_kind === "late").length,
       },
-      tec1Rows: (urgentTec1.length ? urgentTec1 : tec1Rows.length ? tec1Rows : routePriorities).slice(0, 12),
+      tec1Rows: (urgentTec1.length ? urgentTec1 : tec1Rows.length ? tec1Rows : routePriorities),
       focusBasis: urgentTec1.length || tec1Rows.length ? "official_window" : routePriorities.length ? "route_estimate" : "none",
       activeTechnicians,
       routeAlerts: (routeConsole.alerts || []).slice(0, 8),

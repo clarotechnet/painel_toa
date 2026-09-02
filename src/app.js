@@ -682,6 +682,14 @@ function bindTvInteractions(tvRoot, store, alertService, model, focusPage, techn
     tvDrilldownState = { type: 'technician', login: item.technician_login || '', name: item.technician || '', search: '' };
     renderTv(store, alertService);
   }));
+  const moveFocusPage = (delta) => {
+    if (focusPage.pageCount <= 1) return;
+    tvSlideIndex = (focusPage.pageIndex + delta + focusPage.pageCount) % focusPage.pageCount;
+    renderTv(store, alertService);
+    scheduleTvSlide(store, alertService);
+  };
+  tvRoot.querySelector('[data-tv-focus-prev]')?.addEventListener('click', () => moveFocusPage(-1));
+  tvRoot.querySelector('[data-tv-focus-next]')?.addEventListener('click', () => moveFocusPage(1));
   tvRoot.querySelector('[data-tv-route-alert]')?.addEventListener('click', () => {
     tvDrilldownState = { type: 'kpi', key: 'routes', search: '' };
     renderTv(store, alertService);
@@ -694,6 +702,15 @@ function renderTvFocusFacts(facts) {
 }
 
 function tvTec1PhasePresentation(focus, countdown) {
+  const serviceKey = normalize(focus?.service || '');
+  if (serviceKey.includes('apoio a outro tecnico')) return {
+    active: true, css: 'window-warning', title: 'APOIO EM ANDAMENTO — ATENÇÃO À ROTA',
+    detail: 'Este técnico está apoiando outra equipe. Verifique as próximas OS e antecipe remanejamentos para evitar atrasos ou estouros.',
+  };
+  if (serviceKey.includes('manutencao de veiculo')) return {
+    active: true, css: 'window-warning', title: 'TÉCNICO EM MANUTENÇÃO DE VEÍCULO',
+    detail: 'O técnico está temporariamente fora da produção. Acompanhe as próximas OS e redistribua atividades com risco de atraso.',
+  };
   if (focus?.deadline_basis !== 'official_window') {
     return { active: false, css: '', title: '', detail: '' };
   }
@@ -775,7 +792,7 @@ function renderTv(store, alertService) {
       ? `Exibindo ${focusPage.start}–${focusPage.end} de ${focusPage.total}`
       : 'Nenhuma prioridade na leitura atual';
     focusBoard.className = `monitor-tv-focus monitor-tv-focus-board${focusPage.items.length <= 1 ? ' single' : ''}`;
-    focusBoard.innerHTML = `<div class="monitor-tv-focus-board-head"><div><span class="monitor-tv-focus-kicker"><i></i>${focusTitle}</span><small>${focusSubtitle}</small></div><strong>${focusPageLabel}</strong></div><div class="monitor-tv-focus-cards">${focusPage.items.length ? focusPage.items.map((item, index) => renderTvFocusCard(item, index)).join('') : renderTvFocusEmpty()}</div><footer><span><i data-lucide="info"></i>${focusBasisText}</span><b>Monitoramento em modo somente leitura.</b></footer>`;
+    focusBoard.innerHTML = `<div class="monitor-tv-focus-board-head"><div><span class="monitor-tv-focus-kicker"><i></i>${focusTitle}</span><small>${focusSubtitle}</small></div><div class="monitor-tv-focus-nav"><button type="button" data-tv-focus-prev ${focusPage.pageCount <= 1 ? 'disabled' : ''} aria-label="Aviso anterior"><i data-lucide="chevron-left"></i><span>Anterior</span></button><strong>${focusPageLabel}</strong><button type="button" data-tv-focus-next ${focusPage.pageCount <= 1 ? 'disabled' : ''} aria-label="Próximo aviso"><span>Próximo</span><i data-lucide="chevron-right"></i></button></div></div><div class="monitor-tv-focus-cards">${focusPage.items.length ? focusPage.items.map((item, index) => renderTvFocusCard(item, index)).join('') : renderTvFocusEmpty()}</div><footer><span><i data-lucide="info"></i>${focusBasisText}</span><b>Monitoramento em modo somente leitura.</b></footer>`;
   }
   const technicianList = tvRoot.querySelector('.monitor-tv-technicians');
   if (technicianList) technicianList.innerHTML = renderTvTechnicianCards(technicianPage.items);

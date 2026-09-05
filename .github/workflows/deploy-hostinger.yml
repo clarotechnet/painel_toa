@@ -40,6 +40,19 @@ jobs:
       - name: Validar artefato
         run: test -f dist/index.html && test -f dist/config.js && grep -q '?v=' dist/index.html
 
+      - name: Publicar app Android na Central
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.HOSTINGER_FTP_SERVER }}
+          username: ${{ secrets.HOSTINGER_FTP_USERNAME }}
+          password: ${{ secrets.HOSTINGER_FTP_PASSWORD }}
+          port: 65002
+          source: "dist/mobile/*"
+          target: "/home/u998431343/domains/clarotechnet.com.br/public_html/central/mobile"
+          strip_components: 2
+          overwrite: true
+          timeout: 180s
+          command_timeout: 10m
       - name: Enviar dist para public_html/central via SFTP
         id: deploy_primary
         continue-on-error: true

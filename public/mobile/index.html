@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#07090c">
+  <title>TechNET Mobile | Central</title>
+  <style>
+    :root{color-scheme:dark;--bg:#07090c;--panel:#101318;--line:#252b33;--text:#f5f7fa;--muted:#9aa6b2;--red:#e21b2d;--red2:#ff3446}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 50% -10%,#281017 0,#0b0d11 36%,var(--bg) 70%);color:var(--text);font:500 16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+    main{width:min(680px,calc(100% - 28px));margin:0 auto;padding:42px 0 56px}
+    .brand{display:flex;align-items:center;gap:12px;margin-bottom:28px}.brand img{width:44px;height:44px}.brand strong{display:block;font-size:15px;letter-spacing:.08em}.brand span{color:var(--muted);font-size:13px}
+    .card{border:1px solid var(--line);border-radius:26px;padding:28px;background:linear-gradient(145deg,rgba(20,24,30,.96),rgba(11,13,17,.96));box-shadow:0 24px 80px #0008}
+    .badge{display:inline-flex;gap:8px;align-items:center;padding:7px 11px;border:1px solid #3b2328;border-radius:999px;background:#1c0f13;color:#ff8792;font-size:12px;font-weight:800;letter-spacing:.06em}.badge i{width:7px;height:7px;border-radius:50%;background:var(--red2);box-shadow:0 0 16px var(--red2)}
+    h1{margin:18px 0 8px;font-size:clamp(32px,8vw,52px);line-height:1;letter-spacing:-.04em}.lead{margin:0 0 24px;color:var(--muted)}
+    .meta{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:22px 0}.meta div{padding:14px;border:1px solid var(--line);border-radius:16px;background:#0b0e12}.meta small{display:block;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em}.meta strong{display:block;margin-top:4px;font-size:15px}
+    .download{display:flex;justify-content:center;align-items:center;width:100%;min-height:58px;border:0;border-radius:17px;background:linear-gradient(135deg,var(--red),var(--red2));color:white;text-decoration:none;font-weight:900;letter-spacing:.02em;box-shadow:0 14px 34px #e21b2d35;transition:.18s transform,.18s filter}.download:active{transform:scale(.985)}.download:hover{filter:brightness(1.08)}
+    .secondary{display:block;margin-top:12px;text-align:center;color:var(--muted);font-size:13px;text-decoration:none}.secondary:hover{color:white}
+    .notes{margin-top:22px;padding-top:20px;border-top:1px solid var(--line)}.notes h2{font-size:14px;margin:0 0 8px}.notes p{margin:0;color:var(--muted);font-size:14px}
+    .steps{margin-top:18px;padding:18px;border:1px solid var(--line);border-radius:18px;background:#090b0f}.steps strong{font-size:13px}.steps ol{margin:10px 0 0;padding-left:20px;color:var(--muted);font-size:13px}.steps li+li{margin-top:6px}
+    .status{margin-top:14px;text-align:center;color:var(--muted);font-size:12px}.status.ok{color:#8ed8aa}.status.error{color:#ff8b95}
+    footer{padding:22px 4px 0;text-align:center;color:#68727d;font-size:11px}
+    @media(max-width:520px){main{padding-top:24px}.card{padding:22px;border-radius:22px}.meta{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<main>
+  <div class="brand"><img src="/assets/brands/logo-novo-compact.svg" alt="TechNET"><div><strong>TECHNET CENTRAL</strong><span>Aplicativo operacional Android</span></div></div>
+  <section class="card">
+    <span class="badge"><i></i> ANDROID RELEASE</span>
+    <h1>TechNET Mobile</h1>
+    <p class="lead">Telemetria de campo integrada ao DOMINIUM, com fila offline, GPS em segundo plano e atualização própria.</p>
+    <div class="meta"><div><small>Versão</small><strong id="version">Consultando…</strong></div><div><small>Android</small><strong id="android">8.0 ou superior</strong></div></div>
+    <a class="download" id="download" href="/mobile/technet-telemetria.apk" download>BAIXAR TECHNET</a>
+    <a class="secondary" href="/">Voltar para a Central</a>
+    <div class="notes"><h2>O que vem nesta versão</h2><p id="notes">Carregando informações da versão publicada…</p></div>
+    <div class="steps"><strong>Primeira instalação</strong><ol><li>Baixe o APK neste aparelho Android.</li><li>Autorize a instalação pelo navegador, se o Android solicitar.</li><li>Abra o TechNET e conceda localização e notificações.</li></ol></div>
+    <div class="status" id="status">Validando pacote publicado…</div>
+  </section>
+  <footer>TechNET · DOMINIUM TOA</footer>
+</main>
+<script>
+(async()=>{
+  const status=document.querySelector('#status');
+  try{
+    const response=await fetch('/mobile/version.json',{cache:'no-store'});
+    if(!response.ok) throw new Error(`HTTP ${response.status}`);
+    const info=await response.json();
+    document.querySelector('#version').textContent=info.versionName||String(info.versionCode||'-');
+    document.querySelector('#notes').textContent=info.notes||'Pacote operacional TechNET.';
+    if(Number(info.minSdk)>=26) document.querySelector('#android').textContent='8.0 ou superior';
+    if(info.apkUrl) document.querySelector('#download').href=info.apkUrl;
+    status.textContent='Pacote oficial disponível na Central'; status.className='status ok';
+  }catch(error){status.textContent='Não foi possível validar o manifesto agora';status.className='status error';console.error(error)}
+})();
+</script>
+</body>
+</html>

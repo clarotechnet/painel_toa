@@ -205,6 +205,65 @@ export function sanitizeOperationalSnapshot(value, expectedContract = "") {
   return snapshot;
 }
 
+function finiteNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function sanitizeTelemetryPoint(value) {
+  const point = value && typeof value === "object" ? value : {};
+  const latitude = finiteNumber(point.latitude ?? point.lat);
+  const longitude = finiteNumber(point.longitude ?? point.lng ?? point.lon);
+  if (latitude === null || longitude === null || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) return null;
+  const accuracy = finiteNumber(point.accuracy_m ?? point.accuracy);
+  const speed = finiteNumber(point.speed_kmh ?? point.speed);
+  const battery = finiteNumber(point.battery_pct ?? point.battery);
+  return {
+    observed_at: text(point.observed_at ?? point.timestamp ?? point.time, 80),
+    latitude,
+    longitude,
+    accuracy_m: accuracy === null ? null : Math.max(0, Math.min(5000, accuracy)),
+    speed_kmh: speed === null ? null : Math.max(0, Math.min(300, speed)),
+    heading: finiteNumber(point.heading),
+    altitude_m: finiteNumber(point.altitude_m ?? point.altitude),
+    provider: text(point.provider ?? point.location_provider, 50),
+    battery_pct: battery === null ? null : Math.max(0, Math.min(100, battery)),
+    device_id: text(point.device_id ?? point.deviceId, 180),
+    vehicle_id: text(point.vehicle_id ?? point.vehicleId ?? point.vehicle ?? point.plate, 120).toUpperCase(),
+  };
+}
+
+export function sanitizeTelemetryBatch(value) {
+  const source = value && typeof value === "object" ? value : {};
+  const rawResources = Array.isArray(source.resources) ? source.resources : [source];
+  const resources = rawResources.slice(0, 10).map((raw) => {
+    const item = raw && typeof raw === "object" ? raw : {};
+    const technician = item.technician && typeof item.technician === "object" ? item.technician : {};
+    const points = (Array.isArray(item.gps_real) ? item.gps_real : (Array.isArray(item.points) ? item.points : []))
+      .slice(0, 100).map(sanitizeTelemetryPoint).filter(Boolean);
+    return {
+      technician_id: text(item.technician_id ?? item.resource_id ?? technician.id, 160),
+      technician_login: text(item.technician_login ?? item.login ?? technician.login, 160),
+      technician_name: text(item.technician_name ?? item.name ?? technician.name, 240),
+      bucket: text(item.bucket, 120),
+      profile: text(item.profile, 40).toLowerCase(),
+      device_id: text(item.device_id ?? item.deviceId ?? points[0]?.device_id, 180),
+      vehicle_id: text(item.vehicle_id ?? item.vehicleId ?? item.vehicle ?? item.plate ?? points[0]?.vehicle_id, 120).toUpperCase(),
+      battery_pct: finiteNumber(item.battery_pct ?? item.battery),
+      provider: text(item.provider ?? item.location_provider ?? "technet-android", 80),
+      gps_real: points,
+    };
+  }).filter((item) => item.device_id && (item.technician_login || item.technician_id) && item.gps_real.length);
+  if (!resources.length) throw new BridgeInputError("invalid_telemetry", "Lote sem tecnico, aparelho ou pontos validos");
+  return {
+    schema: "dominium.mobile.telemetry.v1",
+    source: text(source.source ?? "technet-android-v2", 120),
+    date: text(source.date, 10),
+    batch_id: text(source.batch_id ?? source.batchId, 180),
+    resources,
+  };
+}
+
 export function jsonSize(value) {
   return new TextEncoder().encode(JSON.stringify(value)).byteLength;
 }

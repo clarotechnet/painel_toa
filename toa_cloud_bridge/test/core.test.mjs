@@ -5,6 +5,7 @@ import {
   BridgeInputError,
   normalizeContract,
   sanitizeOperationalSnapshot,
+  sanitizeTelemetryBatch,
 } from "../src/core.js";
 
 test("normaliza contrato e recusa valores invalidos", () => {
@@ -141,4 +142,33 @@ test("customer/recurso nunca entram no inventario operacional de baixa", () => {
   assert.equal(JSON.stringify(result.operational_inventory).includes("CLI1"), false);
   assert.equal(JSON.stringify(result.operational_inventory).includes("REC1"), false);
   assert.equal(JSON.stringify(result.operational_inventory).includes("MAT-CLI"), false);
+});
+
+test("telemetria mobile aceita somente campos operacionais", () => {
+  const result = sanitizeTelemetryBatch({
+    source: "technet-android-v2",
+    resources: [{
+      technician_login: "TEC-01",
+      technician_name: "Tecnico Teste",
+      profile: "natal",
+      device_id: "device-123",
+      vehicle_id: "abc1d23",
+      gps_real: [{
+        observed_at: "2026-09-02T16:30:00-03:00",
+        latitude: -5.8,
+        longitude: -35.2,
+        accuracy_m: 8,
+        battery_pct: 71,
+        customer_name: "NAO PODE IR",
+      }],
+    }],
+  });
+  assert.equal(result.resources.length, 1);
+  assert.equal(result.resources[0].vehicle_id, "ABC1D23");
+  assert.equal(result.resources[0].gps_real[0].battery_pct, 71);
+  assert.doesNotMatch(JSON.stringify(result), /NAO PODE IR|customer_name/);
+});
+
+test("telemetria mobile rejeita lote sem identidade ou coordenadas", () => {
+  assert.throws(() => sanitizeTelemetryBatch({ resources: [{ device_id: "x", gps_real: [] }] }), BridgeInputError);
 });

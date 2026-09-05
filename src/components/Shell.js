@@ -34,6 +34,7 @@ export function Shell() {
       <button class="side-nav-item" data-module="imports" type="button"><i data-lucide="upload"></i><span><strong>Carregar CSV</strong><small>Fonte TOA</small></span></button>
       <button class="side-nav-item" data-module="technicians" type="button"><i data-lucide="users-round"></i><span><strong>Técnicos</strong><small>Cadastro TOA</small></span></button>
       <button class="side-nav-item" data-module="technician-monitor" type="button"><i data-lucide="map-pinned"></i><span><strong>Monitoramento Técnico</strong><small>Histórico GPS</small></span></button>
+      <a class="side-nav-item side-nav-download" href="/mobile/" target="_blank" rel="noopener"><i data-lucide="smartphone"></i><span><strong>App Android</strong><small>Baixar TechNET</small></span></a>
       <div class="side-nav-footer">
         <div class="side-brand-lockup" aria-label="TechNet, agente autorizado Claro">
           <img class="side-brand-technet brand-asset" src="/assets/brands/technet-agent.png" alt="TechNet agente autorizado"><span aria-hidden="true"></span><img class="side-brand-claro brand-asset" src="/assets/brands/claro-wordmark.png" alt="Claro">

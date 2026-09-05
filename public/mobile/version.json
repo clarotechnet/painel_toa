@@ -1,8 +1,8 @@
 {
-  "versionCode": 3,
-  "versionName": "2.0.1",
-  "apkUrl": "https://central.clarotechnet.com.br/mobile/technet-telemetria-2.0.1.apk",
-  "sha256": "9fc7395ac120790f8b28f650a35142d1e9759dcc261a24028ca41bdb6732208c",
+  "versionCode": 4,
+  "versionName": "2.0.2",
+  "apkUrl": "https://central.clarotechnet.com.br/mobile/technet-telemetria-2.0.2.apk",
+  "sha256": "090c1fa273ec9599099b18f8432b2edce77984685fd13e3ad9ff6f69ac87e374",
   "minSdk": 26,
-  "notes": "Telemetria Android integrada ao Worker mobile dedicado, fila offline, GPS em segundo plano, bateria, veículo e atualizador próprio."
+  "notes": "Correção dos textos em português, ícone oficial TechNET no Android e telemetria integrada ao Worker mobile dedicado."
 }

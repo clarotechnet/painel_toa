@@ -102,31 +102,46 @@ export function splitGpsTrack(points = []) {
     const accuracy = Number(point?.accuracy_m || 0);
     return Number.isFinite(latitude) && Number.isFinite(longitude)
       && latitude >= -34 && latitude <= 6 && longitude >= -74 && longitude <= -28
-      && (!accuracy || accuracy <= 250);
+      && (!accuracy || accuracy <= 50);
   }).sort((left, right) => String(left.observed_at || '').localeCompare(String(right.observed_at || '')));
-  const segments = [];
+  const rawSegments = [];
   let current = [];
   for (const point of ordered) {
-    if (!current.length) {
-      current = [point];
-      segments.push(current);
-      continue;
-    }
+    if (!current.length) { current = [point]; rawSegments.push(current); continue; }
     const previous = current.at(-1);
     const elapsed = (new Date(point.observed_at) - new Date(previous.observed_at)) / 1000;
     if (!Number.isFinite(elapsed) || elapsed <= 0) continue;
-    if (elapsed > 1800) {
-      current = [point];
-      segments.push(current);
-      continue;
-    }
+    if (elapsed > 1800) { current = [point]; rawSegments.push(current); continue; }
     const distance = haversineMeters(previous, point);
     const speed = (distance / elapsed) * 3.6;
-    // Saltos impossiveis sao drift: descarte o ponto e nao crie uma reta ate ele.
     if (!Number.isFinite(distance) || distance > 15000 || speed > 140) continue;
     current.push(point);
   }
-  return segments.filter((segment) => segment.length);
+  const collapseStationary = (segment) => {
+    const cleaned = [];
+    let cluster = [];
+    const flush = () => {
+      if (!cluster.length) return;
+      if (cluster.length === 1) { cleaned.push(cluster[0]); cluster = []; return; }
+      const lats = cluster.map((p) => Number(p.latitude)).sort((a, b) => a - b);
+      const lons = cluster.map((p) => Number(p.longitude)).sort((a, b) => a - b);
+      const best = cluster.reduce((a, b) => Number(b.accuracy_m || 9999) < Number(a.accuracy_m || 9999) ? b : a);
+      const last = cluster.at(-1);
+      cleaned.push({ ...best, latitude: lats[Math.floor(lats.length / 2)], longitude: lons[Math.floor(lons.length / 2)], observed_at: last.observed_at, speed_kmh: 0, drift_collapsed: cluster.length });
+      cluster = [];
+    };
+    for (const point of segment) {
+      const rawSpeed = point?.speed_kmh;
+      const speed = Number(rawSpeed);
+      const stationary = rawSpeed !== null && rawSpeed !== undefined && rawSpeed !== '' && Number.isFinite(speed) && speed < 3;
+      if (!stationary) { flush(); cleaned.push(point); continue; }
+      if (!cluster.length) { cluster = [point]; continue; }
+      if (haversineMeters(cluster[0], point) <= 120) { cluster.push(point); continue; }
+      flush(); cluster = [point];
+    }
+    flush(); return cleaned;
+  };
+  return rawSegments.map(collapseStationary).filter((segment) => segment.length);
 }
 
 function trackDistance(points) {

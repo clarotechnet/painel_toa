@@ -545,6 +545,9 @@ class TOADatalakeStore:
         distance_m = 0.0
         accepted_segments = 0
         rejected_segments = 0
+        moving_seconds = 0.0
+        stopped_seconds = 0.0
+        max_speed_kmh = 0.0
         for previous, current in zip(rows, rows[1:]):
             segment = TOADatalakeStore._distance_meters(previous, current)
             try:
@@ -555,21 +558,42 @@ class TOADatalakeStore:
                 elapsed = 0.0
             derived_speed = (segment / elapsed) * 3.6 if elapsed else float("inf")
             accuracy = max(float(previous["accuracy_m"] or 0), float(current["accuracy_m"] or 0))
-            # Uma coleta interrompida inicia outro trecho; saltos grandes,
-            # velocidade impossivel e baixa precisao sao drift, nao quilometragem.
+            mobile_source = str(previous["source"] or "").startswith("technet-android") or str(current["source"] or "").startswith("technet-android")
+            reported = [float(row["speed_kmh"]) for row in (previous, current) if row["speed_kmh"] is not None]
+            if mobile_source and accuracy > 50:
+                rejected_segments += 1
+                continue
+            if mobile_source and reported and max(reported) < 3.0:
+                if elapsed <= 0 or elapsed > 1800 or segment > 120:
+                    rejected_segments += 1
+                else:
+                    stopped_seconds += elapsed
+                    accepted_segments += 1
+                continue
             if elapsed <= 0 or elapsed > 1800 or segment > 15000 or derived_speed > 140 or accuracy > 250:
                 rejected_segments += 1
                 continue
-            # Oscilacoes menores que a margem combinada de GPS nao contam como deslocamento.
-            if segment <= max(8.0, accuracy * 0.35):
+            drift_margin = max(8.0, accuracy * 0.35)
+            if segment <= drift_margin:
+                stopped_seconds += elapsed
                 accepted_segments += 1
                 continue
             distance_m += segment
+            moving_seconds += elapsed
+            max_speed_kmh = max(max_speed_kmh, derived_speed)
             accepted_segments += 1
+        moving_minutes = round(moving_seconds / 60, 1)
+        stopped_minutes = round(stopped_seconds / 60, 1)
+        avg_speed_kmh = (distance_m / moving_seconds) * 3.6 if moving_seconds else 0.0
         return {
             "distance_km": round(distance_m / 1000, 3),
             "accepted_segments": accepted_segments,
             "rejected_segments": rejected_segments,
+            "moving_minutes": moving_minutes,
+            "stopped_minutes": stopped_minutes,
+            "tracked_minutes": round((moving_seconds + stopped_seconds) / 60, 1),
+            "avg_speed_kmh": round(avg_speed_kmh, 1),
+            "max_speed_kmh": round(max_speed_kmh, 1),
         }
 
     def technician_location_summary(self, *, date: str = "", profile: str = "") -> dict[str, Any]:

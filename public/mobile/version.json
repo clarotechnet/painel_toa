@@ -1,8 +1,8 @@
 {
-  "versionCode": 5,
-  "versionName": "2.0.3",
-  "apkUrl": "https://central.clarotechnet.com.br/mobile/technet-telemetria-2.0.3.apk",
-  "sha256": "2c3cc62cc8027f4d0d99cafc73eeb68b5c5ac32dde5808edbd6927cbec9295d0",
+  "versionCode": 6,
+  "versionName": "2.0.4",
+  "apkUrl": "https://central.clarotechnet.com.br/mobile/technet-telemetria-2.0.4.apk",
+  "sha256": "22c8b47b0717750c3ff6548f9b229775c62f255e7b12ae44e16d8df540107555",
   "minSdk": 26,
-  "notes": "Configuração simplificada para campo: técnico informa apenas nome e placa. Endpoint, perfil, bucket, chave e atualização ficam automáticos/ocultos."
+  "notes": "Filtro anti-drift: reduz pontos com o aparelho parado, rejeita baixa precisão e agrupa oscilações estacionárias no mapa sem apagar o histórico bruto."
 }

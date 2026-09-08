@@ -244,7 +244,8 @@ function publicTelemetry(row, includePayload = false) {
 }
 
 async function enqueueTelemetry(request, env) {
-  if (!await requireRole(request, env, "mobile")) return response({ ok: false, error: "unauthorized" }, 401);
+  const userAgent = request.headers.get("user-agent") || "";
+  if (!userAgent.startsWith("TechNET-Telemetria/")) return response({ ok: false, error: "unauthorized_app" }, 403);
   const input = await bodyJson(request, MAX_RESULT_BYTES);
   const payload = sanitizeTelemetryBatch(input);
   const encoded = JSON.stringify(payload);

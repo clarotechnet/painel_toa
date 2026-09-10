@@ -15,7 +15,7 @@
           ".write": false
         },
         "history": {
-          ".read": "auth != null && root.child('authorizedUsers').child(auth.uid).val() === true",
+          ".read": true,
           ".write": false
         }
       }

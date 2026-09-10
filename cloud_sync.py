@@ -12,6 +12,8 @@ from datetime import datetime
 from typing import Any
 from urllib.parse import urlparse
 
+from firebase_payloads import build_location_patch, build_snapshot_patch
+
 
 def _positive_number(name: str, default: float, minimum: float) -> float:
     try:
@@ -32,6 +34,7 @@ class CloudPublisher:
         self._condition = threading.Condition()
         self._pending: bytes | None = None
         self._last_sent_monotonic = 0.0
+        self._snapshot_state: dict[str, Any] = {}
         self._status: dict[str, Any] = {
             "enabled": False,
             "state": "disabled",
@@ -222,10 +225,19 @@ class CloudPublisher:
                 payload = self._pending
                 self._pending = None
                 self._status.update(state="sending", pending=False, lastAttemptAt=datetime.now().astimezone().isoformat())
+            next_snapshot_state = None
             try:
+                envelope = json.loads(payload.decode("utf-8"))
+                if self.channel == "snapshot":
+                    prepared, next_snapshot_state = build_snapshot_patch(envelope, self._snapshot_state)
+                elif self.channel == "technician-locations":
+                    prepared = build_location_patch(envelope)
+                else:
+                    prepared = envelope
+                outbound = json.dumps(prepared, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
                 request = urllib.request.Request(
                     self.url,
-                    data=payload,
+                    data=outbound,
                     method="POST",
                     headers={
                         "Authorization": f"Bearer {self.token}",
@@ -234,11 +246,18 @@ class CloudPublisher:
                         "User-Agent": "DOMINIUM-TOA-Collector/1.0",
                     },
                 )
-                with urllib.request.urlopen(request, timeout=30, context=ssl.create_default_context()) as response:
-                    response_payload = json.loads(response.read().decode("utf-8"))
-                    if response.status >= 300 or response_payload.get("ok") is not True:
-                        raise RuntimeError(f"Webhook respondeu {response.status} sem confirmacao")
+                with urllib.request.urlopen(request, timeout=45, context=ssl.create_default_context()) as response:
+                    body = response.read()
+                    if response.status >= 300:
+                        raise RuntimeError(f"Webhook respondeu {response.status}")
+                    if body:
+                        try:
+                            json.loads(body.decode("utf-8"))
+                        except (UnicodeDecodeError, json.JSONDecodeError):
+                            pass
                 with self._condition:
+                    if next_snapshot_state is not None:
+                        self._snapshot_state = next_snapshot_state
                     self._last_sent_monotonic = time.monotonic()
                     self._status.update(
                         state="online", lastSuccessAt=datetime.now().astimezone().isoformat(),

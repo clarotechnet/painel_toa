@@ -13,9 +13,9 @@ function useLocalApi() {
   const port = String(globalThis.location?.port || '');
   const source = String(globalThis.DOMINIUM_CONFIG?.dataSource || 'auto').toLowerCase();
   const localHost = host === 'localhost' || host === '127.0.0.1';
-  // O servidor Python oficial usa 8765. Em uma sessao Vite (5173), manter o
+  // O servidor Python oficial usa 8766. Em uma sessao Vite (5173), manter o
   // Firebase evita requisitar /api na origem errada e receber o index.html.
-  return source === 'api' || (localHost && (port === '' || port === '8765'));
+  return source === 'api' || (localHost && (port === '' || port === '8766'));
 }
 
 async function localJson(path) {
@@ -31,9 +31,8 @@ async function firebaseHistoryContext() {
   if (!firebaseHistoryContextPromise) {
     firebaseHistoryContextPromise = Promise.all([
       import(`${SDK_BASE}/firebase-app.js`),
-      import(`${SDK_BASE}/firebase-auth.js`),
       import(`${SDK_BASE}/firebase-database.js`),
-    ]).then(([appSdk, authSdk, databaseSdk]) => {
+    ]).then(([appSdk, databaseSdk]) => {
       const config = globalThis.DOMINIUM_CONFIG?.firebase || {};
       const required = ['apiKey', 'authDomain', 'databaseURL', 'projectId', 'appId'];
       if (!required.every((key) => String(config[key] || '').trim())) {
@@ -43,40 +42,12 @@ async function firebaseHistoryContext() {
       const app = appSdk.getApps().length ? appSdk.getApp() : appSdk.initializeApp(options);
       return {
         app,
-        auth: authSdk.getAuth(app),
         database: databaseSdk.getDatabase(app),
-        authSdk,
         databaseSdk,
       };
     });
   }
   return firebaseHistoryContextPromise;
-}
-
-async function settledUser() {
-  const { auth, authSdk } = await firebaseHistoryContext();
-  if (auth.currentUser) return auth.currentUser;
-  return new Promise((resolve, reject) => {
-    const unsubscribe = authSdk.onAuthStateChanged(auth, (user) => {
-      unsubscribe();
-      resolve(user);
-    }, reject);
-  });
-}
-
-async function authorizedUser({ interactive = false } = {}) {
-  const context = await firebaseHistoryContext();
-  let user = await settledUser();
-  if (!user && interactive) {
-    const provider = new context.authSdk.GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: 'select_account' });
-    user = (await context.authSdk.signInWithPopup(context.auth, provider)).user;
-  }
-  if (!user) return { user: null, authorized: false };
-  const access = await context.databaseSdk.get(
-    context.databaseSdk.ref(context.database, `authorizedUsers/${user.uid}`),
-  );
-  return { user, authorized: access.val() === true };
 }
 
 function collection(value) {
@@ -192,17 +163,7 @@ function normalizeTechnician(value, fallbackKey = '') {
   };
 }
 
-async function firebaseDay(date, { interactive = false } = {}) {
-  const access = await authorizedUser({ interactive });
-  if (!access.user) return { ok: false, requiresAuth: true, date, items: [] };
-  if (!access.authorized) return {
-    ok: false,
-    unauthorized: true,
-    uid: access.user.uid,
-    email: access.user.email || '',
-    date,
-    items: [],
-  };
+async function firebaseDay(date) {
   const context = await firebaseHistoryContext();
   const snapshot = await context.databaseSdk.get(
     context.databaseSdk.ref(context.database, `${HISTORY_ROOT}/${date}/technicians`),
@@ -213,6 +174,7 @@ async function firebaseDay(date, { interactive = false } = {}) {
   return {
     ok: true,
     provider: 'firebase',
+    public: true,
     date,
     technician_count: items.length,
     point_count: items.reduce((total, item) => total + item.point_count, 0),
@@ -256,5 +218,5 @@ export async function loadTechnicianLocationTrack(identifier, date, options = {}
 }
 
 export async function signInTechnicianHistory() {
-  return authorizedUser({ interactive: true });
+  return { user: null, authorized: true, public: true };
 }

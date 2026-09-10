@@ -13,7 +13,7 @@ const locationHook = fs.readFileSync(path.join(root, 'location-network-hook.js')
 
 assert.equal(manifest.name, 'TOA TechNet Bridge');
 assert.equal(manifest.version, '2.6.13');
-assert.match(background, /MONITOR_API_PORT = 8765/);
+assert.match(background, /MONITOR_API_PORT = 8766/);
 assert.match(locationHook, /toa_map_pid_mismatch_/);
 assert.match(content, /respostasDescartadasPorPidDivergente/);
 assert.match(content, /activity_id: firstText/);
@@ -37,6 +37,10 @@ assert.match(content, /ultimoDiagnosticoSeguro/);
 assert.match(content, /__TN_TOA_LOCATION_SYNC_ALL__/);
 assert.match(content, /__TN_TOA_LOCATION_SYNC_MAP_ALL__/);
 assert.match(content, /syncMapPositionHistory/);
+assert.match(content, /ensureMapTemplateAutomatically/);
+assert.match(content, /findToaViewControl\('map'\)/);
+assert.match(content, /Preparando consulta GPS automaticamente/);
+assert.doesNotMatch(content, /Abra o mapa do TOA uma vez para capturar o molde da consulta GPS/);
 assert.match(content, /syncActivityHistoriesSilent/);
 assert.match(content, /\/api\/v1\/ingest\/history/);
 assert.match(locationHook, /__TN_TOA_FETCH_ACTIVITY_HISTORY__/);

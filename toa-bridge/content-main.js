@@ -2293,6 +2293,39 @@
     }
   }
 
+  function normalizeViewLabel(value) {
+    return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+  }
+
+  function findToaViewControl(kind) {
+    const wanted = kind === 'map'
+      ? new Set(['exibicao de mapa', 'map view'])
+      : new Set(['exibicao em lista', 'exibicao de lista', 'list view']);
+    const nodes = Array.from(document.querySelectorAll('button, a, [role="button"], [title], [aria-label]'));
+    const enabled = (node) => !node.disabled && node.getAttribute?.('aria-disabled') !== 'true';
+    const fields = (node) => [node.getAttribute?.('title') || '', node.getAttribute?.('aria-label') || '', node.textContent || '']
+      .map(normalizeViewLabel).filter(Boolean);
+    return nodes.find((node) => enabled(node) && fields(node).some((value) => wanted.has(value))) || null;
+  }
+
+  async function ensureMapTemplateAutomatically() {
+    let status = window.__TN_TOA_TECH_TRACE_STATUS__?.() || {};
+    if (status.templateAvailable) return true;
+    const mapControl = findToaViewControl('map');
+    if (!mapControl) return false;
+    try { mapControl.click(); } catch { return false; }
+    for (let attempt = 0; attempt < 32; attempt += 1) {
+      await sleep(250);
+      status = window.__TN_TOA_TECH_TRACE_STATUS__?.() || {};
+      if (status.templateAvailable) {
+        const listControl = findToaViewControl('list');
+        if (listControl) setTimeout(() => { try { listControl.click(); } catch {} }, 250);
+        return true;
+      }
+    }
+    return false;
+  }
+
   async function syncMapPositionHistory() {
     const capture = state.locationCapture;
     if (capture.mapSweepSyncing || capture.coreApiSyncing || capture.coreApiConfigured) return;
@@ -2302,10 +2335,15 @@
       return;
     }
 
-    const traceStatus = window.__TN_TOA_TECH_TRACE_STATUS__?.() || {};
+    let traceStatus = window.__TN_TOA_TECH_TRACE_STATUS__?.() || {};
     if (!traceStatus.templateAvailable) {
-      capture.lastError = 'Abra o mapa do TOA uma vez para capturar o molde da consulta GPS.';
-      return;
+      capture.lastError = 'Preparando consulta GPS automaticamente...';
+      const captured = await ensureMapTemplateAutomatically();
+      traceStatus = window.__TN_TOA_TECH_TRACE_STATUS__?.() || {};
+      if (!captured || !traceStatus.templateAvailable) {
+        capture.lastError = 'Nao foi possivel preparar o mapa automaticamente; a coleta tentara novamente.';
+        return;
+      }
     }
 
     const providerIds = Array.from(state.providersByPid.values())

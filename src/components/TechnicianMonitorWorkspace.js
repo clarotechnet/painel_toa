@@ -1,7 +1,6 @@
 import {
   loadTechnicianLocationSummary,
   loadTechnicianLocationTrack,
-  signInTechnicianHistory,
   splitGpsTrack,
 } from '../services/technicianLocationService.js';
 import { escapeHtml, formatPtBrDateTime, normalize } from '../utils/text.js';
@@ -256,21 +255,6 @@ async function loadDay({ interactive = false } = {}) {
   const date = document.querySelector('#technicianMonitorDate')?.value || today();
   setStatus('Consultando histórico de localização…');
   const summary = await loadTechnicianLocationSummary(date, { interactive });
-  const access = document.querySelector('#technicianHistoryAccess');
-  if (!summary.ok && summary.requiresAuth) {
-    access?.classList.remove('hidden');
-    setStatus('Entre com uma conta Google autorizada para consultar o histórico publicado.', 'warning');
-    renderTable([]);
-    await drawTrack([]);
-    return;
-  }
-  if (!summary.ok && summary.unauthorized) {
-    access?.classList.remove('hidden');
-    access.innerHTML = `<strong>Conta ainda não autorizada.</strong><span>Cadastre este UID no Firebase: ${escapeHtml(summary.uid || '')}</span>`;
-    setStatus(`Acesso negado para ${summary.email || 'esta conta'}.`, 'error');
-    return;
-  }
-  access?.classList.add('hidden');
   const allItems = mergeTechnicianLocationRoster(summary.items || [], operationalRoster);
   const items = filterTechnicianLocationsByProfiles(allItems, selectedProfiles);
   const techniciansWithGps = items.filter((item) => Number(item.point_count || 0) > 0).length;
@@ -301,7 +285,6 @@ export function TechnicianMonitorWorkspace() {
         <button id="technicianMonitorRefresh" type="button"><i data-lucide="refresh-cw"></i> Atualizar</button>
       </div>
     </header>
-    <div id="technicianHistoryAccess" class="technician-history-access hidden"><strong>Histórico protegido</strong><span>A localização dos técnicos exige uma conta autorizada.</span><button id="technicianHistorySignIn" type="button">Entrar com Google</button></div>
     <p id="technicianMonitorStatus" class="technician-monitor-status">Preparando consulta…</p>
     <div class="technician-monitor-kpis">
       <article><span>Técnicos no dia</span><strong id="dayTechnicians">0</strong></article>
@@ -328,14 +311,6 @@ export async function mountTechnicianMonitor({ profiles = [], roster = [] } = {}
   document.querySelector('#technicianSummarySearch')?.addEventListener('input', (event) => {
     summarySearch = event.target.value;
     renderFilteredSummary();
-  });
-  document.querySelector('#technicianHistorySignIn')?.addEventListener('click', async () => {
-    try {
-      await signInTechnicianHistory();
-      await loadDay({ interactive: false });
-    } catch (error) {
-      setStatus(error.message, 'error');
-    }
   });
   document.querySelector('#technicianSummaryRows')?.addEventListener('click', (event) => {
     const row = event.target.closest('tr[data-technician-key]');

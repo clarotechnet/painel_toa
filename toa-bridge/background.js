@@ -2,7 +2,7 @@
 // Proxy HTTP para bridge local
 
 const BOT_BRIDGE_PORT = 8787;
-const MONITOR_API_PORT = 8765;
+const MONITOR_API_PORT = 8766;
 const BOT_BRIDGE_TOKEN = '';
 const DEFAULT_CLOUD_BASE_URL = 'https://dominium-toa-bridge.dominium-toa-cloud-bridge.workers.dev';
 const DEFAULT_COLLECTOR_ID = 'central-toa';

@@ -1,8 +1,8 @@
 {
-  "versionCode": 6,
-  "versionName": "2.0.4",
-  "apkUrl": "https://central.clarotechnet.com.br/mobile/technet-telemetria-2.0.4.apk",
-  "sha256": "22c8b47b0717750c3ff6548f9b229775c62f255e7b12ae44e16d8df540107555",
+  "versionCode": 7,
+  "versionName": "2.0.5",
+  "apkUrl": "https://central.clarotechnet.com.br/mobile/technet-telemetria-2.0.5.apk",
+  "sha256": "d9b6ed46e861ac9e9dd46438397a6f7bc6cb92262b176e3d3d14ec5097a3083c",
   "minSdk": 26,
-  "notes": "Filtro anti-drift: reduz pontos com o aparelho parado, rejeita baixa precisão e agrupa oscilações estacionárias no mapa sem apagar o histórico bruto."
+  "notes": "Correção de estabilidade na abertura: remove a verificação automática de atualização no primeiro segundo e protege a atualização de status da tela. Mantém telemetria, fila offline e filtro anti-drift."
 }

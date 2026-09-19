@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 import { loadToaFiles } from '../src/services/csvService.js';
 import {
   filterSnapshotByProfiles,
+  filterSnapshotByOperationalDate,
   groupTvFocusFacts,
   monitorTvCountdown,
   orderProfile,
@@ -80,6 +81,20 @@ const multiCitySnapshot = filterSnapshotByProfiles({
 }, ['fortaleza', 'recife']);
 assert.deepEqual(multiCitySnapshot.orders.map((item) => item.num_os), ['1', '2']);
 assert.deepEqual(multiCitySnapshot.timelineActivities.map((item) => item.technician_login), ['ZR']);
+const currentDaySnapshot = filterSnapshotByOperationalDate({
+  source: 'firebase_realtime',
+  orders: [
+    { num_os: 'OLD', scheduled_date: '2026-09-16' },
+    { num_os: 'TODAY', scheduled_date: '2026-09-19' },
+  ],
+  timelineActivities: [
+    { activity_id: 'OLD-AUX', scheduled_date: '2026-09-16' },
+    { activity_id: 'TODAY-AUX', scheduled_date: '2026-09-19' },
+  ],
+}, '2026-09-19');
+assert.deepEqual(currentDaySnapshot.orders.map((item) => item.num_os), ['TODAY']);
+assert.deepEqual(currentDaySnapshot.timelineActivities.map((item) => item.activity_id), ['TODAY-AUX']);
+assert.equal(currentDaySnapshot.excludedHistoricalOrders, 1);
 assert.equal(formatPtBrDate('2026-08-19'), '19-08-2026');
 assert.equal(formatPtBrDateTime('2026-08-19T10:10:00'), '19-08-2026 10:10');
 assert.equal(formatPtBrSchedule('2026-08-19 10:10:00 - 2026-08-19 12:00:00'), '10:10 - 12:00');
@@ -240,6 +255,20 @@ assert.match(windowCountdownRow.window_deadline, /14:00:00/);
 assert.match(windowCountdownRow.tec1_deadline, /14:59:00/);
 assert.equal(monitorTvCountdown(windowCountdownRow, new Date('2026-08-31T10:30:00-03:00')).text, '00:30:00');
 assert.equal(globalThis.DominiumMonitor.buildTvDashboard(windowCountdownModel).kpis.tec1Risk, 1);
+
+const historicalStartedModel = globalThis.DominiumMonitor.buildMonitorModel([{
+  scheduled_date: '2026-09-16', num_os: '2609010893', contract: '412109219',
+  service: 'INSTALACAO', activity_status: 'started', status: 'started', detail_state: 'complete',
+  technician: 'TECNICO HISTORICO', bucket: 'JCR-DMV', service_window: '12:00 - 15:00',
+}], { now: new Date('2026-09-19T11:45:00-03:00') });
+const historicalStartedRow = historicalStartedModel.views.monitor.rows[0];
+assert.equal(historicalStartedRow.tec1_kind, 'unknown', 'OS de dia anterior nao pode gerar TEC1 atual');
+assert.equal(historicalStartedRow.tec1_deadline, '');
+assert.equal(globalThis.DominiumMonitor.buildTvDashboard(historicalStartedModel).tec1Rows.length, 0);
+assert.equal(monitorTvCountdown({
+  tec1_phase: 'late', tec1_kind: 'late', tec1_countdown_deadline: '2026-09-19T10:00:00-03:00',
+}, new Date('2026-09-19T11:00:00-03:00')).text, '01:00:00',
+'Tempo apos TEC1 estourado deve ser exibido como duracao positiva');
 
 const urgentModel = globalThis.DominiumMonitor.buildMonitorModel([{
   scheduled_date: '2026-08-19', num_os: '2650000045', contract: '408676249',

@@ -60,16 +60,48 @@ export function filterSnapshotByProfiles(snapshot, profiles = []) {
   return { ...snapshot, orders, timelineActivities };
 }
 
+export function operationDateKey(value = new Date()) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function snapshotItemDate(item) {
+  return String(item?.scheduled_date || item?.date || '').match(/^\d{4}-\d{2}-\d{2}/)?.[0] || '';
+}
+
+export function filterSnapshotByOperationalDate(snapshot, date = operationDateKey()) {
+  if (!snapshot || !['firebase_realtime', 'toa_datalake'].includes(snapshot.source)) return snapshot;
+  const orders = (snapshot.orders || []).filter((item) => snapshotItemDate(item) === date);
+  const timelineActivities = (snapshot.timelineActivities || [])
+    .filter((item) => snapshotItemDate(item) === date);
+  return {
+    ...snapshot,
+    orders,
+    timelineActivities,
+    operationalDate: date,
+    excludedHistoricalOrders: Math.max(0, (snapshot.orders || []).length - orders.length),
+  };
+}
+
 function selectedSnapshot(state) {
   const snapshot = state.demo
     ? { files: [], orders: state.demoOrders || window.DominiumMonitor.buildMeetingExamples(new Date()), timelineActivities: [], errors: [], loadedAt: new Date().toISOString(), demo: true }
     : state.snapshot;
-  return filterSnapshotByProfiles(snapshot, state.cities);
+  return filterSnapshotByProfiles(filterSnapshotByOperationalDate(snapshot), state.cities);
 }
 
 function technicianLocationRoster(state) {
   const technicians = new Map();
-  for (const order of state.snapshot.orders || []) {
+  const snapshot = filterSnapshotByOperationalDate(state.snapshot);
+  for (const order of snapshot.orders || []) {
     const login = String(order.technician_login || '').trim();
     const name = String(order.technician || '').trim();
     const key = (login || name).toUpperCase();
@@ -96,14 +128,15 @@ function buildModel(state) {
 
 function renderProfileTabs(store) {
   const state = store.get();
+  const snapshot = filterSnapshotByOperationalDate(state.snapshot);
   const root = document.querySelector('#profileTabs');
   if (!root) return;
   const counts = Object.fromEntries(PROFILE_DEFS.map((profile) => [profile.key, 0]));
-  state.snapshot.orders.forEach((order) => {
+  snapshot.orders.forEach((order) => {
     const profile = orderProfile(order);
     if (profile in counts) counts[profile] += 1;
   });
-  const visibleProfiles = PROFILE_DEFS.filter((profile) => counts[profile.key] > 0 || !state.snapshot.orders.length);
+  const visibleProfiles = PROFILE_DEFS.filter((profile) => counts[profile.key] > 0 || !snapshot.orders.length);
   const selected = new Set(state.cities || []);
   const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
   root.innerHTML = `<button type="button" data-profile="all" aria-pressed="${selected.size ? 'false' : 'true'}" class="profile-tab profile-tab-all ${selected.size ? '' : 'active'}">TODAS${total ? `<small>${total}</small>` : ''}</button>`
@@ -288,10 +321,13 @@ function renderMonitor(store, alertService) {
       : state.datalakeOnline ? 'Datalake conectado; aguardando atividades do coletor.' : 'Carregue um CSV do TOA para iniciar.';
 
   const source = document.querySelector('#monitorCsvSource');
-  source.classList.toggle('hidden', !state.snapshot.orders.length || state.demo);
-  if (state.snapshot.orders.length) {
+  source.classList.toggle('hidden', !snap.orders.length || state.demo);
+  if (snap.orders.length) {
     document.querySelector('#monitorCsvSourceTitle').textContent = state.snapshot.files.map((file) => file.filename).join(' + ');
-    document.querySelector('#monitorCsvSourceDetail').textContent = `${state.snapshot.orders.length} OS · ${state.snapshot.timelineActivities.length} pausas/refeições · ${state.snapshot.files.reduce((sum, file) => sum + Number(file.sourceRows || 0), 0)} atividades do TOA · ${isDatalake ? 'sincronização incremental' : 'processamento local no navegador'}.`;
+    const historicalDetail = snap.excludedHistoricalOrders
+      ? ` · ${snap.excludedHistoricalOrders} registros históricos fora do dia ocultados`
+      : '';
+    document.querySelector('#monitorCsvSourceDetail').textContent = `${model.kpis.total} OS · ${snap.timelineActivities.length} pausas/refeições · ${state.snapshot.files.reduce((sum, file) => sum + Number(file.sourceRows || 0), 0)} atividades do TOA${historicalDetail} · ${isDatalake ? 'sincronização incremental' : 'processamento local no navegador'}.`;
   }
   document.querySelector('#monitorNotify').classList.toggle('active', alertService.notifications);
   document.querySelector('#monitorVoice').classList.toggle('active', alertService.voice);
@@ -410,12 +446,12 @@ export function monitorTvCountdown(deadlineOrRow, now = new Date()) {
   const target = new Date(deadline);
   if (Number.isNaN(target.getTime())) return { text: '--:--:--', kind: 'unknown', urgent: false, lateMinutes: 0, phase: row?.tec1_phase || 'unknown' };
   const diff = target.getTime() - now.getTime();
-  const sign = diff < 0 ? '-' : '';
+  const phase = row?.tec1_phase || '';
+  const sign = diff < 0 && phase !== 'late' ? '-' : '';
   const abs = Math.abs(diff);
   const hours = Math.floor(abs / 3600000);
   const minutes = Math.floor((abs % 3600000) / 60000);
   const seconds = Math.floor((abs % 60000) / 1000);
-  const phase = row?.tec1_phase || '';
   const lateMinutes = phase === 'late' ? Math.max(1, Math.ceil(abs / 60000))
     : !row && diff < 0 ? Math.floor(abs / 60000) : 0;
   return {

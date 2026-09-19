@@ -331,13 +331,23 @@
     return tec1Category(order) === "adhesion" ? 119 : 59;
   }
 
-  function tec1WindowDeadline(order) {
+  function isCurrentOperationDate(order, now) {
+    const parts = dateParts(order.date);
+    if (!parts || !(now instanceof Date) || Number.isNaN(now.getTime())) return true;
+    const operationNow = new Date(now.getTime() - (3 * 60 * 60 * 1000));
+    return parts[0] === operationNow.getUTCFullYear()
+      && parts[1] === operationNow.getUTCMonth() + 1
+      && parts[2] === operationNow.getUTCDate();
+  }
+
+  function tec1WindowDeadline(order, now) {
+    if (!isCurrentOperationDate(order, now)) return null;
     if (!order.isScheduled || !order.windowVerified || !order.windowEndAt) return null;
     return new Date(order.windowEndAt.getTime());
   }
 
-  function tec1Deadline(order) {
-    const windowDeadline = tec1WindowDeadline(order);
+  function tec1Deadline(order, now) {
+    const windowDeadline = tec1WindowDeadline(order, now);
     if (!windowDeadline) return null;
     const deadline = new Date(windowDeadline.getTime());
     deadline.setMinutes(deadline.getMinutes() + tec1GraceMinutes(order));
@@ -355,8 +365,8 @@
     if (["completed", "canceled", "suspended"].includes(order.statusKind)) {
       return { ...empty, key: "done", label: "Encerrada", phase: "done" };
     }
-    const windowDeadline = tec1WindowDeadline(order);
-    const deadline = tec1Deadline(order);
+    const windowDeadline = tec1WindowDeadline(order, now);
+    const deadline = tec1Deadline(order, now);
     if (!windowDeadline || !deadline) return empty;
     const signedMinutes = (target) => {
       const diff = target.getTime() - now.getTime();
@@ -529,8 +539,8 @@
 
   function orderRow(order, now) {
     const tec1 = tec1State(order, now);
-    const windowDeadline = tec1WindowDeadline(order);
-    const deadline = tec1Deadline(order);
+    const windowDeadline = tec1WindowDeadline(order, now);
+    const deadline = tec1Deadline(order, now);
     return {
       os: order.os || "-",
       contract: order.contract || "-",

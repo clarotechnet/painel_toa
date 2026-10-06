@@ -2890,6 +2890,9 @@
     return true;
   }
   async function abrirCampoBuscaSeNecessario() {
+    if (ROUTE_TREE_ONLY_MODE) {
+      throw makeToaError('visual_toa_lookup_disabled');
+    }
     let inputEl = findGlobalSearchInput({ onlyVisible: true });
 
     if (!inputEl) {
@@ -3494,6 +3497,24 @@
           render();
           return;
         }
+      }
+
+      // Invariante DOMINIUM: a pesquisa de contrato nunca pode navegar a UI do TOA.
+      // Se a consulta direta nao produzir resultado conclusivo, tenta novamente em
+      // background e falha de forma controlada; a arvore de rotas permanece intacta.
+      if (ROUTE_TREE_ONLY_MODE) {
+        state.exportStatus = '⚠ Consulta direta sem resultado conclusivo — ' + contrato;
+        if (attempt.count >= LOOKUP_MAX_TRIES) {
+          await ackLookup(contrato, {
+            ok: false,
+            reason: 'route_tree_direct_lookup_unresolved',
+            source: 'toa-extension-route-tree',
+            job_id: work.jobId || undefined,
+          });
+          clearLookupAttempt(contrato);
+        }
+        render();
+        return;
       }
 
       // 1. Abre o campo de busca se necessário

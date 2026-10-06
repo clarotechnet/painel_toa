@@ -394,17 +394,10 @@ class TOALiveSession:
             raise RuntimeError("O Chrome nao confirmou a persistencia do TECHCAP")
 
     def _inject_collector_locked(self) -> None:
-        self._install_collector_preload_locked()
-        loaded = self._driver.execute_script(
-            "return Boolean(window.TECHCAP && window.TECHCAP.state "
-            "&& window.TECHCAP.state.version === '5.6-queue');"
+        raise RuntimeError(
+            "Pesquisa visual TECHCAP desativada: use a consulta direta "
+            "do TOA pela ponte em background"
         )
-        if loaded:
-            return
-        self._driver.execute_script(self._collector_source_locked())
-        loaded = self._driver.execute_script("return Boolean(window.TECHCAP);")
-        if not loaded:
-            raise RuntimeError("O TECHCAP V5.6 nao iniciou dentro do TOA")
 
     def _queue_row_locked(self, contract: str) -> dict[str, Any] | None:
         value = self._driver.execute_script(
@@ -417,23 +410,16 @@ class TOALiveSession:
         return value if isinstance(value, dict) else None
 
     def _resume_pending_queue_locked(self, row: dict[str, Any] | None) -> None:
-        if not row or row.get("status") != "pending":
-            return
-        self._driver.execute_script(
-            "if (window.TECHCAP && !window.TECHCAP.automationState.running) "
-            "window.TECHCAP.startQueue();"
-        )
+        if row and row.get("status") == "pending":
+            raise RuntimeError(
+                "Pesquisa visual TECHCAP desativada: a fila nao pode navegar no TOA"
+            )
 
     def _start_single_lookup_locked(self, contract: str) -> None:
-        """Start an isolated lookup without deleting the accumulated batch."""
-        self._driver.execute_script(
-            "if (!window.TECHCAP || "
-            "typeof window.TECHCAP.clearQueue !== 'function') "
-            "throw new Error('TECHCAP queue unavailable');"
-            "window.TECHCAP.clearQueue('APAGAR');"
-            "window.TECHCAP.addContracts(arguments[0], '');"
-            "window.TECHCAP.startQueue();",
-            contract,
+        del contract
+        raise RuntimeError(
+            "Pesquisa visual TECHCAP desativada: use a consulta direta "
+            "do TOA pela ponte em background"
         )
 
     def _storage_locked(self) -> dict[str, Any]:
